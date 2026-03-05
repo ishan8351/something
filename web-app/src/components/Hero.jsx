@@ -19,7 +19,7 @@ function Hero() {
                             <span className="stat-icon">📦</span>
                             <div>
                                 <strong>Free Shipping</strong>
-                                <p>On orders over $50</p>
+                                <p>On orders over ₹999</p>
                             </div>
                         </div>
                         <div className="hero-stat">
