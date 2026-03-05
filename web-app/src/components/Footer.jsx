@@ -5,7 +5,7 @@ function Footer() {
                 <div className="footer-top">
                     <div className="footer-brand">
                         <a href="#" className="footer-logo">
-                            <span className="logo-icon">🛒</span>
+                            <img src="https://m.media-amazon.com/images/X/bxt1/M/Bbxt1BI1cNpD5ln._SL160_QL95_FMwebp_.png" alt="Sovely Logo" className="logo-image" />
                             <span className="logo-text">Sovely</span>
                         </a>
                         <p className="footer-tagline">

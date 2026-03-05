@@ -24,7 +24,7 @@ function Sidebar({ isOpen, onClose }) {
             <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
                 <div className="sidebar-header">
                     <div className="sidebar-logo">
-                        <span className="logo-icon">🛒</span>
+                        <img src="https://m.media-amazon.com/images/X/bxt1/M/Bbxt1BI1cNpD5ln._SL160_QL95_FMwebp_.png" alt="Sovely Logo" className="logo-image" />
                         <span className="logo-text">Sovely</span>
                     </div>
                     <button className="sidebar-close-btn" onClick={onClose} aria-label="Close sidebar">
@@ -70,29 +70,37 @@ function Sidebar({ isOpen, onClose }) {
                     </div>
 
                     <div className="sidebar-section">
-                        <h3 className="sidebar-heading">Settings</h3>
+                        <h3 className="sidebar-heading">Discover</h3>
                         <ul className="sidebar-nav">
                             <li>
-                                <a href="#" className="sidebar-link">
-                                    <span className="sidebar-icon">👤</span>
-                                    My Account
+                                <a href="#deals" className="sidebar-link" onClick={onClose}>
+                                    <span className="sidebar-icon">🔥</span>
+                                    Today's Deals
                                 </a>
                             </li>
                             <li>
-                                <a href="#" className="sidebar-link">
-                                    <span className="sidebar-icon">⚙️</span>
-                                    Preferences
+                                <a href="#categories" className="sidebar-link" onClick={onClose}>
+                                    <span className="sidebar-icon">🏷️</span>
+                                    All Categories
+                                </a>
+                            </li>
+                            <li>
+                                <a href="#services" className="sidebar-link" onClick={onClose}>
+                                    <span className="sidebar-icon">🛡️</span>
+                                    Our Services
                                 </a>
                             </li>
                         </ul>
                     </div>
                 </div>
 
+                {/* Auth CTA at the bottom — user is not logged in */}
                 <div className="sidebar-footer">
-                    <button className="btn-sidebar-logout">
-                        <span className="sidebar-icon">🚪</span>
-                        Log Out
-                    </button>
+                    <p className="sidebar-auth-label">Ready to start selling?</p>
+                    <div className="sidebar-auth-btns">
+                        <button className="btn-sidebar-login">Log In</button>
+                        <button className="btn-sidebar-signup">Sign Up Free</button>
+                    </div>
                 </div>
             </aside>
         </>
