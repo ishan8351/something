@@ -1,38 +1,39 @@
 import React, { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 
 // ── Product catalogue (20 products) ──────────────────────────────────────────
 const ALL_PRODUCTS = [
     // Kitchen - under ₹1000
-    { id: 1, name: 'Stainless Steel Spice Box Set', category: 'Kitchen', price: 549, originalPrice: 899, rating: 4.6, reviews: 312, sale: true, shipping: '3-5', image: 'https://images.unsplash.com/photo-1596547609652-9cf5d8d76921?w=500&q=80' },
-    { id: 2, name: 'Silicone Spatula Set (6 pcs)', category: 'Kitchen', price: 399, originalPrice: 699, rating: 4.4, reviews: 187, sale: true, shipping: '3-5', image: 'https://images.unsplash.com/photo-1556909172-8c2f041fca1e?w=500&q=80' },
-    { id: 3, name: 'Bamboo Cutting Board', category: 'Kitchen', price: 799, originalPrice: 1299, rating: 4.9, reviews: 421, sale: false, shipping: '7-14', image: 'https://images.unsplash.com/photo-1596647466820-802c63bd8e50?w=500&q=80' },
-    { id: 4, name: 'Portable Blender Cup', category: 'Kitchen', price: 1849, originalPrice: 2949, rating: 4.1, reviews: 67, sale: true, shipping: '10-20', image: 'https://images.unsplash.com/photo-1622241944227-ae279379cc80?w=500&q=80' },
-    { id: 5, name: 'Cast Iron Mini Tadka Pan', category: 'Kitchen', price: 649, originalPrice: 999, rating: 4.7, reviews: 256, sale: true, shipping: '3-5', image: 'https://images.unsplash.com/photo-1584568694244-14fbdf83bd30?w=500&q=80' },
-    { id: 6, name: 'Premium Chef Knife', category: 'Kitchen', price: 1299, originalPrice: 1999, rating: 4.8, reviews: 198, sale: false, shipping: '7-14', image: 'https://images.unsplash.com/photo-1566454419290-57a0589c9b17?w=500&q=80' },
+    { id: 101, skuId: 'SVL-DSP-101', name: 'Stainless Steel Spice Box Set', category: 'Kitchen', price: 549, originalPrice: 899, rating: 4.6, reviews: 312, sale: true, shipping: '3-5', image: 'https://images.unsplash.com/photo-1596547609652-9cf5d8d76921?w=500&q=80' },
+    { id: 102, skuId: 'SVL-DSP-102', name: 'Silicone Spatula Set (6 pcs)', category: 'Kitchen', price: 399, originalPrice: 699, rating: 4.4, reviews: 187, sale: true, shipping: '3-5', image: 'https://images.unsplash.com/photo-1556909172-8c2f041fca1e?w=500&q=80' },
+    { id: 103, skuId: 'SVL-DSP-103', name: 'Bamboo Cutting Board', category: 'Kitchen', price: 799, originalPrice: 1299, rating: 4.9, reviews: 421, sale: false, shipping: '7-14', image: 'https://images.unsplash.com/photo-1596647466820-802c63bd8e50?w=500&q=80' },
+    { id: 104, skuId: 'SVL-DSP-104', name: 'Portable Blender Cup', category: 'Kitchen', price: 1849, originalPrice: 2949, rating: 4.1, reviews: 67, sale: true, shipping: '10-20', image: 'https://images.unsplash.com/photo-1622241944227-ae279379cc80?w=500&q=80' },
+    { id: 105, skuId: 'SVL-DSP-105', name: 'Cast Iron Mini Tadka Pan', category: 'Kitchen', price: 649, originalPrice: 999, rating: 4.7, reviews: 256, sale: true, shipping: '3-5', image: 'https://images.unsplash.com/photo-1584568694244-14fbdf83bd30?w=500&q=80' },
+    { id: 106, skuId: 'SVL-DSP-106', name: 'Premium Chef Knife', category: 'Kitchen', price: 1299, originalPrice: 1999, rating: 4.8, reviews: 198, sale: false, shipping: '7-14', image: 'https://images.unsplash.com/photo-1566454419290-57a0589c9b17?w=500&q=80' },
 
     // Electronics
-    { id: 7, name: 'Wireless Earbuds Pro', category: 'Electronics', price: 2999, originalPrice: 4999, rating: 4.4, reviews: 175, sale: true, shipping: '7-14', image: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=500&q=80' },
-    { id: 8, name: 'Smart Fitness Tracker', category: 'Electronics', price: 3749, originalPrice: 5499, rating: 4.2, reviews: 214, sale: true, shipping: '10-20', image: 'https://images.unsplash.com/photo-1575311373937-040b8e1fd5b0?w=500&q=80' },
-    { id: 9, name: 'LED Ring Light Set', category: 'Electronics', price: 3199, originalPrice: 4599, rating: 4.6, reviews: 142, sale: false, shipping: '3-7', image: 'https://images.unsplash.com/photo-1616423640778-28d1b53229bd?w=500&q=80' },
-    { id: 10, name: 'Bluetooth Desk Speaker', category: 'Electronics', price: 2499, originalPrice: 3599, rating: 4.5, reviews: 89, sale: true, shipping: '7-14', image: 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=500&q=80' },
-    { id: 11, name: 'USB-C 65W Fast Charger', category: 'Electronics', price: 899, originalPrice: 1499, rating: 4.3, reviews: 504, sale: false, shipping: '3-5', image: 'https://images.unsplash.com/photo-1601999009162-2459b78386c9?w=500&q=80' },
+    { id: 107, skuId: 'SVL-DSP-107', name: 'Wireless Earbuds Pro', category: 'Electronics', price: 2999, originalPrice: 4999, rating: 4.4, reviews: 175, sale: true, shipping: '7-14', image: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=500&q=80' },
+    { id: 108, skuId: 'SVL-DSP-108', name: 'Smart Fitness Tracker', category: 'Electronics', price: 3749, originalPrice: 5499, rating: 4.2, reviews: 214, sale: true, shipping: '10-20', image: 'https://images.unsplash.com/photo-1575311373937-040b8e1fd5b0?w=500&q=80' },
+    { id: 109, skuId: 'SVL-DSP-109', name: 'LED Ring Light Set', category: 'Electronics', price: 3199, originalPrice: 4599, rating: 4.6, reviews: 142, sale: false, shipping: '3-7', image: 'https://images.unsplash.com/photo-1616423640778-28d1b53229bd?w=500&q=80' },
+    { id: 110, skuId: 'SVL-DSP-110', name: 'Bluetooth Desk Speaker', category: 'Electronics', price: 2499, originalPrice: 3599, rating: 4.5, reviews: 89, sale: true, shipping: '7-14', image: 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=500&q=80' },
+    { id: 111, skuId: 'SVL-DSP-111', name: 'USB-C 65W Fast Charger', category: 'Electronics', price: 899, originalPrice: 1499, rating: 4.3, reviews: 504, sale: false, shipping: '3-5', image: 'https://images.unsplash.com/photo-1601999009162-2459b78386c9?w=500&q=80' },
 
     // Home Decor
-    { id: 12, name: 'Minimalist Ceramic Vase', category: 'Home Decor', price: 2099, originalPrice: 3299, rating: 4.8, reviews: 128, sale: true, shipping: '7-14', image: 'https://images.unsplash.com/photo-1578500494198-246f612d3b3d?w=500&q=80' },
-    { id: 13, name: 'Macramé Wall Hanging', category: 'Home Decor', price: 1199, originalPrice: 1799, rating: 4.6, reviews: 93, sale: false, shipping: '7-14', image: 'https://images.unsplash.com/photo-1616046229478-9901c5536a45?w=500&q=80' },
-    { id: 14, name: 'Scented Soy Candle Set', category: 'Home Decor', price: 799, originalPrice: 1299, rating: 4.5, reviews: 267, sale: true, shipping: '3-5', image: 'https://images.unsplash.com/photo-1602607144291-9ba25e3a3c78?w=500&q=80' },
+    { id: 112, skuId: 'SVL-DSP-112', name: 'Minimalist Ceramic Vase', category: 'Home Decor', price: 2099, originalPrice: 3299, rating: 4.8, reviews: 128, sale: true, shipping: '7-14', image: 'https://images.unsplash.com/photo-1578500494198-246f612d3b3d?w=500&q=80' },
+    { id: 113, skuId: 'SVL-DSP-113', name: 'Macramé Wall Hanging', category: 'Home Decor', price: 1199, originalPrice: 1799, rating: 4.6, reviews: 93, sale: false, shipping: '7-14', image: 'https://images.unsplash.com/photo-1616046229478-9901c5536a45?w=500&q=80' },
+    { id: 114, skuId: 'SVL-DSP-114', name: 'Scented Soy Candle Set', category: 'Home Decor', price: 799, originalPrice: 1299, rating: 4.5, reviews: 267, sale: true, shipping: '3-5', image: 'https://images.unsplash.com/photo-1602607144291-9ba25e3a3c78?w=500&q=80' },
 
     // Fitness
-    { id: 15, name: 'Yoga Mat with Alignment Lines', category: 'Fitness', price: 2449, originalPrice: 3699, rating: 4.7, reviews: 98, sale: false, shipping: '3-5', image: 'https://images.unsplash.com/photo-1601925260368-ae2f83cf8b7f?w=500&q=80' },
-    { id: 16, name: 'Resistance Band Set (5 pcs)', category: 'Fitness', price: 599, originalPrice: 999, rating: 4.5, reviews: 342, sale: true, shipping: '3-5', image: 'https://images.unsplash.com/photo-1598289431512-b97b0917affc?w=500&q=80' },
-    { id: 17, name: 'Adjustable Dumbbell Pair', category: 'Fitness', price: 5999, originalPrice: 8499, rating: 4.8, reviews: 61, sale: false, shipping: '7-14', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=500&q=80' },
+    { id: 115, skuId: 'SVL-DSP-115', name: 'Yoga Mat with Alignment Lines', category: 'Fitness', price: 2449, originalPrice: 3699, rating: 4.7, reviews: 98, sale: false, shipping: '3-5', image: 'https://images.unsplash.com/photo-1601925260368-ae2f83cf8b7f?w=500&q=80' },
+    { id: 116, skuId: 'SVL-DSP-116', name: 'Resistance Band Set (5 pcs)', category: 'Fitness', price: 599, originalPrice: 999, rating: 4.5, reviews: 342, sale: true, shipping: '3-5', image: 'https://images.unsplash.com/photo-1598289431512-b97b0917affc?w=500&q=80' },
+    { id: 117, skuId: 'SVL-DSP-117', name: 'Adjustable Dumbbell Pair', category: 'Fitness', price: 5999, originalPrice: 8499, rating: 4.8, reviews: 61, sale: false, shipping: '7-14', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=500&q=80' },
 
     // Furniture
-    { id: 18, name: 'Ergonomic Desk Chair', category: 'Furniture', price: 12499, originalPrice: 16999, rating: 4.5, reviews: 86, sale: true, shipping: '3-7', image: 'https://images.unsplash.com/photo-1592078615290-033ee584e267?w=500&q=80' },
-    { id: 19, name: 'Floating Wall Shelf Set', category: 'Furniture', price: 1699, originalPrice: 2499, rating: 4.3, reviews: 134, sale: false, shipping: '7-14', image: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=500&q=80' },
+    { id: 118, skuId: 'SVL-DSP-118', name: 'Ergonomic Desk Chair', category: 'Furniture', price: 12499, originalPrice: 16999, rating: 4.5, reviews: 86, sale: true, shipping: '3-7', image: 'https://images.unsplash.com/photo-1592078615290-033ee584e267?w=500&q=80' },
+    { id: 119, skuId: 'SVL-DSP-119', name: 'Floating Wall Shelf Set', category: 'Furniture', price: 1699, originalPrice: 2499, rating: 4.3, reviews: 134, sale: false, shipping: '7-14', image: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=500&q=80' },
 
     // Beauty
-    { id: 20, name: 'Rose Quartz Facial Roller', category: 'Beauty', price: 699, originalPrice: 1199, rating: 4.7, reviews: 387, sale: true, shipping: '3-5', image: 'https://images.unsplash.com/photo-1620756235880-07b3dd0804a0?w=500&q=80' },
+    { id: 120, skuId: 'SVL-DSP-120', name: 'Rose Quartz Facial Roller', category: 'Beauty', price: 699, originalPrice: 1199, rating: 4.7, reviews: 387, sale: true, shipping: '3-5', image: 'https://images.unsplash.com/photo-1620756235880-07b3dd0804a0?w=500&q=80' },
 ];
 
 const CATEGORIES = ['All', 'Kitchen', 'Electronics', 'Home Decor', 'Fitness', 'Furniture', 'Beauty'];
@@ -119,6 +120,7 @@ function DropshipProducts({ externalCategory, onCategoryChange }) {
     };
 
     const toggleWishlist = (e, id) => {
+        e.preventDefault();
         e.stopPropagation();
         setWishlistIds(prev =>
             prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
@@ -272,7 +274,7 @@ function DropshipProducts({ externalCategory, onCategoryChange }) {
                                     const isAdded = addedIds.includes(product.id);
                                     const isWishlisted = wishlistIds.includes(product.id);
                                     return (
-                                        <div className="dropship-card" key={product.id}>
+                                        <Link to={`/product/${product.id}`} className="dropship-card" key={product.id} style={{ textDecoration: 'none', color: 'inherit' }}>
                                             <div className="pc-image-wrap">
                                                 <img src={product.image} alt={product.name} className="pc-image" />
                                                 {product.sale && <span className="pc-badge pc-badge-sale">SALE</span>}
@@ -290,6 +292,7 @@ function DropshipProducts({ externalCategory, onCategoryChange }) {
                                             <div className="pc-body">
                                                 <span className="pc-category">{product.category}</span>
                                                 <h3 className="pc-name">{product.name}</h3>
+                                                <p className="product-sku-text">SKU: {product.skuId}</p>
                                                 <div className="pc-reviews">
                                                     <Stars rating={product.rating} />
                                                     <span className="pc-review-count">({product.reviews})</span>
@@ -300,12 +303,12 @@ function DropshipProducts({ externalCategory, onCategoryChange }) {
                                                 </div>
                                                 <button
                                                     className={`pc-cart-btn ${isAdded ? 'pc-cart-btn-added' : ''}`}
-                                                    onClick={() => handleAdd(product.id)}
+                                                    onClick={(e) => { e.preventDefault(); handleAdd(product.id); }}
                                                 >
                                                     {isAdded ? '✓ Added!' : '🛒 Add to Cart'}
                                                 </button>
                                             </div>
-                                        </div>
+                                        </Link>
                                     );
                                 })}
                             </div>

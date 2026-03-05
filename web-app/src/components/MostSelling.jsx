@@ -1,39 +1,7 @@
+import { Link } from 'react-router-dom';
+import { getSellingProducts } from '../data/productData';
 
-
-const products = [
-    {
-        id: 1,
-        name: 'Hand Watch',
-        subtitle: 'Citizen 450M, W-50g',
-        price: '$299.00',
-        emoji: '⌚',
-        useImage: false,
-    },
-    {
-        id: 2,
-        name: 'Adidas Sneakers',
-        subtitle: 'Superstar sneakers',
-        price: '$120.00',
-        image: 'https://via.placeholder.com/300x300.png?text=Adidas+Sneakers',
-        useImage: true,
-    },
-    {
-        id: 3,
-        name: 'Supreme Water Bottle',
-        subtitle: 'Table with air purifier',
-        price: '$45.00',
-        emoji: '🍶',
-        useImage: false,
-    },
-    {
-        id: 4,
-        name: 'Smart Watch',
-        subtitle: 'Series 7, GPS + Cellular',
-        price: '$399.00',
-        image: 'https://via.placeholder.com/300x300.png?text=Smart+Watch',
-        useImage: true,
-    },
-];
+const products = getSellingProducts();
 
 function MostSelling() {
     return (
@@ -45,20 +13,23 @@ function MostSelling() {
                 </div>
                 <div className="selling-grid">
                     {products.map((product) => (
-                        <div className="selling-card" key={product.id} id={`selling-${product.id}`}>
+                        <Link
+                            to={`/product/${product.id}`}
+                            className="selling-card"
+                            key={product.id}
+                            id={`selling-${product.id}`}
+                            style={{ textDecoration: 'none', color: 'inherit' }}
+                        >
                             <div className="selling-image-wrapper">
-                                {product.useImage ? (
-                                    <img src={product.image} alt={product.name} className="selling-image" />
-                                ) : (
-                                    <span className="selling-emoji">{product.emoji}</span>
-                                )}
+                                <img src={product.image} alt={product.name} className="selling-image" />
                             </div>
                             <div className="selling-info">
                                 <h4 className="selling-name">{product.name}</h4>
-                                <p className="selling-subtitle">{product.subtitle}</p>
+                                <p className="selling-subtitle">{product.description.slice(0, 40)}</p>
+                                <p className="selling-sku-text">SKU: {product.skuId}</p>
                                 <span className="selling-price">{product.price}</span>
                             </div>
-                        </div>
+                        </Link>
                     ))}
                 </div>
             </div>
