@@ -1,26 +1,28 @@
 import { useRef, useState, useEffect } from 'react';
-
-const categories = [
-    { name: 'Electronics', emoji: '💻', color: '#D1FAE5' },
-    { name: 'Home Decor', emoji: '🖼️', color: '#E0E7FF' },
-    { name: 'Kitchen', emoji: '🍳', color: '#FFF7ED' },
-    { name: 'Fitness', emoji: '🏋️', color: '#DCFCE7' },
-    { name: 'Furniture', emoji: '🪑', color: '#F3E8FF' },
-    { name: 'Beauty', emoji: '💄', color: '#FCE7F3' },
-    { name: 'Hand Bags', emoji: '👜', color: '#FEE2E2' },
-    { name: 'Sneakers', emoji: '👟', color: '#FEF3C7' },
-    { name: 'Watches', emoji: '⌚', color: '#F1F5F9' },
-    { name: 'Jewellery', emoji: '💍', color: '#FDF4FF' },
-    { name: 'Pet Supplies', emoji: '🐾', color: '#FEF9C3' },
-    { name: 'Toys', emoji: '🧸', color: '#EDE9FE' },
-    { name: 'Books', emoji: '📚', color: '#DBEAFE' },
-    { name: 'Travel', emoji: '✈️', color: '#F9FAFB' },
-];
+import { useQuery } from '@tanstack/react-query';
+import { productApi } from '../features/products/api/productApi';
+import { getCategoryIcon } from '../utils/categoryIcons';
 
 function Categories({ onSelectCategory }) {
     const scrollRef = useRef(null);
     const [canScrollLeft, setCanScrollLeft] = useState(false);
     const [canScrollRight, setCanScrollRight] = useState(true);
+
+    const { data: dbCategories = [] } = useQuery({
+        queryKey: ['categories'],
+        queryFn: productApi.getCategories
+    });
+
+    const categories = dbCategories.map(cat => {
+        const visual = getCategoryIcon(cat.name);
+        return {
+            _id: cat._id,
+            name: cat.name,
+            Icon: visual.Icon,
+            color: visual.color,
+            iconColor: visual.iconColor
+        };
+    });
 
     const updateScrollState = () => {
         const el = scrollRef.current;
@@ -66,14 +68,14 @@ function Categories({ onSelectCategory }) {
                     <div className="categories-track" ref={scrollRef}>
                         {categories.map((cat, index) => (
                             <button
-                                key={index}
+                                key={cat._id || index}
                                 className="category-card"
                                 id={`category-${cat.name.toLowerCase().replace(/\s+/g, '-')}`}
                                 onClick={() => onSelectCategory && onSelectCategory(cat.name)}
                                 style={{ border: 'none', cursor: 'pointer', textAlign: 'center' }}
                             >
-                                <div className="category-icon" style={{ backgroundColor: cat.color }}>
-                                    <span>{cat.emoji}</span>
+                                <div className="category-icon" style={{ backgroundColor: cat.color, color: cat.iconColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <cat.Icon size={24} strokeWidth={1.8} />
                                 </div>
                                 <span className="category-name">{cat.name}</span>
                             </button>

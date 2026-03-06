@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { AuthContext } from '../AuthContext';
 import './Auth.css';
 
 const Login = () => {
@@ -8,6 +9,7 @@ const Login = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useContext(AuthContext);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -15,19 +17,12 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8000/api/v1/users/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-      const data = await response.json();
+      const response = await login(email, password);
 
-      if (response.ok) {
-        localStorage.setItem('user', JSON.stringify(data.data.user));
-        localStorage.setItem('accessToken', data.data.accessToken);
+      if (response.success) {
         navigate('/');
       } else {
-        throw new Error(data.message || "Invalid credentials");
+        throw new Error(response.message || "Invalid credentials");
       }
     } catch (err) {
       setError(err.message || 'Error logging in');

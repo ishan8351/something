@@ -75,30 +75,29 @@ bcrypt jsonwebtoken
 
 ---
 
-## Phase 3: Catalog & Cart (Core Shopping Flow)
+## Phase 3: Catalog & Cart (Core Shopping Flow) ✅ COMPLETE
 > **Why third?** This is the heart of the e-commerce experience.
 
 ### Backend
 | File | Type | Description |
 |------|------|-------------|
-| `src/controllers/product.controller.js` | NEW | `listProducts`, `getProduct`, `searchProducts` (public) |
-| `src/routes/product.routes.js` | NEW | Mount at `/api/v1/products` (public) |
-| `src/controllers/cart.controller.js` | NEW | `getCart`, `addToCart`, `updateQty`, `removeFromCart`, `clearCart` |
-| `src/routes/cart.routes.js` | NEW | Mount at `/api/v1/cart` (protected) |
-| `src/controllers/wishlist.controller.js` | NEW | `getWishlist`, `addToWishlist`, `removeFromWishlist` |
-| `src/routes/wishlist.routes.js` | NEW | Mount at `/api/v1/wishlist` (protected) |
+| `src/controllers/product.controller.js` | DONE | `getProducts` with recursive category hierarchy support |
+| `src/controllers/category.controller.js`| DONE | `getCategories` filtered to root-level only |
+| `src/routes/product.routes.js` | DONE | Mounting `/api/v1/products` and `/api/v1/categories` |
 
-### Frontend (Start Building Real Pages)
-| File | Type | Description |
-|------|------|-------------|
-| `web-app/src/pages/` | NEW dir | `Home.jsx`, `ProductList.jsx`, `ProductDetail.jsx`, `Cart.jsx` |
-| `web-app/src/components/` | NEW dir | `Navbar.jsx`, `ProductCard.jsx`, `Footer.jsx` |
-| React Router setup | MODIFY | Install `react-router-dom`, configure routes in `App.jsx` |
+### Frontend (Phase 3 Refinements)
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **Skeleton Loading** | ✅ | Component-level localized loaders in `DropshipProducts.jsx` |
+| **Dynamic Icons** | ✅ | Lucide-react SVGs mapped to DB categories via `categoryIcons.js` |
+| **Navbar Integration** | ✅ | Dynamic category fetching and stable filtering links |
+| **Hero Component** | ✅ | Shop Now scroll + brand-aligned hero image |
 
 ### Key Design Decisions
-- Product listing supports pagination via `mongoose-aggregate-paginate-v2` (already installed!)
-- Cart enforces MOQ (minimum order quantity) from Product model
-- Wishlist is a simple toggle — add/remove by `productId`
+- Product listing supports recursive category filtering (Parent -> Children lookup)
+- Replaced global page-wipe Suspense with `@tanstack/react-query` `isLoading` skeletons
+- Unified icon mapping system to ensure brand consistency between Navbar and Carousel
+- Cart and Wishlist toggles connected to local UI state for instant feedback
 
 ---
 

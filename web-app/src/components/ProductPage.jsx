@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { getProductById, getSimilarProducts } from '../data/productData';
+import { useSuspenseQuery } from '@tanstack/react-query';
+import { productApi } from '../features/products/api/productApi.js';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
 import Footer from './Footer';
@@ -10,26 +11,44 @@ import './LandingPage.css';
 function ProductPage() {
     const { productId } = useParams();
     const navigate = useNavigate();
-    const [product, setProduct] = useState(null);
+
+    const { data: p } = useSuspenseQuery({
+        queryKey: ['product', productId],
+        queryFn: () => productApi.getProductById(productId)
+    });
+
     const [selectedColor, setSelectedColor] = useState(0);
     const [quantity, setQuantity] = useState(1);
     const [selectedImage, setSelectedImage] = useState(0);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-    const [similarProducts, setSimilarProducts] = useState([]);
+
+    // Map backend data to component needs
+    const product = React.useMemo(() => {
+        if (!p) return null;
+        return {
+            id: p._id,
+            skuId: p.sku,
+            name: p.title,
+            category: p.categoryId?.name || p.productType || 'Shopping',
+            subcategory: p.vendor || 'General',
+            price: `₹${p.platformSellPrice.toLocaleString('en-IN')}`,
+            oldPrice: p.compareAtPrice ? `₹${p.compareAtPrice.toLocaleString('en-IN')}` : null,
+            monthlyPrice: `₹${Math.round(p.platformSellPrice / 6).toLocaleString('en-IN')}/mo`,
+            description: p.descriptionHTML ? p.descriptionHTML.replace(/<[^>]*>?/gm, '') : p.title,
+            images: p.images?.length > 0 ? p.images.map(img => img.url) : ['https://images.unsplash.com/photo-1596547609652-9cf5d8d76921?w=500&q=80'],
+            rating: 4.5,
+            reviewCount: Math.floor(Math.random() * 200) + 10,
+            stock: p.inventory?.stock || 50,
+            colors: ['#000000', '#silver', '#ffffff'],
+            returnPolicy: 'Free 30-Day returns'
+        }
+    }, [p]);
+
+    const similarProducts = []; // Omitted for now unless another query is added
 
     useEffect(() => {
-        const p = getProductById(productId);
-        if (!p) {
-            navigate('/');
-            return;
-        }
-        setProduct(p);
-        setSimilarProducts(getSimilarProducts(p.id));
-        setSelectedColor(0);
-        setQuantity(1);
-        setSelectedImage(0);
         window.scrollTo(0, 0);
-    }, [productId, navigate]);
+    }, [productId]);
 
     if (!product) return null;
 
@@ -65,19 +84,19 @@ function ProductPage() {
                     <div className="pp-gallery">
                         <div className="pp-main-image-wrapper">
                             <img
-                                src={product.image}
+                                src={product.images[selectedImage] || product.images[0]}
                                 alt={product.name}
                                 className="pp-main-image"
                             />
                         </div>
                         <div className="pp-thumbnail-row">
-                            {[0, 1, 2, 3].map((i) => (
+                            {product.images.map((img, i) => (
                                 <button
                                     key={i}
                                     className={`pp-thumbnail ${selectedImage === i ? 'pp-thumbnail-active' : ''}`}
                                     onClick={() => setSelectedImage(i)}
                                 >
-                                    <img src={product.image} alt={`${product.name} view ${i + 1}`} />
+                                    <img src={img} alt={`${product.name} view ${i + 1}`} />
                                 </button>
                             ))}
                         </div>

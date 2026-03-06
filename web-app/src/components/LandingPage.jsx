@@ -26,13 +26,19 @@ function LandingPage() {
         }
     };
 
+    const scrollToProducts = () => {
+        if (productsRef.current) {
+            productsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
+
     return (
         <div className="landing-page">
             <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
             <Navbar onToggleSidebar={toggleSidebar} onSelectCategory={handleSelectCategory} />
 
             <main className="main-content">
-                <Hero />
+                <Hero onShopNow={scrollToProducts} />
                 <Categories onSelectCategory={handleSelectCategory} />
                 <BestDeals />
                 <div ref={productsRef}>

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { AuthContext } from '../AuthContext';
 import './Auth.css';
 
 const Signup = () => {
@@ -9,6 +10,7 @@ const Signup = () => {
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
+    const { register } = useContext(AuthContext);
 
     const handleSignup = async (e) => {
         e.preventDefault();
@@ -16,18 +18,12 @@ const Signup = () => {
         setIsLoading(true);
 
         try {
-            const response = await fetch('http://localhost:8000/api/v1/users/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, email, password })
-            });
+            const response = await register(name, email, password);
 
-            const data = await response.json();
-
-            if (response.ok) {
-                navigate('/login');
+            if (response.success) {
+                navigate('/');
             } else {
-                throw new Error(data.message || "Please fill in all fields.");
+                throw new Error(response.message || "Please fill in all fields.");
             }
         } catch (err) {
             setError(err.message || 'Error creating account');

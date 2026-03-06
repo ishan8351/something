@@ -1,28 +1,32 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
-
-const categories = [
-  { name: 'Electronics', emoji: '💻', color: '#D1FAE5' },
-  { name: 'Home Decor', emoji: '🖼️', color: '#E0E7FF' },
-  { name: 'Kitchen', emoji: '🍳', color: '#FFF7ED' },
-  { name: 'Fitness', emoji: '🏋️', color: '#DCFCE7' },
-  { name: 'Furniture', emoji: '🪑', color: '#F3E8FF' },
-  { name: 'Beauty', emoji: '💄', color: '#FCE7F3' },
-  { name: 'Hand Bags', emoji: '👜', color: '#FEE2E2' },
-  { name: 'Sneakers', emoji: '👟', color: '#FEF3C7' },
-  { name: 'Watches', emoji: '⌚', color: '#F1F5F9' },
-  { name: 'Jewellery', emoji: '💍', color: '#FDF4FF' },
-  { name: 'Pet Supplies', emoji: '🐾', color: '#FEF9C3' },
-  { name: 'Toys', emoji: '🧸', color: '#EDE9FE' },
-  { name: 'Books', emoji: '📚', color: '#DBEAFE' },
-  { name: 'Travel', emoji: '✈️', color: '#F9FAFB' },
-];
+import { AuthContext } from '../AuthContext';
+import { useQuery } from '@tanstack/react-query';
+import { productApi } from '../features/products/api/productApi';
+import { getCategoryIcon } from '../utils/categoryIcons';
 
 function Navbar({ onToggleSidebar, onSelectCategory }) {
+  const { user, logout, loading } = useContext(AuthContext);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [catDropOpen, setCatDropOpen] = useState(false);
   const dropRef = useRef(null);
   const hoverTimeout = useRef(null);
+
+  const { data: dbCategories = [] } = useQuery({
+    queryKey: ['categories'],
+    queryFn: productApi.getCategories
+  });
+
+  const displayCategories = dbCategories.map((cat) => {
+    const visual = getCategoryIcon(cat.name);
+    return {
+      _id: cat._id,
+      name: cat.name,
+      Icon: visual.Icon,
+      color: visual.color,
+      iconColor: visual.iconColor
+    };
+  });
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -81,14 +85,13 @@ function Navbar({ onToggleSidebar, onSelectCategory }) {
                 <span className={`nav-arrow ${catDropOpen ? 'nav-arrow-up' : ''}`}>▾</span>
               </button>
 
-              {/* Mega dropdown */}
               <div className={`cat-dropdown ${catDropOpen ? 'cat-dropdown-open' : ''}`} role="menu">
                 <div className="cat-dropdown-grid">
-                  {categories.map((cat, i) => (
+                  {displayCategories.map((cat, i) => (
                     <a
                       href="#products"
                       className="cat-dropdown-item"
-                      key={i}
+                      key={cat._id || i}
                       onClick={() => {
                         setCatDropOpen(false);
                         if (onSelectCategory) onSelectCategory(cat.name);
@@ -97,9 +100,9 @@ function Navbar({ onToggleSidebar, onSelectCategory }) {
                     >
                       <span
                         className="cat-dropdown-icon"
-                        style={{ backgroundColor: cat.color }}
+                        style={{ backgroundColor: cat.color, color: cat.iconColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       >
-                        {cat.emoji}
+                        <cat.Icon size={18} strokeWidth={2} />
                       </span>
                       <span className="cat-dropdown-label">{cat.name}</span>
                     </a>
@@ -141,8 +144,19 @@ function Navbar({ onToggleSidebar, onSelectCategory }) {
             </button>
 
             <div className="nav-auth-buttons">
-              <Link to="/login" className="btn-nav-login" id="btn-login">Log in</Link>
-              <Link to="/signup" className="btn-nav-signup" id="btn-signup">Sign Up</Link>
+              {loading ? (
+                <span className="nav-link">...</span>
+              ) : user ? (
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                  <Link to="/my-account" className="nav-link" style={{ fontWeight: 600 }}>Hi, {user.name.split(' ')[0]}</Link>
+                  <button onClick={logout} className="btn-nav-login" style={{ cursor: 'pointer', background: 'transparent', border: '1px solid #333' }}>Logout</button>
+                </div>
+              ) : (
+                <>
+                  <Link to="/login" className="btn-nav-login" id="btn-login">Log in</Link>
+                  <Link to="/signup" className="btn-nav-signup" id="btn-signup">Sign Up</Link>
+                </>
+              )}
             </div>
           </div>
           <button

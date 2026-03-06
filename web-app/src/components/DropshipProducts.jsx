@@ -1,42 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { useSuspenseQuery, useQuery } from '@tanstack/react-query';
+import { productApi } from '../features/products/api/productApi.js';
 
-// ── Product catalogue (20 products) ──────────────────────────────────────────
-const ALL_PRODUCTS = [
-    // Kitchen - under ₹1000
-    { id: 101, skuId: 'SVL-DSP-101', name: 'Stainless Steel Spice Box Set', category: 'Kitchen', price: 549, originalPrice: 899, rating: 4.6, reviews: 312, sale: true, shipping: '3-5', image: 'https://images.unsplash.com/photo-1596547609652-9cf5d8d76921?w=500&q=80' },
-    { id: 102, skuId: 'SVL-DSP-102', name: 'Silicone Spatula Set (6 pcs)', category: 'Kitchen', price: 399, originalPrice: 699, rating: 4.4, reviews: 187, sale: true, shipping: '3-5', image: 'https://images.unsplash.com/photo-1556909172-8c2f041fca1e?w=500&q=80' },
-    { id: 103, skuId: 'SVL-DSP-103', name: 'Bamboo Cutting Board', category: 'Kitchen', price: 799, originalPrice: 1299, rating: 4.9, reviews: 421, sale: false, shipping: '7-14', image: 'https://images.unsplash.com/photo-1596647466820-802c63bd8e50?w=500&q=80' },
-    { id: 104, skuId: 'SVL-DSP-104', name: 'Portable Blender Cup', category: 'Kitchen', price: 1849, originalPrice: 2949, rating: 4.1, reviews: 67, sale: true, shipping: '10-20', image: 'https://images.unsplash.com/photo-1622241944227-ae279379cc80?w=500&q=80' },
-    { id: 105, skuId: 'SVL-DSP-105', name: 'Cast Iron Mini Tadka Pan', category: 'Kitchen', price: 649, originalPrice: 999, rating: 4.7, reviews: 256, sale: true, shipping: '3-5', image: 'https://images.unsplash.com/photo-1584568694244-14fbdf83bd30?w=500&q=80' },
-    { id: 106, skuId: 'SVL-DSP-106', name: 'Premium Chef Knife', category: 'Kitchen', price: 1299, originalPrice: 1999, rating: 4.8, reviews: 198, sale: false, shipping: '7-14', image: 'https://images.unsplash.com/photo-1566454419290-57a0589c9b17?w=500&q=80' },
-
-    // Electronics
-    { id: 107, skuId: 'SVL-DSP-107', name: 'Wireless Earbuds Pro', category: 'Electronics', price: 2999, originalPrice: 4999, rating: 4.4, reviews: 175, sale: true, shipping: '7-14', image: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=500&q=80' },
-    { id: 108, skuId: 'SVL-DSP-108', name: 'Smart Fitness Tracker', category: 'Electronics', price: 3749, originalPrice: 5499, rating: 4.2, reviews: 214, sale: true, shipping: '10-20', image: 'https://images.unsplash.com/photo-1575311373937-040b8e1fd5b0?w=500&q=80' },
-    { id: 109, skuId: 'SVL-DSP-109', name: 'LED Ring Light Set', category: 'Electronics', price: 3199, originalPrice: 4599, rating: 4.6, reviews: 142, sale: false, shipping: '3-7', image: 'https://images.unsplash.com/photo-1616423640778-28d1b53229bd?w=500&q=80' },
-    { id: 110, skuId: 'SVL-DSP-110', name: 'Bluetooth Desk Speaker', category: 'Electronics', price: 2499, originalPrice: 3599, rating: 4.5, reviews: 89, sale: true, shipping: '7-14', image: 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=500&q=80' },
-    { id: 111, skuId: 'SVL-DSP-111', name: 'USB-C 65W Fast Charger', category: 'Electronics', price: 899, originalPrice: 1499, rating: 4.3, reviews: 504, sale: false, shipping: '3-5', image: 'https://images.unsplash.com/photo-1601999009162-2459b78386c9?w=500&q=80' },
-
-    // Home Decor
-    { id: 112, skuId: 'SVL-DSP-112', name: 'Minimalist Ceramic Vase', category: 'Home Decor', price: 2099, originalPrice: 3299, rating: 4.8, reviews: 128, sale: true, shipping: '7-14', image: 'https://images.unsplash.com/photo-1578500494198-246f612d3b3d?w=500&q=80' },
-    { id: 113, skuId: 'SVL-DSP-113', name: 'Macramé Wall Hanging', category: 'Home Decor', price: 1199, originalPrice: 1799, rating: 4.6, reviews: 93, sale: false, shipping: '7-14', image: 'https://images.unsplash.com/photo-1616046229478-9901c5536a45?w=500&q=80' },
-    { id: 114, skuId: 'SVL-DSP-114', name: 'Scented Soy Candle Set', category: 'Home Decor', price: 799, originalPrice: 1299, rating: 4.5, reviews: 267, sale: true, shipping: '3-5', image: 'https://images.unsplash.com/photo-1602607144291-9ba25e3a3c78?w=500&q=80' },
-
-    // Fitness
-    { id: 115, skuId: 'SVL-DSP-115', name: 'Yoga Mat with Alignment Lines', category: 'Fitness', price: 2449, originalPrice: 3699, rating: 4.7, reviews: 98, sale: false, shipping: '3-5', image: 'https://images.unsplash.com/photo-1601925260368-ae2f83cf8b7f?w=500&q=80' },
-    { id: 116, skuId: 'SVL-DSP-116', name: 'Resistance Band Set (5 pcs)', category: 'Fitness', price: 599, originalPrice: 999, rating: 4.5, reviews: 342, sale: true, shipping: '3-5', image: 'https://images.unsplash.com/photo-1598289431512-b97b0917affc?w=500&q=80' },
-    { id: 117, skuId: 'SVL-DSP-117', name: 'Adjustable Dumbbell Pair', category: 'Fitness', price: 5999, originalPrice: 8499, rating: 4.8, reviews: 61, sale: false, shipping: '7-14', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=500&q=80' },
-
-    // Furniture
-    { id: 118, skuId: 'SVL-DSP-118', name: 'Ergonomic Desk Chair', category: 'Furniture', price: 12499, originalPrice: 16999, rating: 4.5, reviews: 86, sale: true, shipping: '3-7', image: 'https://images.unsplash.com/photo-1592078615290-033ee584e267?w=500&q=80' },
-    { id: 119, skuId: 'SVL-DSP-119', name: 'Floating Wall Shelf Set', category: 'Furniture', price: 1699, originalPrice: 2499, rating: 4.3, reviews: 134, sale: false, shipping: '7-14', image: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=500&q=80' },
-
-    // Beauty
-    { id: 120, skuId: 'SVL-DSP-120', name: 'Rose Quartz Facial Roller', category: 'Beauty', price: 699, originalPrice: 1199, rating: 4.7, reviews: 387, sale: true, shipping: '3-5', image: 'https://images.unsplash.com/photo-1620756235880-07b3dd0804a0?w=500&q=80' },
-];
-
-const CATEGORIES = ['All', 'Kitchen', 'Electronics', 'Home Decor', 'Fitness', 'Furniture', 'Beauty'];
 const SORT_OPTIONS = [
     { value: 'default', label: 'Featured' },
     { value: 'price-asc', label: 'Price: Low to High' },
@@ -59,6 +25,12 @@ function Stars({ rating }) {
 }
 
 function DropshipProducts({ externalCategory, onCategoryChange }) {
+    // Fetch categories first (suspended) to map category names to IDs
+    const { data: dbCategories = [] } = useSuspenseQuery({
+        queryKey: ['categories'],
+        queryFn: productApi.getCategories
+    });
+
     // ── Filter state ─────────────────────────────────────────────────────────
     const [category, setCategory] = useState(externalCategory || 'All');
     const [sort, setSort] = useState('default');
@@ -69,6 +41,38 @@ function DropshipProducts({ externalCategory, onCategoryChange }) {
     const [saleOnly, setSaleOnly] = useState(false);
     const [addedIds, setAddedIds] = useState([]);
     const [wishlistIds, setWishlistIds] = useState([]);
+
+    const selectedCatId = useMemo(() => {
+        if (category === 'All') return null;
+        const found = dbCategories.find(c => c.name === category);
+        return found ? found._id : null;
+    }, [category, dbCategories]);
+
+    // Fetch products based on categoryId using useQuery instead of useSuspenseQuery
+    // to prevent full page re-renders and enable local skeletons
+    const { data, isLoading } = useQuery({
+        queryKey: ['products', selectedCatId],
+        queryFn: () => productApi.getProducts({
+            limit: 100,
+            categoryId: selectedCatId || 'All'
+        }),
+    });
+
+    const ALL_PRODUCTS = useMemo(() => {
+        return (data?.products || []).map(p => ({
+            id: p._id,
+            skuId: p.sku,
+            name: p.title,
+            category: p.categoryId?.name || p.productType || 'All',
+            price: p.platformSellPrice,
+            originalPrice: p.compareAtPrice || Math.floor(p.platformSellPrice * 1.2),
+            rating: 4.5,
+            reviews: Math.floor(Math.random() * 200) + 10,
+            sale: Boolean(p.compareAtPrice && p.compareAtPrice > p.platformSellPrice),
+            shipping: '3-5',
+            image: p.images?.[0]?.url || 'https://images.unsplash.com/photo-1596547609652-9cf5d8d76921?w=500&q=80'
+        }));
+    }, [data]);
 
     // Sync external category (from navbar/categories section) into internal state
     React.useEffect(() => {
@@ -84,12 +88,10 @@ function DropshipProducts({ externalCategory, onCategoryChange }) {
         if (onCategoryChange) onCategoryChange(cat);
     };
 
-
     // ── Derived filtered + sorted list ───────────────────────────────────────
     const filtered = useMemo(() => {
         let list = [...ALL_PRODUCTS];
 
-        if (category !== 'All') list = list.filter(p => p.category === category);
         if (saleOnly) list = list.filter(p => p.sale);
         if (minPrice !== '') list = list.filter(p => p.price >= Number(minPrice));
         if (maxPrice !== '') list = list.filter(p => p.price <= Number(maxPrice));
@@ -104,7 +106,7 @@ function DropshipProducts({ externalCategory, onCategoryChange }) {
             default: break;
         }
         return list;
-    }, [category, sort, minPrice, maxPrice, shipping, minRating, saleOnly]);
+    }, [ALL_PRODUCTS, sort, minPrice, maxPrice, shipping, minRating, saleOnly]);
 
     const toggleShipping = (val) =>
         setShipping(prev => prev.includes(val) ? prev.filter(s => s !== val) : [...prev, val]);
@@ -177,16 +179,16 @@ function DropshipProducts({ externalCategory, onCategoryChange }) {
                     <div className="filter-group">
                         <h4 className="filter-title">Category</h4>
                         <ul className="filter-list">
-                            {CATEGORIES.map(cat => (
-                                <li key={cat}>
-                                    <label className={category === cat ? 'filter-active-label' : ''}>
+                            {[{ _id: 'All', name: 'All' }, ...dbCategories].map(cat => (
+                                <li key={cat._id || cat.name}>
+                                    <label className={category === cat.name ? 'filter-active-label' : ''}>
                                         <input
                                             type="radio"
                                             name="category"
-                                            checked={category === cat}
-                                            onChange={() => handleSetCategory(cat)}
+                                            checked={category === cat.name}
+                                            onChange={() => handleSetCategory(cat.name)}
                                         />
-                                        {cat}
+                                        {cat.name}
                                     </label>
                                 </li>
                             ))}
@@ -259,7 +261,24 @@ function DropshipProducts({ externalCategory, onCategoryChange }) {
 
                 {/* ── Product Grid ── */}
                 <div>
-                    {filtered.length === 0 ? (
+                    {isLoading ? (
+                        <>
+                            <p className="results-count">Loading products...</p>
+                            <div className="dropship-grid">
+                                {Array.from({ length: 8 }).map((_, i) => (
+                                    <div key={i} className="dropship-card skeleton-card" style={{ height: '360px', opacity: 0.7, animation: 'pulse 1.5s infinite' }}>
+                                        <div style={{ width: '100%', height: '200px', backgroundColor: '#e2e8f0', borderRadius: '12px 12px 0 0' }}></div>
+                                        <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                            <div style={{ width: '40%', height: '12px', backgroundColor: '#cbd5e1', borderRadius: '4px' }}></div>
+                                            <div style={{ width: '80%', height: '16px', backgroundColor: '#cbd5e1', borderRadius: '4px' }}></div>
+                                            <div style={{ width: '60%', height: '16px', backgroundColor: '#cbd5e1', borderRadius: '4px' }}></div>
+                                            <div style={{ marginTop: 'auto', width: '100%', height: '36px', backgroundColor: '#e2e8f0', borderRadius: '6px' }}></div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    ) : filtered.length === 0 ? (
                         <div className="no-results">
                             <span>😕</span>
                             <p>No products match your filters.</p>
