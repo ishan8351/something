@@ -910,6 +910,46 @@ button {
   background: var(--color-primary-light);
 }
 
+.cart-quantity-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  height: 44px;
+  /* matches .btn-add-cart approx height */
+}
+
+.cart-quantity-controls button {
+  width: 40px;
+  height: 100%;
+  background: var(--color-bg-secondary);
+  border: none;
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cart-quantity-controls button:hover {
+  background: var(--color-border);
+  color: var(--color-primary);
+}
+
+.cart-quantity-controls span {
+  flex-grow: 1;
+  text-align: center;
+  font-weight: 600;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
 /* =====================================================
    BRANDS
    ===================================================== */
@@ -1920,6 +1960,26 @@ button {
   border: 1px solid var(--color-border-light);
   position: sticky;
   top: 100px;
+  height: calc(100vh - 120px);
+  overflow-y: auto;
+}
+
+/* Webkit custom scrollbar for the filters to look elegant */
+.dropship-filters::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dropship-filters::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dropship-filters::-webkit-scrollbar-thumb {
+  background-color: var(--color-border);
+  border-radius: var(--radius-full);
+}
+
+.dropship-filters::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-primary);
 }
 
 .filter-group {

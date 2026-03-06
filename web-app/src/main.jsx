@@ -7,6 +7,9 @@ import App from './App.jsx'
 import ErrorBoundary from './ErrorBoundary.jsx'
 import { AuthProvider } from './AuthContext.jsx'
 
+import { CartProvider } from './CartContext.jsx'
+import { WishlistProvider } from './WishlistContext.jsx'
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -21,9 +24,13 @@ createRoot(document.getElementById('root')).render(
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <BrowserRouter>
-            <App />
-          </BrowserRouter>
+          <WishlistProvider>
+            <CartProvider>
+              <BrowserRouter>
+                <App />
+              </BrowserRouter>
+            </CartProvider>
+          </WishlistProvider>
         </AuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>

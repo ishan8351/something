@@ -24,6 +24,16 @@ const orderSchema = new mongoose.Schema({
         enum: ['PENDING', 'SHIPPED', 'COMPLETED', 'CANCELLED'],
         default: 'PENDING'
     },
+    paymentTerms: {
+        type: String,
+        enum: ['DUE_ON_RECEIPT', 'NET_15', 'NET_30'],
+        default: 'DUE_ON_RECEIPT'
+    },
+    paymentMethod: {
+        type: String,
+        enum: ['RAZORPAY', 'WALLET', 'BANK_TRANSFER'],
+        default: 'RAZORPAY'
+    },
     totalAmount: { type: Number, required: true },
     items: [orderItemSnapshotSchema],
     orderDate: { type: Date, default: Date.now }

@@ -1,7 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useContext } from 'react';
 import { Link } from 'react-router-dom';
-import { useSuspenseQuery, useQuery } from '@tanstack/react-query';
+import { useSuspenseQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { productApi } from '../features/products/api/productApi.js';
+import { CartContext } from '../CartContext.jsx';
+import { WishlistContext } from '../WishlistContext.jsx';
 
 const SORT_OPTIONS = [
     { value: 'default', label: 'Featured' },
@@ -25,6 +27,7 @@ function Stars({ rating }) {
 }
 
 function DropshipProducts({ externalCategory, onCategoryChange }) {
+    const { cartItems, addToCart, updateQuantity } = useContext(CartContext);
     // Fetch categories first (suspended) to map category names to IDs
     const { data: dbCategories = [] } = useSuspenseQuery({
         queryKey: ['categories'],
@@ -40,7 +43,7 @@ function DropshipProducts({ externalCategory, onCategoryChange }) {
     const [minRating, setMinRating] = useState(0);
     const [saleOnly, setSaleOnly] = useState(false);
     const [addedIds, setAddedIds] = useState([]);
-    const [wishlistIds, setWishlistIds] = useState([]);
+    const { isInWishlist, toggleWishlist } = useContext(WishlistContext);
 
     const selectedCatId = useMemo(() => {
         if (category === 'All') return null;
@@ -48,18 +51,31 @@ function DropshipProducts({ externalCategory, onCategoryChange }) {
         return found ? found._id : null;
     }, [category, dbCategories]);
 
-    // Fetch products based on categoryId using useQuery instead of useSuspenseQuery
-    // to prevent full page re-renders and enable local skeletons
-    const { data, isLoading } = useQuery({
+    // Fetch products using useInfiniteQuery for "Load More" pagination
+    const {
+        data,
+        isLoading,
+        isFetchingNextPage,
+        hasNextPage,
+        fetchNextPage
+    } = useInfiniteQuery({
         queryKey: ['products', selectedCatId],
-        queryFn: () => productApi.getProducts({
-            limit: 100,
+        queryFn: ({ pageParam = 1 }) => productApi.getProducts({
+            page: pageParam,
+            limit: 24,
             categoryId: selectedCatId || 'All'
         }),
+        initialPageParam: 1,
+        getNextPageParam: (lastPage) => {
+            const { page, pages } = lastPage.pagination;
+            return page < pages ? page + 1 : undefined;
+        }
     });
 
     const ALL_PRODUCTS = useMemo(() => {
-        return (data?.products || []).map(p => ({
+        if (!data) return [];
+        const allProducts = data.pages.flatMap(page => page.products || []);
+        return allProducts.map(p => ({
             id: p._id,
             skuId: p.sku,
             name: p.title,
@@ -119,14 +135,6 @@ function DropshipProducts({ externalCategory, onCategoryChange }) {
     const handleAdd = (id) => {
         setAddedIds(prev => [...prev, id]);
         setTimeout(() => setAddedIds(prev => prev.filter(x => x !== id)), 1800);
-    };
-
-    const toggleWishlist = (e, id) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setWishlistIds(prev =>
-            prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-        );
     };
 
     return (
@@ -291,7 +299,7 @@ function DropshipProducts({ externalCategory, onCategoryChange }) {
                                 {filtered.map(product => {
                                     const discount = Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
                                     const isAdded = addedIds.includes(product.id);
-                                    const isWishlisted = wishlistIds.includes(product.id);
+                                    const isWishlisted = isInWishlist(product.id);
                                     return (
                                         <Link to={`/product/${product.id}`} className="dropship-card" key={product.id} style={{ textDecoration: 'none', color: 'inherit' }}>
                                             <div className="pc-image-wrap">
@@ -300,7 +308,11 @@ function DropshipProducts({ externalCategory, onCategoryChange }) {
                                                 <span className="pc-badge pc-badge-discount">−{discount}%</span>
                                                 <button
                                                     className={`pc-wishlist-btn ${isWishlisted ? 'pc-wishlist-active' : ''}`}
-                                                    onClick={(e) => toggleWishlist(e, product.id)}
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        toggleWishlist({ id: product.id, ...product });
+                                                    }}
                                                     aria-label="Toggle Wishlist"
                                                 >
                                                     <svg width="20" height="20" viewBox="0 0 24 24" fill={isWishlisted ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -320,17 +332,54 @@ function DropshipProducts({ externalCategory, onCategoryChange }) {
                                                     <span className="pc-price">₹{product.price.toLocaleString('en-IN')}</span>
                                                     <span className="pc-original-price">₹{product.originalPrice.toLocaleString('en-IN')}</span>
                                                 </div>
-                                                <button
-                                                    className={`pc-cart-btn ${isAdded ? 'pc-cart-btn-added' : ''}`}
-                                                    onClick={(e) => { e.preventDefault(); handleAdd(product.id); }}
-                                                >
-                                                    {isAdded ? '✓ Added!' : '🛒 Add to Cart'}
-                                                </button>
+                                                {(() => {
+                                                    const cartItem = cartItems.find(item => item.product.id === product.id);
+                                                    if (cartItem) {
+                                                        return (
+                                                            <div className="cart-quantity-controls">
+                                                                <button aria-label="Decrease quantity" onClick={(e) => { e.preventDefault(); updateQuantity(product.id, -1); }}>-</button>
+                                                                <span>{cartItem.quantity}</span>
+                                                                <button aria-label="Increase quantity" onClick={(e) => { e.preventDefault(); updateQuantity(product.id, 1); }}>+</button>
+                                                            </div>
+                                                        );
+                                                    }
+                                                    return (
+                                                        <button
+                                                            className={`pc-cart-btn ${isAdded ? 'pc-cart-btn-added' : ''}`}
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                handleAdd(product.id);
+                                                                addToCart({
+                                                                    id: product.id,
+                                                                    name: product.name,
+                                                                    price: product.price,
+                                                                    image: product.image,
+                                                                    sku: product.skuId
+                                                                });
+                                                            }}
+                                                        >
+                                                            {isAdded ? '✓ Added!' : '🛒 Add to Cart'}
+                                                        </button>
+                                                    );
+                                                })()}
                                             </div>
                                         </Link>
                                     );
                                 })}
                             </div>
+
+                            {hasNextPage && (
+                                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '2.5rem' }}>
+                                    <button
+                                        className="btn-primary"
+                                        onClick={() => fetchNextPage()}
+                                        disabled={isFetchingNextPage}
+                                        style={{ minWidth: '200px' }}
+                                    >
+                                        {isFetchingNextPage ? 'Loading...' : 'Load More Options'}
+                                    </button>
+                                </div>
+                            )}
                         </>
                     )}
                 </div>

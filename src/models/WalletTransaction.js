@@ -22,14 +22,13 @@ const walletTransactionSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // The Dual-Path Integrity Enforcer
-walletTransactionSchema.pre('validate', function (next) {
+walletTransactionSchema.pre('validate', function () {
     if (!this.paymentId && !this.adminUserId) {
-        return next(new Error('Transaction must link to either a Payment or an Admin.'));
+        throw new Error('Transaction must link to either a Payment or an Admin.');
     }
     if (this.paymentId && this.adminUserId) {
-        return next(new Error('Transaction cannot link to both Payment and Admin.'));
+        throw new Error('Transaction cannot link to both Payment and Admin.');
     }
-    next();
 });
 
 export const WalletTransaction = mongoose.model('WalletTransaction', walletTransactionSchema);

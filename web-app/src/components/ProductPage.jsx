@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { productApi } from '../features/products/api/productApi.js';
+import { CartContext } from '../CartContext.jsx';
+import { WishlistContext } from '../WishlistContext.jsx';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
 import Footer from './Footer';
@@ -11,6 +13,8 @@ import './LandingPage.css';
 function ProductPage() {
     const { productId } = useParams();
     const navigate = useNavigate();
+    const { addToCart, cartItems } = useContext(CartContext);
+    const { isInWishlist, toggleWishlist } = useContext(WishlistContext);
 
     const { data: p } = useSuspenseQuery({
         queryKey: ['product', productId],
@@ -183,8 +187,38 @@ function ProductPage() {
 
                         {/* Action Buttons */}
                         <div className="pp-actions">
-                            <button className="pp-btn-buy">Buy Now</button>
-                            <button className="pp-btn-cart">Add to Cart</button>
+                            <button
+                                className="pp-btn-buy"
+                                onClick={() => navigate('/checkout', {
+                                    state: { items: [{ productId: product.id, qty: quantity, product }] }
+                                })}
+                            >
+                                Buy Now
+                            </button>
+                            <button
+                                className="pp-btn-cart"
+                                onClick={(e) => {
+                                    e.preventDefault();
+
+                                    let safeImage = 'https://images.unsplash.com/photo-1596547609652-9cf5d8d76921?w=500&q=80';
+                                    if (product.images && product.images.length > 0) {
+                                        safeImage = typeof product.images[0] === 'string' ? product.images[0] : product.images[0].url;
+                                    } else if (product.image) {
+                                        safeImage = typeof product.image === 'string' ? product.image : product.image.url;
+                                    }
+
+                                    addToCart({
+                                        id: product.id,
+                                        name: product.name,
+                                        price: typeof product.price === 'string' ? parseFloat(product.price.replace(/[^0-9.-]+/g, "")) : product.price,
+                                        image: safeImage,
+                                        sku: product.skuId
+                                    }, quantity);
+                                    alert(`Added ${quantity === 1 ? '1 item' : quantity + ' items'} to cart!`);
+                                }}
+                            >
+                                Add to Cart
+                            </button>
                         </div>
 
                         {/* Delivery Info */}
@@ -233,10 +267,15 @@ function ProductPage() {
                                 <div className="pp-similar-image-wrapper">
                                     <img src={item.image} alt={item.name} className="pp-similar-image" />
                                     <button
-                                        className="pp-wishlist-btn"
-                                        onClick={(e) => e.preventDefault()}
+                                        className={`pp-wishlist-btn ${isInWishlist(item.id) ? 'pc-wishlist-active' : ''}`}
+                                        style={{ color: isInWishlist(item.id) ? '#ef4444' : 'inherit' }}
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            toggleWishlist({ id: item.id, ...item });
+                                        }}
                                     >
-                                        ♡
+                                        ♥
                                     </button>
                                 </div>
                                 <div className="pp-similar-info">

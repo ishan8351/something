@@ -8,6 +8,9 @@ import MyAccount from './components/MyAccount'
 import ProductPage from './components/ProductPage'
 import LoadingScreen from './components/LoadingScreen'
 
+import Checkout from './components/Checkout'
+import Orders from './components/Orders'
+
 function App() {
   return (
     <Suspense fallback={<LoadingScreen />}>
@@ -18,6 +21,8 @@ function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/my-account" element={<MyAccount />} />
+        <Route path="/checkout" element={<Checkout />} />
+        <Route path="/orders" element={<Orders />} />
       </Routes>
     </Suspense>
   )

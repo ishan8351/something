@@ -1,14 +1,22 @@
 import { useState, useRef, useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
+import { CartContext } from '../CartContext';
+import { WishlistContext } from '../WishlistContext';
 import { useQuery } from '@tanstack/react-query';
 import { productApi } from '../features/products/api/productApi';
 import { getCategoryIcon } from '../utils/categoryIcons';
+import CartDrawer from './CartDrawer';
+import WishlistDrawer from './WishlistDrawer';
 
 function Navbar({ onToggleSidebar, onSelectCategory }) {
   const { user, logout, loading } = useContext(AuthContext);
+  const { cartItems } = useContext(CartContext);
+  const { wishlistItems } = useContext(WishlistContext);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [catDropOpen, setCatDropOpen] = useState(false);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const dropRef = useRef(null);
   const hoverTimeout = useRef(null);
 
@@ -128,19 +136,23 @@ function Navbar({ onToggleSidebar, onSelectCategory }) {
             />
           </div>
           <div className="nav-actions">
-            <button className="nav-icon-btn" aria-label="Wishlist">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <button className="nav-icon-btn" aria-label="Wishlist" onClick={() => setIsWishlistOpen(true)}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill={wishlistItems?.length > 0 ? "#ef4444" : "none"} stroke={wishlistItems?.length > 0 ? "#ef4444" : "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
               </svg>
-              <span className="nav-badge">0</span>
+              {wishlistItems?.length > 0 && <span className="nav-badge" style={{ backgroundColor: '#ef4444' }}>{wishlistItems.length}</span>}
             </button>
-            <button className="nav-icon-btn" aria-label="Cart">
+            <button className="nav-icon-btn" aria-label="Cart" onClick={() => setIsCartOpen(true)}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 20a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"></path>
                 <path d="M20 20a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"></path>
                 <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
               </svg>
-              <span className="nav-badge">2</span>
+              {cartItems && cartItems.length > 0 && (
+                <span className="nav-badge">
+                  {cartItems.reduce((acc, item) => acc + item.quantity, 0)}
+                </span>
+              )}
             </button>
 
             <div className="nav-auth-buttons">
@@ -168,6 +180,8 @@ function Navbar({ onToggleSidebar, onSelectCategory }) {
           </button>
         </div>
       </div>
+      <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+      <WishlistDrawer isOpen={isWishlistOpen} onClose={() => setIsWishlistOpen(false)} />
     </nav>
   );
 }
