@@ -99,3 +99,23 @@ const loginUser = async (req, res) => {
 };
 
 export { registerUser, loginUser };
+
+// Add this to the bottom of user.controller.js
+export const getAllUsers = async (req, res) => {
+    try {
+        const users = await User.find().select('-passwordHash').sort({ createdAt: -1 });
+        return res.status(200).json({ success: true, data: users, message: "Users fetched successfully" });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const updateUserRole = async (req, res) => {
+    try {
+        const { role } = req.body;
+        const user = await User.findByIdAndUpdate(req.params.id, { role }, { new: true }).select('-passwordHash');
+        return res.status(200).json({ success: true, data: user, message: "User role updated" });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};

@@ -137,3 +137,39 @@ export const cancelOrder = asyncHandler(async (req, res) => {
 
     return res.status(200).json(new ApiResponse(200, order, "Order cancelled successfully"));
 });
+
+export const updateOrderStatus = asyncHandler(async (req, res) => {
+    const { status, courierName, trackingNumber } = req.body;
+    
+    // Find the order
+    const order = await Order.findById(req.params.id);
+    if (!order) throw new ApiError(404, "Order not found");
+
+    // Update the status (Ensure it's a valid enum value)
+    if (status) {
+        order.status = status.toUpperCase();
+    }
+
+    // Add tracking details if the warehouse worker provided them
+    if (courierName || trackingNumber) {
+        order.tracking = {
+            courierName: courierName || order.tracking?.courierName,
+            trackingNumber: trackingNumber || order.tracking?.trackingNumber,
+            trackingUrl: `https://${courierName?.toLowerCase() || 'courier'}.com/track/${trackingNumber}`
+        };
+    }
+
+    // Saving it will automatically trigger our pre-save hook to update the timeline!
+    await order.save();
+
+    return res.status(200).json(new ApiResponse(200, order, `Order successfully marked as ${order.status}`));
+});
+
+export const getAllOrders = asyncHandler(async (req, res) => {
+    // Fetch all orders and populate the customer details
+    const orders = await Order.find()
+        .populate('customerId', 'name email')
+        .sort({ createdAt: -1 });
+        
+    return res.status(200).json(new ApiResponse(200, orders, "All orders fetched successfully"));
+});

@@ -130,6 +130,20 @@ const Orders = () => {
                                             <Download size={18} /> Download PDF
                                         </a>
 
+                                        {isOrder && (
+                                            <Link 
+                                                to={`/orders/${inv.orderId._id}/track`}
+                                                style={{
+                                                    display: 'inline-flex', alignItems: 'center', gap: '8px',
+                                                    background: '#1b4332', color: '#fff', padding: '10px 20px',
+                                                    borderRadius: '8px', textDecoration: 'none', fontWeight: '600',
+                                                    border: '1px solid #1b4332', transition: 'all 0.2s', cursor: 'pointer'
+                                                }}
+                                            >
+                                                <Package size={18} /> Track Order
+                                            </Link>
+                                        )}
+
                                         {isPendingTransfer && (
                                             <div style={{ fontSize: '0.8rem', color: '#b91c1c', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '500' }}>
                                                 <Clock size={14} /> Action Required: Transfer Funds

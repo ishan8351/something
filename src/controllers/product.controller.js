@@ -8,7 +8,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 const getProducts = asyncHandler(async (req, res) => {
     const { page = 1, limit = 12, query, categoryId } = req.query;
 
-    const filter = { status: "active" };
+    const filter = { };
 
     if (query) {
         filter.title = { $regex: query, $options: "i" };
@@ -145,4 +145,25 @@ const getBestDeals = asyncHandler(async (req, res) => {
     );
 });
 
-export { getProducts, getProductById, getBestDeals };
+// Add this to the bottom of product.controller.js (above the export line)
+const getAdminProducts = asyncHandler(async (req, res) => {
+    // Fetching the latest 50 products so your demo doesn't lag from rendering 800 rows at once!
+    const products = await Product.find().sort({ createdAt: -1 }).limit(50);
+    return res.status(200).json(new ApiResponse(200, products, "Admin products fetched"));
+});
+
+const updateAdminProduct = asyncHandler(async (req, res) => {
+    const { platformSellPrice, stock, status } = req.body;
+    const product = await Product.findById(req.params.id);
+    
+    if (!product) throw new ApiError(404, "Product not found");
+
+    if (platformSellPrice !== undefined) product.platformSellPrice = platformSellPrice;
+    if (stock !== undefined) product.inventory.stock = stock;
+    if (status !== undefined) product.status = status;
+
+    await product.save();
+    return res.status(200).json(new ApiResponse(200, product, "Product updated successfully"));
+});
+
+export { getProducts, getProductById, getBestDeals, getAdminProducts, updateAdminProduct };

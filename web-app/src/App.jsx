@@ -7,9 +7,10 @@ import ForgotPassword from './components/ForgotPassword'
 import MyAccount from './components/MyAccount'
 import ProductPage from './components/ProductPage'
 import LoadingScreen from './components/LoadingScreen'
-
 import Checkout from './components/Checkout'
 import Orders from './components/Orders'
+import OrderTracking from './components/OrderTracking' // New Component!
+import AdminDashboard from './components/AdminDashboard'
 
 function App() {
   return (
@@ -23,6 +24,8 @@ function App() {
         <Route path="/my-account" element={<MyAccount />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/orders" element={<Orders />} />
+        <Route path="/orders/:id/track" element={<OrderTracking />} /> {/* New Route */}
+        <Route path="/admin" element={<AdminDashboard />} />
       </Routes>
     </Suspense>
   )

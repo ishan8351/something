@@ -97,3 +97,30 @@ export const verifyPaymentSignature = asyncHandler(async (req, res) => {
 
     return res.status(200).json(new ApiResponse(200, { payment, invoice }, "Payment verified securely"));
 });
+
+
+// Add this at the bottom of payment.controller.js
+export const createRazorpayOrder = asyncHandler(async (req, res) => {
+    const { amount } = req.body;
+
+    if (!amount) {
+        throw new ApiError(400, "Amount is required");
+    }
+
+    // Razorpay expects the amount in the smallest currency sub-unit (paise for INR)
+    const options = {
+        amount: Math.round(amount * 100), 
+        currency: "INR",
+        receipt: `receipt_${Date.now()}`
+    };
+
+    const order = await razorpayInstance.orders.create(options);
+
+    if (!order) {
+        throw new ApiError(500, "Failed to create Razorpay order");
+    }
+
+    return res.status(200).json(
+        new ApiResponse(200, order, "Razorpay order created successfully")
+    );
+});
