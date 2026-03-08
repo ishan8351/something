@@ -1,19 +1,16 @@
 import mongoose from 'mongoose';
 
 const otpTokenSchema = new mongoose.Schema({
-    userId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true
-    },
+    // Changed from ObjectId to String so it can hold a phone number during signup
+    identifier: { type: String, required: true }, 
     otpCode: { type: String, required: true },
     isUsed: { type: Boolean, default: false },
     expiresAt: { type: Date, required: true, expires: 0 } // TTL Index
 }, { timestamps: true });
 
-// The Reviewer's Partial Index Constraint
+// Prevent multiple active OTPs for the same number
 otpTokenSchema.index(
-    { userId: 1 },
+    { identifier: 1 },
     { unique: true, partialFilterExpression: { isUsed: false } }
 );
 

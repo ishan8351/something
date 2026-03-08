@@ -8,31 +8,37 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     const api = axios.create({
-        baseURL: 'http://localhost:8000/api/v1',
-        withCredentials: true // Extremely important to pass HTTPOnly cookies for JWTs!
+        baseURL: import.meta.env.VITE_API_BASE_URL, 
+        withCredentials: true 
     });
 
     useEffect(() => {
         const fetchUser = async () => {
             try {
                 const response = await api.get('/auth/me');
-                if (response.data && response.data.data) {
-                    setUser(response.data.data);
-                }
+                if (response.data?.data) setUser(response.data.data);
             } catch (error) {
-                console.log("No valid session found");
                 setUser(null);
             } finally {
                 setLoading(false);
             }
         };
-
         fetchUser();
     }, []);
 
-    const login = async (email, password) => {
+    const sendOtp = async (phoneNumber, isLogin = false) => {
         try {
-            const response = await api.post('/auth/login', { email, password });
+            const endpoint = isLogin ? '/users/send-login-otp' : '/users/send-otp';
+            await api.post(endpoint, { phoneNumber });
+            return { success: true };
+        } catch (error) {
+            return { success: false, message: error.response?.data?.message || "Failed to send OTP" };
+        }
+    }
+
+    const login = async (identifier, password) => {
+        try {
+            const response = await api.post('/users/login', { identifier, password });
             setUser(response.data.data.user);
             return { success: true };
         } catch (error) {
@@ -40,11 +46,21 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const register = async (name, email, password) => {
+    const loginWithOtpReq = async (phoneNumber, otpCode) => {
         try {
-            await api.post('/auth/register', { name, email, password });
-            // auto login immediately after registering
-            return await login(email, password);
+            const response = await api.post('/users/login-otp', { phoneNumber, otpCode });
+            setUser(response.data.data.user);
+            return { success: true };
+        } catch (error) {
+            return { success: false, message: error.response?.data?.message || "OTP verification failed" };
+        }
+    };
+
+    const register = async (userData) => {
+        try {
+            await api.post('/users/register', userData);
+            if (userData.email) return await login(userData.email, userData.password);
+            return await loginWithOtpReq(userData.phoneNumber, userData.otpCode);
         } catch (error) {
             return { success: false, message: error.response?.data?.message || "Registration failed" };
         }
@@ -60,7 +76,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+        <AuthContext.Provider value={{ user, login, loginWithOtpReq, register, logout, sendOtp, loading }}>
             {children}
         </AuthContext.Provider>
     );
