@@ -68,12 +68,10 @@ export const AuthProvider = ({ children }) => {
 
     const logout = async () => {
         try {
-            await api.post('/users/logout'); // Try to tell the backend (if route exists)
+            await api.post('/auth/logout');
+            setUser(null);
         } catch (error) {
-            console.error("Error logging out from server", error);
-        } finally {
-            // GUARANTEE the user is cleared from the frontend no matter what happens
-            setUser(null); 
+            console.error("Error logging out", error);
         }
     };
 
