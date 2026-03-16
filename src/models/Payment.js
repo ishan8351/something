@@ -11,8 +11,8 @@ const paymentSchema = new mongoose.Schema({
         ref: 'Invoice',
         required: true
     }, // Mandatory Target
-    paymentMethod: { type: String, enum: ['WALLET', 'BANK', 'CARD'], required: true },
-    status: { type: String, enum: ['SUCCESS', 'FAILED', 'PENDING'], required: true },
+    // Update your paymentMethod line to this:
+    paymentMethod: { type: String, enum: ['WALLET', 'BANK', 'CARD', 'RAZORPAY'], required: true },    status: { type: String, enum: ['SUCCESS', 'FAILED', 'PENDING'], required: true },
     referenceId: { type: String, required: true, unique: true } // Idempotency
 }, { timestamps: true });
 

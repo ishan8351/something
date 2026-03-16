@@ -6,6 +6,9 @@ import { Counter } from '../models/Counter.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { User } from '../models/User.js';
+import { Payment } from '../models/Payment.js';
+import { WalletTransaction } from '../models/WalletTransaction.js';
 
 const calculateDueDate = (paymentTerms) => {
     const dueDate = new Date();
@@ -27,31 +30,36 @@ export const placeOrder = asyncHandler(async (req, res) => {
         let totalAmount = 0;
         const orderItems = [];
 
+        // 1. Verify Stock and Deduct
         for (const item of items) {
             const product = await Product.findById(item.productId).session(session);
-            if (!product) throw new Error("Product not found");
+            if (!product) throw new Error(`Product not found (ID: ${item.productId})`);
 
             if (product.inventory.stock < item.qty) {
                 throw new Error(`Insufficient stock for ${product.title}. Only ${product.inventory.stock} remaining.`);
             }
 
+            // Deduct stock safely within the transaction
             await Product.findByIdAndUpdate(
                 product._id,
                 { $inc: { 'inventory.stock': -item.qty } },
-                { session }
+                { session, new: true } // new: true ensures we get the updated doc back if needed
             );
 
             totalAmount += (product.platformSellPrice * item.qty);
             orderItems.push({ sku: product.sku, price: product.platformSellPrice, qty: item.qty, tax: 0 });
         }
 
+        // 2. Generate Sequential IDs safely
+        // Note: Make sure Counter.getNextSequenceValue uses findOneAndUpdate with $inc to prevent race conditions
         const orderIdSeq = await Counter.getNextSequenceValue('orderId');
         const invoiceNumSeq = await Counter.getNextSequenceValue('invoiceNumber');
 
         const orderIdStr = `ORD-${orderIdSeq.toString().padStart(6, '0')}`;
         const invoiceNumStr = `INV-${invoiceNumSeq.toString().padStart(6, '0')}`;
 
-        const newOrder = await Order.create([{
+        // 3. Create Order (Using new Model().save() is safer in transactions)
+        const newOrder = new Order({
             orderId: orderIdStr,
             userId,
             status: 'PENDING',
@@ -59,28 +67,74 @@ export const placeOrder = asyncHandler(async (req, res) => {
             items: orderItems,
             paymentMethod,
             paymentTerms
-        }], { session });
+        });
+        await newOrder.save({ session }); // This will now work because we fixed the pre('save') hook!
 
+        // 4. Create Invoice
         const dueDate = calculateDueDate(paymentTerms);
-        const newInvoice = await Invoice.create([{
+        const newInvoice = new Invoice({
             invoiceNumber: invoiceNumStr,
             userId,
-            orderId: newOrder[0]._id,
+            orderId: newOrder._id,
             invoiceType: 'ORDER_BILL',
             totalAmount,
             dueDate,
             paymentMethod,
             paymentTerms,
             status: paymentMethod === 'BANK_TRANSFER' ? 'UNPAID' : 'UNPAID'
-        }], { session });
+        });
+        await newInvoice.save({ session });
 
+        if (paymentMethod === 'WALLET') {
+            // 1. Check if user has enough balance
+            if (req.user.walletBalance < totalAmount) {
+                throw new Error("Insufficient wallet balance for this purchase.");
+            }
+
+            // 2. Deduct the balance from the User model safely
+            // (I also swapped new: true to returnDocument: 'after' here to fix your warning!)
+            await User.findByIdAndUpdate(
+                userId,
+                { $inc: { walletBalance: -totalAmount } },
+                { session, returnDocument: 'after' } 
+            );
+
+            // 3. NEW: Generate a formal Payment receipt for the Wallet transaction
+            const walletPayment = new Payment({
+                userId,
+                invoiceId: newInvoice._id,
+                paymentMethod: 'WALLET',
+                status: 'SUCCESS',
+                referenceId: `WALL-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+            });
+            await walletPayment.save({ session });
+
+            // 4. Create the ledger entry for the deduction, linked to the Payment!
+            await WalletTransaction.create([{
+                userId,
+                paymentId: walletPayment._id, // <-- THIS FIXES THE CRASH
+                amount: totalAmount,
+                transactionType: 'DEBIT',
+                description: `Order Payment for ${orderIdStr}`
+            }], { session }); 
+
+            // 5. Instantly mark Order and Invoice as paid!
+            newOrder.status = 'PROCESSING';
+            await newOrder.save({ session });
+            
+            newInvoice.status = 'PAID';
+            await newInvoice.save({ session });
+        }
+        
+        // 5. Commit Transaction
         await session.commitTransaction();
         session.endSession();
 
-        return res.status(201).json(new ApiResponse(201, { order: newOrder[0], invoice: newInvoice[0] }, "Order placed successfully"));
+        return res.status(201).json(new ApiResponse(201, { order: newOrder, invoice: newInvoice }, "Order placed successfully"));
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
+        // Send a 400 with the exact error message so the frontend knows if it was a stock issue
         throw new ApiError(400, error.message || "Failed to place order");
     }
 });

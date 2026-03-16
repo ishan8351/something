@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getInvoice, listMyInvoices, markAsPaidManual, generateInvoicePDF } from '../controllers/invoice.controller.js';
-import { verifyJWT } from '../middlewares/auth.middleware.js';
+import { verifyJWT, authorize } from '../middlewares/auth.middleware.js'; // Imported authorize!
 
 const router = Router();
 
@@ -12,7 +12,7 @@ router.get('/', listMyInvoices);
 router.get('/:id', getInvoice);
 router.get('/:id/pdf', generateInvoicePDF);
 
-// Admin routes (Assume an authorize('ADMIN') middleware would normally wrap this)
-router.put('/:id/manual-payment', markAsPaidManual);
+// Admin routes (Properly secured!)
+router.put('/:id/manual-payment', authorize('ADMIN'), markAsPaidManual);
 
 export default router;

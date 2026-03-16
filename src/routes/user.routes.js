@@ -1,15 +1,17 @@
 import { Router } from "express";
-import { loginUser, registerUser, sendSignupOtp, sendLoginOtp, loginWithOtp, getAllUsers, updateUserRole } from "../controllers/user.controller.js";
+import { registerUser, sendSignupOtp, sendLoginOtp, loginWithOtp, getAllUsers, updateUserRole } from "../controllers/user.controller.js";
+import { verifyJWT, authorize } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
-router.route("/send-otp").post(sendSignupOtp); 
-router.route("/send-login-otp").post(sendLoginOtp); // New
-router.route("/login-otp").post(loginWithOtp);      // New
-router.route("/register").post(registerUser);
-router.route("/login").post(loginUser);
+// Public Routes (OTP & Registration)
+router.post("/send-otp", sendSignupOtp); 
+router.post("/send-login-otp", sendLoginOtp); 
+router.post("/login-otp", loginWithOtp);      
+router.post("/register", registerUser);
 
-router.route("/admin/all").get(getAllUsers);
-router.route("/admin/:id/role").put(updateUserRole);
+// Admin Routes (SECURED)
+router.get("/admin/all", verifyJWT, authorize('ADMIN'), getAllUsers);
+router.put("/admin/:id/role", verifyJWT, authorize('ADMIN'), updateUserRole);
 
 export default router;

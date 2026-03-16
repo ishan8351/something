@@ -26,15 +26,13 @@ const userSchema = new mongoose.Schema({
     addresses: [addressSchema]
 }, { timestamps: true });
 
-userSchema.pre("save", async function (next) {
-    if (!this.isModified("passwordHash")) return next();
+userSchema.pre("save", async function () {
+    // 1. Remove 'next' from the parameters
+    if (!this.isModified("passwordHash")) return; 
     
-    try {
-        this.passwordHash = await bcrypt.hash(this.passwordHash, 10);
-        next();
-    } catch (error) {
-        next(error);
-    }
+    // 2. Just await your hash. Mongoose will automatically move on when the Promise resolves.
+    // If bcrypt throws an error, Express 5 and your global handler will catch it automatically!
+    this.passwordHash = await bcrypt.hash(this.passwordHash, 10);
 });
 
 userSchema.methods.isPasswordCorrect = async function (password) {

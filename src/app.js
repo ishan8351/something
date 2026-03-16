@@ -3,19 +3,6 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 
-const app = express();
-
-app.use(cors({
-    origin: process.env.CORS_ORIGIN,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'] // Ensure PUT is here!
-}));
-
-app.use(express.json({ limit: "20kb" }))
-app.use(express.urlencoded({ extended: true, limit: "16kb" }))
-app.use(express.static("public"))
-app.use(cookieParser())
-
 // Route Imports
 import healthRouter from "./routes/health.routes.js";
 import userRouter from "./routes/user.routes.js";
@@ -30,18 +17,21 @@ import wishlistRouter from "./routes/wishlist.routes.js";
 
 const app = express();
 
-// Middleware
-app.use(helmet()); // Added security headers
+// 1. Security & Global Middlewares
+app.use(helmet()); 
 app.use(cors({
     origin: process.env.CORS_ORIGIN,
-    credentials: true
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
 }));
+
+// 2. Body Parsers
 app.use(express.json({ limit: "20kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use(express.static("public"));
 app.use(cookieParser());
 
-// Routes
+// 3. Routes
 app.use("/api/v1/health", healthRouter);
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/products", productRouter);
@@ -53,8 +43,13 @@ app.use("/api/v1/payments", paymentRouter);
 app.use("/api/v1/wallet", walletRouter);
 app.use("/api/v1/wishlist", wishlistRouter);
 
-// Global error handler
+// 4. Global Error Handler
 app.use((err, req, res, next) => {
+    // If headers are already sent, delegate to default Express error handler
+    if (res.headersSent) {
+        return next(err);
+    }
+
     const statusCode = err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 

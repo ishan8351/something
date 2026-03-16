@@ -1,22 +1,17 @@
 import mongoose from 'mongoose';
 
 const counterSchema = new mongoose.Schema({
-    _id: {
-        type: String,
-        required: true
-    }, // e.g., 'customerId', 'orderId'
-    seq: {
-        type: Number,
-        default: 0
-    }
+    _id: { type: String, required: true },
+    seq: { type: Number, default: 0 }
 });
 
-// Atomic Increments Utility Generator
+// Notice: No 'next' parameter here! We use pure async/await.
 counterSchema.statics.getNextSequenceValue = async function (sequenceName) {
-    const sequenceDocument = await this.findByIdAndUpdate(
-        sequenceName,
+    const sequenceDocument = await this.findOneAndUpdate(
+        { _id: sequenceName },
         { $inc: { seq: 1 } },
-        { returnDocument: 'after', upsert: true }
+        // FIXED: Replaced the deprecated 'new: true' 
+        { returnDocument: 'after', upsert: true } 
     );
     return sequenceDocument.seq;
 };

@@ -52,13 +52,14 @@ productSchema.index({ averageRating: -1 });
 productSchema.index({ 'inventory.stock': 1 }); 
 
 // Pre-save hook to automatically calculate discount percent
-productSchema.pre('save', function() {
+productSchema.pre('save', function(next) {
     if (this.compareAtPrice && this.compareAtPrice > this.platformSellPrice) {
         this.discountPercent = Math.round(((this.compareAtPrice - this.platformSellPrice) / this.compareAtPrice) * 100);
     } else {
         this.discountPercent = 0;
     }
-    // Notice: We completely removed next()
+    
+    next(); // REQUIRED: Tells Mongoose to move on and actually save the document
 });
 
 export const Product = mongoose.model('Product', productSchema);

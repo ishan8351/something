@@ -50,14 +50,13 @@ const orderSchema = new mongoose.Schema({
 orderSchema.index({ userId: 1, status: 1 });
 
 // Pre-save hook: Automatically log the first status when an order is created
-orderSchema.pre('save', function() {
+orderSchema.pre('save', function() { // <-- Removed 'next' here
     if (this.isNew) {
         this.statusHistory.push({ status: this.status, comment: 'Order placed successfully' });
-    }
-    if (!this.isNew && this.isModified('status')) {
+    } else if (this.isModified('status')) {
         this.statusHistory.push({ status: this.status, comment: `Order marked as ${this.status}` });
     }
-    // Notice: We completely removed next()
+    // No next() needed! Mongoose handles it automatically now.
 });
 
 export const Order = mongoose.model('Order', orderSchema);

@@ -1,19 +1,14 @@
 import { Router } from "express";
-import {
-    loginUser,
-    logoutUser,
-    registerUser,
-    getCurrentUser
-} from "../controllers/auth.controller.js";
+import { loginUser, logoutUser, getCurrentUser } from "../controllers/auth.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
-router.route("/register").post(registerUser);
-router.route("/login").post(loginUser);
+// Standard Auth
+router.post("/login", loginUser);
 
-// secured routes
-router.route("/logout").post(verifyJWT, logoutUser);
-router.route("/me").get(verifyJWT, getCurrentUser);
+// Secured Routes
+router.post("/logout", verifyJWT, logoutUser);
+router.get("/me", verifyJWT, getCurrentUser);
 
 export default router;

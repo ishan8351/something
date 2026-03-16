@@ -7,23 +7,18 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { razorpayInstance } from './payment.controller.js';
 
 export const getBalance = asyncHandler(async (req, res) => {
-    const userId = req.user._id;
-
-    // Calculate sum of credits minus debits
-    const transactions = await WalletTransaction.find({ userId });
-
-    let balance = 0;
-    for (const trx of transactions) {
-        if (trx.transactionType === 'CREDIT') balance += trx.amount;
-        if (trx.transactionType === 'DEBIT') balance -= trx.amount;
-    }
+    // MASSIVE OPTIMIZATION: Read from the User document directly.
+    // We already maintain this balance in the DB when payments succeed.
+    const balance = req.user.walletBalance || 0;
 
     return res.status(200).json(new ApiResponse(200, { balance }, "Wallet balance fetched"));
 });
 
 export const getTransactionHistory = asyncHandler(async (req, res) => {
+    // Good practice: You might want to add pagination here eventually using .skip() and .limit()
     const transactions = await WalletTransaction.find({ userId: req.user._id })
-        .sort({ createdAt: -1 });
+        .sort({ createdAt: -1 })
+        .limit(50); // Added a reasonable limit so massive histories don't crash the frontend
 
     return res.status(200).json(new ApiResponse(200, transactions, "Transaction history fetched"));
 });
@@ -46,22 +41,21 @@ export const addMoney = asyncHandler(async (req, res) => {
         invoiceType: 'WALLET_TOPUP',
         totalAmount: amount,
         paymentTerms: 'DUE_ON_RECEIPT',
-        dueDate: new Date(), // Due immediately
+        dueDate: new Date(),
         status: 'UNPAID'
     });
 
-    // 2. Create Razorpay Order matching the exact amount (convert to paise)
+    // 2. Create Razorpay Order
     const options = {
-        amount: Math.round(amount * 100),  // amount in the smallest currency unit
+        amount: Math.round(amount * 100),  
         currency: "INR",
         receipt: invoiceNumStr,
-        payment_capture: 1 // AUTO capture
+        payment_capture: 1 
     };
 
     try {
         const order = await razorpayInstance.orders.create(options);
 
-        // Send back everything the frontend needs to open the checkout widget
         return res.status(200).json(new ApiResponse(200, {
             invoiceId: invoice._id,
             razorpayOrderId: order.id,
