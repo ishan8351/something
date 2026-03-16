@@ -21,7 +21,7 @@ export const placeOrder = asyncHandler(async (req, res) => {
     const { items, paymentMethod = 'RAZORPAY', paymentTerms = 'DUE_ON_RECEIPT' } = req.body;
     const userId = req.user._id;
 
-    if (!items || !items.length) throw new ApiError(400, "Items list is empty");
+    if (!items || !items.length) throw new ApiError(400, 'Items list is empty');
 
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -32,22 +32,28 @@ export const placeOrder = asyncHandler(async (req, res) => {
 
         // 1. Verify Stock and Deduct
         for (const item of items) {
-            const product = await Product.findById(item.productId).session(session);
-            if (!product) throw new Error(`Product not found (ID: ${item.productId})`);
-
-            if (product.inventory.stock < item.qty) {
-                throw new Error(`Insufficient stock for ${product.title}. Only ${product.inventory.stock} remaining.`);
-            }
-
-            // Deduct stock safely within the transaction
-            await Product.findByIdAndUpdate(
-                product._id,
+            // Attempt to find the product AND ensure it has enough stock in one step
+            const product = await Product.findOneAndUpdate(
+                { _id: item.productId, 'inventory.stock': { $gte: item.qty } },
                 { $inc: { 'inventory.stock': -item.qty } },
-                { session, new: true } // new: true ensures we get the updated doc back if needed
+                { session, new: true }
             );
 
-            totalAmount += (product.platformSellPrice * item.qty);
-            orderItems.push({ sku: product.sku, price: product.platformSellPrice, qty: item.qty, tax: 0 });
+            // If it returns null, it either doesn't exist OR doesn't have enough stock
+            if (!product) {
+                // Fetch just the title to give a helpful error message
+                const missingProduct = await Product.findById(item.productId).select('title');
+                const title = missingProduct ? missingProduct.title : `ID: ${item.productId}`;
+                throw new Error(`Insufficient stock for ${title}.`);
+            }
+
+            totalAmount += product.platformSellPrice * item.qty;
+            orderItems.push({
+                sku: product.sku,
+                price: product.platformSellPrice,
+                qty: item.qty,
+                tax: 0,
+            });
         }
 
         // 2. Generate Sequential IDs safely
@@ -66,7 +72,7 @@ export const placeOrder = asyncHandler(async (req, res) => {
             totalAmount,
             items: orderItems,
             paymentMethod,
-            paymentTerms
+            paymentTerms,
         });
         await newOrder.save({ session }); // This will now work because we fixed the pre('save') hook!
 
@@ -81,14 +87,20 @@ export const placeOrder = asyncHandler(async (req, res) => {
             dueDate,
             paymentMethod,
             paymentTerms,
-            status: paymentMethod === 'BANK_TRANSFER' ? 'UNPAID' : 'UNPAID'
+            status: paymentMethod === 'BANK_TRANSFER' ? 'UNPAID' : 'UNPAID',
         });
         await newInvoice.save({ session });
 
         if (paymentMethod === 'WALLET') {
-            // 1. Check if user has enough balance
-            if (req.user.walletBalance < totalAmount) {
-                throw new Error("Insufficient wallet balance for this purchase.");
+            const updatedUser = await User.findOneAndUpdate(
+                { _id: userId, walletBalance: { $gte: totalAmount } },
+                { $inc: { walletBalance: -totalAmount } },
+                { session, returnDocument: 'after' }
+            );
+
+            // If updatedUser is null, they didn't have enough money in the exact moment of deduction
+            if (!updatedUser) {
+                throw new Error('Insufficient wallet balance for this purchase.');
             }
 
             // 2. Deduct the balance from the User model safely
@@ -96,7 +108,7 @@ export const placeOrder = asyncHandler(async (req, res) => {
             await User.findByIdAndUpdate(
                 userId,
                 { $inc: { walletBalance: -totalAmount } },
-                { session, returnDocument: 'after' } 
+                { session, returnDocument: 'after' }
             );
 
             // 3. NEW: Generate a formal Payment receipt for the Wallet transaction
@@ -105,49 +117,62 @@ export const placeOrder = asyncHandler(async (req, res) => {
                 invoiceId: newInvoice._id,
                 paymentMethod: 'WALLET',
                 status: 'SUCCESS',
-                referenceId: `WALL-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+                referenceId: `WALL-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
             });
             await walletPayment.save({ session });
 
             // 4. Create the ledger entry for the deduction, linked to the Payment!
-            await WalletTransaction.create([{
-                userId,
-                paymentId: walletPayment._id, // <-- THIS FIXES THE CRASH
-                amount: totalAmount,
-                transactionType: 'DEBIT',
-                description: `Order Payment for ${orderIdStr}`
-            }], { session }); 
+            await WalletTransaction.create(
+                [
+                    {
+                        userId,
+                        paymentId: walletPayment._id, // <-- THIS FIXES THE CRASH
+                        amount: totalAmount,
+                        transactionType: 'DEBIT',
+                        description: `Order Payment for ${orderIdStr}`,
+                    },
+                ],
+                { session }
+            );
 
             // 5. Instantly mark Order and Invoice as paid!
             newOrder.status = 'PROCESSING';
             await newOrder.save({ session });
-            
+
             newInvoice.status = 'PAID';
             await newInvoice.save({ session });
         }
-        
+
         // 5. Commit Transaction
         await session.commitTransaction();
         session.endSession();
 
-        return res.status(201).json(new ApiResponse(201, { order: newOrder, invoice: newInvoice }, "Order placed successfully"));
+        return res
+            .status(201)
+            .json(
+                new ApiResponse(
+                    201,
+                    { order: newOrder, invoice: newInvoice },
+                    'Order placed successfully'
+                )
+            );
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
         // Send a 400 with the exact error message so the frontend knows if it was a stock issue
-        throw new ApiError(400, error.message || "Failed to place order");
+        throw new ApiError(400, error.message || 'Failed to place order');
     }
 });
 
 export const getMyOrders = asyncHandler(async (req, res) => {
     const orders = await Order.find({ userId: req.user._id }).sort({ createdAt: -1 });
-    return res.status(200).json(new ApiResponse(200, orders, "Orders fetched successfully"));
+    return res.status(200).json(new ApiResponse(200, orders, 'Orders fetched successfully'));
 });
 
 export const getOrderById = asyncHandler(async (req, res) => {
     const order = await Order.findOne({ _id: req.params.id, userId: req.user._id });
-    if (!order) throw new ApiError(404, "Order not found");
-    return res.status(200).json(new ApiResponse(200, order, "Order fetched successfully"));
+    if (!order) throw new ApiError(404, 'Order not found');
+    return res.status(200).json(new ApiResponse(200, order, 'Order fetched successfully'));
 });
 
 export const cancelOrder = asyncHandler(async (req, res) => {
@@ -156,37 +181,42 @@ export const cancelOrder = asyncHandler(async (req, res) => {
         { status: 'CANCELLED' },
         { new: true }
     );
-    if (!order) throw new ApiError(404, "Order not found or cannot be cancelled");
+    if (!order) throw new ApiError(404, 'Order not found or cannot be cancelled');
 
-    await Invoice.findOneAndUpdate({ orderId: order._id, status: 'UNPAID' }, { status: 'CANCELLED' });
-    return res.status(200).json(new ApiResponse(200, order, "Order cancelled successfully"));
+    await Invoice.findOneAndUpdate(
+        { orderId: order._id, status: 'UNPAID' },
+        { status: 'CANCELLED' }
+    );
+    return res.status(200).json(new ApiResponse(200, order, 'Order cancelled successfully'));
 });
 
 export const updateOrderStatus = asyncHandler(async (req, res) => {
     const { status, courierName, trackingNumber } = req.body;
     const order = await Order.findById(req.params.id);
-    if (!order) throw new ApiError(404, "Order not found");
+    if (!order) throw new ApiError(404, 'Order not found');
 
     if (status) order.status = status.toUpperCase();
     if (courierName || trackingNumber) {
         // DEFENSIVE FIX: Spread existing tracking data so we don't delete other fields!
         order.tracking = {
-            ...order.tracking, 
+            ...order.tracking,
             courierName: courierName || order.tracking?.courierName,
             trackingNumber: trackingNumber || order.tracking?.trackingNumber,
-            trackingUrl: `https://${(courierName || order.tracking?.courierName || 'courier').toLowerCase()}.com/track/${trackingNumber || order.tracking?.trackingNumber}`
+            trackingUrl: `https://${(courierName || order.tracking?.courierName || 'courier').toLowerCase()}.com/track/${trackingNumber || order.tracking?.trackingNumber}`,
         };
     }
-    
+
     await order.save();
-    return res.status(200).json(new ApiResponse(200, order, `Order successfully marked as ${order.status}`));
+    return res
+        .status(200)
+        .json(new ApiResponse(200, order, `Order successfully marked as ${order.status}`));
 });
 
 export const getAllOrders = asyncHandler(async (req, res) => {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
     const skip = (page - 1) * limit;
-    
+
     const search = req.query.search || '';
     const status = req.query.status || 'ALL';
 
@@ -200,18 +230,18 @@ export const getAllOrders = asyncHandler(async (req, res) => {
     // Search by Order ID or Customer Name
     if (search) {
         // First, find users matching the search term to get their IDs
-        const matchingUsers = await User.find({ 
+        const matchingUsers = await User.find({
             $or: [
                 { name: { $regex: search, $options: 'i' } },
-                { email: { $regex: search, $options: 'i' } }
-            ]
+                { email: { $regex: search, $options: 'i' } },
+            ],
         }).select('_id');
-        
-        const userIds = matchingUsers.map(u => u._id);
+
+        const userIds = matchingUsers.map((u) => u._id);
 
         query['$or'] = [
             { orderId: { $regex: search, $options: 'i' } },
-            { userId: { $in: userIds } } // Match orders belonging to those users
+            { userId: { $in: userIds } }, // Match orders belonging to those users
         ];
     }
 
@@ -222,13 +252,19 @@ export const getAllOrders = asyncHandler(async (req, res) => {
         .skip(skip)
         .limit(limit);
 
-    return res.status(200).json(new ApiResponse(200, {
-        data: orders,
-        pagination: {
-            total,
-            page,
-            limit,
-            totalPages: Math.ceil(total / limit)
-        }
-    }, "All orders fetched successfully"));
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                data: orders,
+                pagination: {
+                    total,
+                    page,
+                    limit,
+                    totalPages: Math.ceil(total / limit),
+                },
+            },
+            'All orders fetched successfully'
+        )
+    );
 });

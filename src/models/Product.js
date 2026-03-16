@@ -1,42 +1,50 @@
 import mongoose from 'mongoose';
 
-const inventorySchema = new mongoose.Schema({
-    stock: { type: Number, required: true, default: 0 },
-    alertThreshold: { type: Number, default: 10 }
-}, { _id: false });
-
-const productSchema = new mongoose.Schema({
-    sku: { type: String, required: true, unique: true },
-    title: { type: String, required: true, trim: true },
-    descriptionHTML: { type: String },
-    vendor: { type: String },
-    productType: { type: String },
-    tags: [{ type: String }],
-    categoryId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Category',
-        required: true
+const inventorySchema = new mongoose.Schema(
+    {
+        stock: { type: Number, required: true, default: 0 },
+        alertThreshold: { type: Number, default: 10 },
     },
-    images: [{
-        url: { type: String, required: true },
-        position: { type: Number },
-        altText: { type: String }
-    }],
-    platformSellPrice: { type: Number, required: true },
-    compareAtPrice: { type: Number },
-    discountPercent: { type: Number, default: 0 },
-    weightGrams: { type: Number },
-    seoTitle: { type: String },
-    seoDescription: { type: String },
-    status: { type: String, enum: ['active', 'draft', 'archived'], default: 'active' },
-    moq: { type: Number, default: 1 },
-    inventory: inventorySchema,
-    
-    // NEW: Added fields to support frontend filtering
-    shippingDays: { type: String, default: '3-5' }, 
-    averageRating: { type: Number, default: 0, min: 0, max: 5 },
-    reviewCount: { type: Number, default: 0 }
-}, { timestamps: true });
+    { _id: false }
+);
+
+const productSchema = new mongoose.Schema(
+    {
+        sku: { type: String, required: true, unique: true },
+        title: { type: String, required: true, trim: true },
+        descriptionHTML: { type: String },
+        vendor: { type: String },
+        productType: { type: String },
+        tags: [{ type: String }],
+        categoryId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Category',
+            required: true,
+        },
+        images: [
+            {
+                url: { type: String, required: true },
+                position: { type: Number },
+                altText: { type: String },
+            },
+        ],
+        platformSellPrice: { type: Number, required: true },
+        compareAtPrice: { type: Number },
+        discountPercent: { type: Number, default: 0 },
+        weightGrams: { type: Number },
+        seoTitle: { type: String },
+        seoDescription: { type: String },
+        status: { type: String, enum: ['active', 'draft', 'archived'], default: 'active' },
+        moq: { type: Number, default: 1 },
+        inventory: inventorySchema,
+
+        // NEW: Added fields to support frontend filtering
+        shippingDays: { type: String, default: '3-5' },
+        averageRating: { type: Number, default: 0, min: 0, max: 5 },
+        reviewCount: { type: Number, default: 0 },
+    },
+    { timestamps: true }
+);
 
 // --- INDEXES FOR PERFORMANCE ---
 // Text index for fast search queries
@@ -49,17 +57,22 @@ productSchema.index({ status: 1, discountPercent: -1 });
 productSchema.index({ platformSellPrice: 1 });
 productSchema.index({ averageRating: -1 });
 // Helpful for finding out-of-stock items quickly
-productSchema.index({ 'inventory.stock': 1 }); 
+productSchema.index({ 'inventory.stock': 1 });
 
-// Pre-save hook to automatically calculate discount percent
-productSchema.pre('save', function(next) {
-    if (this.compareAtPrice && this.compareAtPrice > this.platformSellPrice) {
-        this.discountPercent = Math.round(((this.compareAtPrice - this.platformSellPrice) / this.compareAtPrice) * 100);
+// Update the Product pre-save hook:
+productSchema.pre('save', function (next) {
+    if (
+        this.compareAtPrice &&
+        this.compareAtPrice > this.platformSellPrice &&
+        this.platformSellPrice > 0
+    ) {
+        this.discountPercent = Math.round(
+            ((this.compareAtPrice - this.platformSellPrice) / this.compareAtPrice) * 100
+        );
     } else {
         this.discountPercent = 0;
     }
-    
-    next(); // REQUIRED: Tells Mongoose to move on and actually save the document
+    next();
 });
 
 export const Product = mongoose.model('Product', productSchema);

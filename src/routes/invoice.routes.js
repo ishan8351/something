@@ -1,5 +1,10 @@
 import { Router } from 'express';
-import { getInvoice, listMyInvoices, markAsPaidManual, generateInvoicePDF } from '../controllers/invoice.controller.js';
+import {
+    getInvoice,
+    listMyInvoices,
+    markAsPaidManual,
+    generateInvoicePDF,
+} from '../controllers/invoice.controller.js';
 import { verifyJWT, authorize } from '../middlewares/auth.middleware.js'; // Imported authorize!
 
 const router = Router();

@@ -1,11 +1,11 @@
-import { Router } from "express";
+import { Router } from 'express';
 
 const router = Router();
 
-router.route("/").get((req, res) => {
+router.route('/').get((req, res) => {
     return res.status(200).json({
         success: true,
-        message: "E-commerce Backend Service is running optimally and healthy!"
+        message: 'E-commerce Backend Service is running optimally and healthy!',
     });
 });
 

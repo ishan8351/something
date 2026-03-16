@@ -1,6 +1,6 @@
-import { User } from "../models/User.js";
-import { Counter } from "../models/Counter.js";
-import { ApiError } from "../utils/ApiError.js";
+import { User } from '../models/User.js';
+import { Counter } from '../models/Counter.js';
+import { ApiError } from '../utils/ApiError.js';
 
 export class AuthService {
     static async registerUser(userData) {
@@ -8,30 +8,24 @@ export class AuthService {
 
         const existedUser = await User.findOne({ email });
         if (existedUser) {
-            throw new ApiError(409, "User with this email already exists");
+            throw new ApiError(409, 'User with this email already exists');
         }
 
-        // Generate sequential Customer ID
-        const sequenceDoc = await Counter.findOneAndUpdate(
-            { _id: 'customerId' },
-            { $inc: { seq: 1 } },
-            { new: true, upsert: true }
-        );
-        const seq = sequenceDoc.seq.toString().padStart(5, '0');
+        // Cleaned up using your existing model method!
+        const sequenceDoc = await Counter.getNextSequenceValue('customerId');
+        const seq = sequenceDoc.toString().padStart(5, '0');
 
-        // IMPORTANT: Ensure your Mongoose User model has a pre('save') hook 
-        // using bcrypt.hash() to hash this password before saving to DB!
         const user = await User.create({
             name,
             email,
-            passwordHash: password, 
+            passwordHash: password,
             role: 'CUSTOMER',
-            customerId: `CUST${seq}`
+            customerId: `CUST${seq}`,
         });
 
-        const createdUser = await User.findById(user._id).select("-passwordHash");
+        const createdUser = await User.findById(user._id).select('-passwordHash');
         if (!createdUser) {
-            throw new ApiError(500, "Failed to register user");
+            throw new ApiError(500, 'Failed to register user');
         }
 
         return createdUser;
@@ -41,14 +35,15 @@ export class AuthService {
         const { email, password } = credentials;
 
         const user = await User.findOne({ email });
-        if (!user) throw new ApiError(404, "Invalid user credentials");
+
+        // SECURITY FIX: Generic error message to prevent User Enumeration attacks
+        if (!user) throw new ApiError(401, 'Invalid email or password');
 
         const isPasswordValid = await user.isPasswordCorrect(password);
-        if (!isPasswordValid) throw new ApiError(401, "Invalid user credentials");
+        if (!isPasswordValid) throw new ApiError(401, 'Invalid email or password');
 
-        // Optimized: No need to query the DB again. Just use the instance method.
         const accessToken = user.generateAccessToken();
-        const loggedInUser = await User.findById(user._id).select("-passwordHash");
+        const loggedInUser = await User.findById(user._id).select('-passwordHash');
 
         return { user: loggedInUser, accessToken };
     }

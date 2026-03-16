@@ -1,25 +1,41 @@
-import mongoose from "mongoose";
-import fs from "fs";
-import csv from "csv-parser";
-import * as xlsx from "xlsx";
-import { Product } from "../models/Product.js";
-import { Category } from "../models/Category.js";
-import { ApiError } from "../utils/ApiError.js";
+import mongoose from 'mongoose';
+import fs from 'fs';
+import csv from 'csv-parser';
+import * as xlsx from 'xlsx';
+import { Product } from '../models/Product.js';
+import { Category } from '../models/Category.js';
+import { ApiError } from '../utils/ApiError.js';
+
+const escapeRegex = (string) => {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+};
 
 export class ProductService {
-    
     static async getAllProducts(queryParams) {
-        const { 
-            page = 1, limit = 24, query, categoryId, 
-            minPrice, maxPrice, saleOnly, shipping, minRating, sort 
+        const {
+            page = 1,
+            limit = 24,
+            query,
+            categoryId,
+            minPrice,
+            maxPrice,
+            saleOnly,
+            shipping,
+            minRating,
+            sort,
         } = queryParams;
+
+        // Safely parse numbers to prevent NaN crashes
+        const safePage = Math.max(1, parseInt(page, 10) || 1);
+        const safeLimit = Math.max(1, parseInt(limit, 10) || 24);
 
         const filter = {};
 
         if (query) filter.$text = { $search: query };
-        if (categoryId && categoryId !== 'All') filter.categoryId = new mongoose.Types.ObjectId(categoryId);
+        if (categoryId && categoryId !== 'All')
+            filter.categoryId = new mongoose.Types.ObjectId(categoryId);
         if (saleOnly === 'true') filter.discountPercent = { $gt: 0 };
-        
+
         if (minPrice || maxPrice) {
             filter.platformSellPrice = {};
             if (minPrice) filter.platformSellPrice.$gte = Number(minPrice);
@@ -29,7 +45,7 @@ export class ProductService {
         if (minRating) filter.averageRating = { $gte: Number(minRating) };
         if (shipping) filter.shippingDays = { $in: shipping.split(',') };
 
-        let sortOption = { createdAt: -1 }; 
+        let sortOption = { createdAt: -1 };
         if (sort === 'price-asc') sortOption = { platformSellPrice: 1 };
         if (sort === 'price-desc') sortOption = { platformSellPrice: -1 };
         if (sort === 'rating') sortOption = { averageRating: -1 };
@@ -38,38 +54,38 @@ export class ProductService {
         const skip = (parseInt(page) - 1) * parseInt(limit);
 
         const products = await Product.find(filter)
-            .populate("categoryId", "name")
+            .populate('categoryId', 'name')
             .sort(sortOption)
             .skip(skip)
-            .limit(parseInt(limit));
+            .limit(safeLimit);
 
         const total = await Product.countDocuments(filter);
 
         return {
             products,
-            pagination: { 
-                total, 
-                page: parseInt(page), 
-                pages: Math.ceil(total / parseInt(limit)) 
-            }
+            pagination: {
+                total,
+                page: parseInt(page),
+                pages: Math.ceil(total / safeLimit),
+            },
         };
     }
 
     static async getProductById(productId) {
         if (!mongoose.isValidObjectId(productId)) {
-            throw new ApiError(400, "Invalid product ID");
+            throw new ApiError(400, 'Invalid product ID');
         }
-        const product = await Product.findById(productId).populate("categoryId", "name");
-        if (!product) throw new ApiError(404, "Product not found");
+        const product = await Product.findById(productId).populate('categoryId', 'name');
+        if (!product) throw new ApiError(404, 'Product not found');
         return product;
     }
 
     static async getBestDeals(limitParams) {
         const limit = Math.min(parseInt(limitParams) || 6, 20);
-        return await Product.find({ status: "active", discountPercent: { $gt: 0 } })
+        return await Product.find({ status: 'active', discountPercent: { $gt: 0 } })
             .sort({ discountPercent: -1 })
             .limit(limit)
-            .populate("categoryId", "name");
+            .populate('categoryId', 'name');
     }
 
     static async getAdminProducts(queryParams = {}) {
@@ -89,9 +105,10 @@ export class ProductService {
 
         // 2. Search Filter
         if (search) {
+            const safeSearch = escapeRegex(search);
             filter['$or'] = [
-                { title: { $regex: search, $options: 'i' } },
-                { sku: { $regex: search, $options: 'i' } }
+                { title: { $regex: safeSearch, $options: 'i' } },
+                { sku: { $regex: safeSearch, $options: 'i' } },
             ];
         }
 
@@ -105,10 +122,7 @@ export class ProductService {
         if (stock === 'IN_STOCK') filter['inventory.stock'] = { $gt: 10 };
 
         const total = await Product.countDocuments(filter);
-        const products = await Product.find(filter)
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(limit);
+        const products = await Product.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit);
 
         return {
             data: products,
@@ -116,8 +130,8 @@ export class ProductService {
                 total,
                 page,
                 limit,
-                totalPages: Math.ceil(total / limit) || 1
-            }
+                totalPages: Math.ceil(total / limit) || 1,
+            },
         };
     }
 
@@ -125,48 +139,53 @@ export class ProductService {
         const { platformSellPrice, stock, status } = updateData;
         const product = await Product.findById(productId);
 
-        if (!product) throw new ApiError(404, "Product not found");
+        if (!product) throw new ApiError(404, 'Product not found');
 
         if (platformSellPrice !== undefined) product.platformSellPrice = platformSellPrice;
         if (status !== undefined) product.status = status;
-        
+
         if (stock !== undefined) {
-            if (!product.inventory) product.inventory = {}; 
+            if (!product.inventory) product.inventory = {};
             product.inventory.stock = stock;
         }
 
-        await product.save(); 
+        await product.save();
         return product;
     }
 
     static async createProduct(productData, files) {
         // Map uploaded files to your product's image schema
-        const images = files ? files.map((file, index) => ({
-            url: `/temp/${file.filename}`, // Assuming you are serving the public folder statically
-            position: index + 1,
-            altText: productData.title
-        })) : [];
+        const images = files
+            ? files.map((file, index) => ({
+                  url: `/temp/${file.filename}`, // Assuming you are serving the public folder statically
+                  position: index + 1,
+                  altText: productData.title,
+              }))
+            : [];
 
         const newProduct = await Product.create({
             ...productData,
             images,
-            inventory: { stock: productData.stock || 0 }
+            inventory: { stock: productData.stock || 0 },
         });
 
         return newProduct;
     }
 
     static async processBulkUpload(file) {
-        if (!file) throw new ApiError(400, "No file uploaded");
+        if (!file) throw new ApiError(400, 'No file uploaded');
 
         const filePath = file.path;
         const productsMap = new Map();
-        const localCategoryCache = new Map(); 
+        const localCategoryCache = new Map();
 
         // Helper function moved here
         const parseCategories = async (categoryString) => {
             if (!categoryString) return null;
-            const parts = categoryString.split('>').map(p => p.trim()).filter(p => p);
+            const parts = categoryString
+                .split('>')
+                .map((p) => p.trim())
+                .filter((p) => p);
             if (parts.length === 0) return null;
 
             let parentId = null;
@@ -193,12 +212,15 @@ export class ProductService {
                     vendor: row['Vendor'] || row['vendor'],
                     productCategory: row['Product Category'] || row['category'],
                     productType: row['Type'] || row['type'],
-                    tags: row['Tags'] ? row['Tags'].split(',').map(t => t.trim()) : [],
+                    tags: row['Tags'] ? row['Tags'].split(',').map((t) => t.trim()) : [],
                     sku: row['Variant SKU'] || row['sku'] || handle,
-                    platformSellPrice: parseFloat(row['Variant Price'] || row['Price'] || row['price']) || 0,
-                    compareAtPrice: parseFloat(row['Variant Compare At Price'] || row['compareAtPrice']) || null,
+                    platformSellPrice:
+                        parseFloat(row['Variant Price'] || row['Price'] || row['price']) || 0,
+                    compareAtPrice:
+                        parseFloat(row['Variant Compare At Price'] || row['compareAtPrice']) ||
+                        null,
                     status: (row['Status'] || row['status'] || 'active').toLowerCase(),
-                    images: []
+                    images: [],
                 });
             }
 
@@ -207,8 +229,10 @@ export class ProductService {
             if (imageSrc) {
                 product.images.push({
                     url: imageSrc,
-                    position: parseInt(row['Image Position'] || row['imagePosition'], 10) || product.images.length + 1,
-                    altText: row['Image Alt Text'] || row['imageAltText'] || ''
+                    position:
+                        parseInt(row['Image Position'] || row['imagePosition'], 10) ||
+                        product.images.length + 1,
+                    altText: row['Image Alt Text'] || row['imageAltText'] || '',
                 });
             }
         };
@@ -216,7 +240,11 @@ export class ProductService {
         try {
             if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
                 await new Promise((resolve, reject) => {
-                    fs.createReadStream(filePath).pipe(csv()).on('data', processRow).on('end', resolve).on('error', reject);
+                    fs.createReadStream(filePath)
+                        .pipe(csv())
+                        .on('data', processRow)
+                        .on('end', resolve)
+                        .on('error', reject);
                 });
             } else {
                 const workbook = xlsx.readFile(filePath);
@@ -224,8 +252,9 @@ export class ProductService {
                 xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]).forEach(processRow);
             }
 
-            let defCat = await Category.findOne({ name: "Uncategorized" });
-            if (!defCat) defCat = await Category.create({ name: "Uncategorized", parentCategoryId: null });
+            let defCat = await Category.findOne({ name: 'Uncategorized' });
+            if (!defCat)
+                defCat = await Category.create({ name: 'Uncategorized', parentCategoryId: null });
 
             const bulkOperations = [];
 
@@ -245,26 +274,36 @@ export class ProductService {
 
                 let discountPercent = 0;
                 if (data.compareAtPrice && data.compareAtPrice > data.platformSellPrice) {
-                    discountPercent = Math.round(((data.compareAtPrice - data.platformSellPrice) / data.compareAtPrice) * 100);
+                    discountPercent = Math.round(
+                        ((data.compareAtPrice - data.platformSellPrice) / data.compareAtPrice) * 100
+                    );
                 }
 
                 bulkOperations.push({
                     updateOne: {
                         filter: { sku: data.sku },
-                        update: { 
+                        update: {
                             $set: {
-                                sku: data.sku, title: data.title, descriptionHTML: data.descriptionHTML,
-                                vendor: data.vendor, productType: data.productType, tags: data.tags,
-                                categoryId: finalCatId, images: data.images, platformSellPrice: data.platformSellPrice,
-                                compareAtPrice: data.compareAtPrice, discountPercent: discountPercent,
-                                status: data.status, shippingDays: '3-5',
+                                sku: data.sku,
+                                title: data.title,
+                                descriptionHTML: data.descriptionHTML,
+                                vendor: data.vendor,
+                                productType: data.productType,
+                                tags: data.tags,
+                                categoryId: finalCatId,
+                                images: data.images,
+                                platformSellPrice: data.platformSellPrice,
+                                compareAtPrice: data.compareAtPrice,
+                                discountPercent: discountPercent,
+                                status: data.status,
+                                shippingDays: '3-5',
                                 averageRating: Math.round((Math.random() * 1.5 + 3.5) * 10) / 10,
-                                reviewCount: Math.floor(Math.random() * 50) + 5
+                                reviewCount: Math.floor(Math.random() * 50) + 5,
                             },
-                            $setOnInsert: { inventory: { stock: 0, alertThreshold: 10 } } 
+                            $setOnInsert: { inventory: { stock: 0, alertThreshold: 10 } },
                         },
-                        upsert: true
-                    }
+                        upsert: true,
+                    },
                 });
             }
 
@@ -272,12 +311,11 @@ export class ProductService {
                 await Product.bulkWrite(bulkOperations);
             }
 
-            fs.unlinkSync(filePath); 
+            fs.unlinkSync(filePath);
             return bulkOperations.length;
-
         } catch (error) {
             if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-            throw new ApiError(500, "Error processing bulk upload: " + error.message);
+            throw new ApiError(500, 'Error processing bulk upload: ' + error.message);
         }
     }
 }
