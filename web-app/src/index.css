@@ -1,47 +1,60 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
 /* This single import does all the heavy lifting in v4 */
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* Here is our custom aesthetic config! */
 @theme {
-  --color-primary: #1B4332;
-  --color-primary-light: #2D6A4F;
-  --color-accent: #8b5cf6;
-  --color-bg-warm: #FAFAF8;
-  --color-danger: #EF4444;
-  
-  --font-sans: "Plus Jakarta Sans", sans-serif;
+    --color-primary: #1b4332;
+    --color-primary-light: #2d6a4f;
+    --color-accent: #8b5cf6;
+    --color-bg-warm: #fafaf8;
+    --color-danger: #ef4444;
 
-  --animate-blob: blob 7s infinite;
-  --animate-float: float 6s ease-in-out infinite;
+    --font-sans: 'Plus Jakarta Sans', sans-serif;
 
-  @keyframes blob {
-    0% { transform: translate(0px, 0px) scale(1); }
-    33% { transform: translate(30px, -50px) scale(1.1); }
-    66% { transform: translate(-20px, 20px) scale(0.9); }
-    100% { transform: translate(0px, 0px) scale(1); }
-  }
+    --animate-blob: blob 7s infinite;
+    --animate-float: float 6s ease-in-out infinite;
 
-  @keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-20px); }
-  }
+    @keyframes blob {
+        0% {
+            transform: translate(0px, 0px) scale(1);
+        }
+        33% {
+            transform: translate(30px, -50px) scale(1.1);
+        }
+        66% {
+            transform: translate(-20px, 20px) scale(0.9);
+        }
+        100% {
+            transform: translate(0px, 0px) scale(1);
+        }
+    }
+
+    @keyframes float {
+        0%,
+        100% {
+            transform: translateY(0);
+        }
+        50% {
+            transform: translateY(-20px);
+        }
+    }
 }
 
 @layer base {
-  body {
-    background-color: var(--color-slate-50);
-    color: var(--color-slate-900);
-    -webkit-font-smoothing: antialiased;
-    overflow-x: hidden;
-  }
+    body {
+        background-color: var(--color-slate-50);
+        color: var(--color-slate-900);
+        -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
+    }
 }
 
 /* Utilities for staggered animations */
 .animation-delay-2000 {
-  animation-delay: 2s;
+    animation-delay: 2s;
 }
 .animation-delay-4000 {
-  animation-delay: 4s;
+    animation-delay: 4s;
 }

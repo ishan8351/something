@@ -1,10 +1,9 @@
 import React, { useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CartContext } from '../CartContext';
-import { X, Trash2, Package, ArrowRight, ShieldCheck } from 'lucide-react';
+import { X, Trash2, Package, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
 
 function CartDrawer({ isOpen, onClose }) {
-
     const { cartItems, updateQuantity, removeFromCart, setExactQuantity } = useContext(CartContext);
     const navigate = useNavigate();
 
@@ -19,20 +18,28 @@ function CartDrawer({ isOpen, onClose }) {
         };
     }, [isOpen]);
 
-    const totalAmount = cartItems.reduce((acc, item) => {
-        return acc + ((item.product?.price || item.price) * item.quantity);
-    }, 0);
+    // Calculate totals using the dynamically updated item price
+    const totals = cartItems.reduce(
+        (acc, item) => {
+            const itemTotal = (item.price || item.product.price) * item.quantity;
+            const gstAmount = itemTotal * ((item.product.gstPercent || 18) / 100);
 
-    const totalEstimatedWeight = cartItems.reduce((acc, item) => {
-        return acc + ((item.product?.weight || 0.5) * item.quantity); 
-    }, 0);
+            return {
+                subtotal: acc.subtotal + itemTotal,
+                gst: acc.gst + gstAmount,
+                weight: acc.weight + (item.product?.weight || 0.5) * item.quantity,
+            };
+        },
+        { subtotal: 0, gst: 0, weight: 0 }
+    );
 
     const handleCheckout = () => {
         onClose();
-        const checkoutItems = cartItems.map(item => ({
-            productId: item.product?._id || item.product?.id || item.id, 
+        const checkoutItems = cartItems.map((item) => ({
+            productId: item.product?._id || item.product?.id || item.id,
             qty: item.quantity,
-            product: item.product || item 
+            price: item.price, // Ensure the negotiated tier price goes to checkout
+            product: item.product || item,
         }));
         navigate('/checkout', { state: { items: checkoutItems } });
     };
@@ -41,51 +48,56 @@ function CartDrawer({ isOpen, onClose }) {
 
     return (
         <div className="fixed inset-0 z-[9999] flex justify-end">
-            {}
-            <div 
-                className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity animate-in fade-in duration-300" 
+            <div
+                className="animate-in fade-in absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300"
                 onClick={onClose}
                 aria-hidden="true"
             ></div>
 
-            {}
-            <div 
-                className="relative w-full max-w-md h-full bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-300" 
+            <div
+                className="animate-in slide-in-from-right relative flex h-full w-full max-w-md flex-col bg-white shadow-2xl duration-300"
                 onClick={(e) => e.stopPropagation()}
             >
-                {}
-                <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-white">
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-slate-100 bg-white p-6">
                     <div>
-                        <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
+                        <h2 className="flex items-center gap-2 text-xl font-extrabold text-slate-900">
                             Procurement Cart
-                            <span className="bg-primary text-white text-xs font-bold py-1 px-2.5 rounded-full shadow-sm">
+                            <span className="bg-primary rounded-full px-2.5 py-1 text-xs font-bold text-white shadow-sm">
                                 {cartItems.reduce((acc, i) => acc + i.quantity, 0)} Units
                             </span>
                         </h2>
-                        <p className="text-xs text-slate-500 font-medium mt-1">Ready for Wholesale Checkout</p>
+                        <p className="mt-1 text-xs font-medium text-slate-500">
+                            Ready for Wholesale Checkout
+                        </p>
                     </div>
-                    <button 
-                        className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors" 
+                    <button
+                        className="rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-900"
                         onClick={onClose}
                     >
                         <X size={20} strokeWidth={2.5} />
                     </button>
                 </div>
 
-                {}
-                <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50/50 custom-scrollbar">
+                {/* Cart Items List */}
+                <div className="custom-scrollbar flex-1 overflow-y-auto bg-slate-50/50 p-4 sm:p-6">
                     {cartItems.length === 0 ? (
-                        <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
-                            <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center text-slate-300 mb-2">
+                        <div className="flex h-full flex-col items-center justify-center space-y-4 text-center">
+                            <div className="mb-2 flex h-24 w-24 items-center justify-center rounded-full bg-slate-100 text-slate-300">
                                 <Package size={40} />
                             </div>
                             <div>
-                                <h3 className="text-xl font-extrabold text-slate-900 mb-1">No items selected</h3>
-                                <p className="text-slate-500 text-sm font-medium px-6">Your bulk order list is empty. Browse the catalog to start sourcing.</p>
+                                <h3 className="mb-1 text-xl font-extrabold text-slate-900">
+                                    No items selected
+                                </h3>
+                                <p className="px-6 text-sm font-medium text-slate-500">
+                                    Your bulk order list is empty. Browse the catalog to start
+                                    sourcing.
+                                </p>
                             </div>
-                            <button 
-                                onClick={onClose} 
-                                className="mt-6 px-8 py-3 bg-primary text-white font-bold rounded-full shadow-lg hover:shadow-primary/30 hover:bg-primary-light transition-all"
+                            <button
+                                onClick={onClose}
+                                className="bg-primary hover:shadow-primary/30 hover:bg-primary-light mt-6 rounded-full px-8 py-3 font-bold text-white shadow-lg transition-all"
                             >
                                 Browse Wholesale Catalog
                             </button>
@@ -95,71 +107,93 @@ function CartDrawer({ isOpen, onClose }) {
                             {cartItems.map((item) => {
                                 const product = item.product || item;
                                 const itemKey = product._id || product.id;
-                                const price = product.price || 0;
-
-                                const moq = product.minQuantity || product.moq || 1; 
+                                // Use the dynamically calculated price stored on the cart item level
+                                const price = item.price || product.price || 0;
+                                const moq = product.minQuantity || product.moq || 1;
 
                                 let safeThumb = 'https://via.placeholder.com/150';
                                 if (product.image) {
-                                    safeThumb = typeof product.image === 'string' ? product.image : (product.image.url || safeThumb);
+                                    safeThumb =
+                                        typeof product.image === 'string'
+                                            ? product.image
+                                            : product.image.url || safeThumb;
                                 } else if (product.images?.[0]) {
-                                    safeThumb = typeof product.images[0] === 'string' ? product.images[0] : product.images[0].url;
+                                    safeThumb =
+                                        typeof product.images[0] === 'string'
+                                            ? product.images[0]
+                                            : product.images[0].url;
                                 }
 
                                 return (
-                                    <div key={itemKey} className="flex gap-4 bg-white p-3 rounded-2xl border border-slate-200 shadow-sm relative group">
-
-                                        {}
-                                        <div className="w-24 h-28 rounded-xl overflow-hidden bg-slate-50 border border-slate-100 flex-shrink-0">
-                                            <img src={safeThumb} alt={product.name} className="w-full h-full object-cover" />
+                                    <div
+                                        key={itemKey}
+                                        className="group relative flex gap-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"
+                                    >
+                                        <div className="h-28 w-24 flex-shrink-0 overflow-hidden rounded-xl border border-slate-100 bg-slate-50">
+                                            <img
+                                                src={safeThumb}
+                                                alt={product.name}
+                                                className="h-full w-full object-cover"
+                                            />
                                         </div>
 
-                                        <div className="flex flex-col flex-1 justify-between py-1 pr-1">
-
-                                            {}
-                                            <div className="flex justify-between items-start gap-2 pr-6">
+                                        <div className="flex flex-1 flex-col justify-between py-1 pr-1">
+                                            <div className="flex items-start justify-between gap-2 pr-6">
                                                 <div>
-                                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{product.category || 'Item'}</span>
-                                                    <h4 className="text-sm font-bold text-slate-900 line-clamp-2 leading-snug">
+                                                    <span className="text-[9px] font-bold tracking-widest text-slate-400 uppercase">
+                                                        {product.category || 'Item'}
+                                                    </span>
+                                                    <h4 className="line-clamp-2 text-sm leading-snug font-bold text-slate-900">
                                                         {product.name}
                                                     </h4>
                                                 </div>
                                             </div>
 
-                                            {}
-                                            <button 
-                                                className="absolute top-3 right-3 text-slate-300 hover:text-danger p-1.5 hover:bg-danger/10 rounded-md transition-colors" 
+                                            <button
+                                                className="hover:text-danger hover:bg-danger/10 absolute top-3 right-3 rounded-md p-1.5 text-slate-300 transition-colors"
                                                 onClick={() => removeFromCart(itemKey)}
                                             >
                                                 <Trash2 size={16} />
                                             </button>
 
                                             <div className="mt-auto">
-                                                <div className="flex items-center gap-2 mb-2">
+                                                <div className="mb-2 flex items-center gap-2">
                                                     <span className="text-sm font-extrabold text-slate-900">
-                                                        ₹{price.toLocaleString('en-IN')} <span className="text-xs text-slate-500 font-medium">/ unit</span>
+                                                        ₹{price.toLocaleString('en-IN')}{' '}
+                                                        <span className="text-xs font-medium text-slate-500">
+                                                            / unit
+                                                        </span>
                                                     </span>
+                                                    {/* Show a badge if they hit a tier discount */}
+                                                    {price <
+                                                        (product.basePrice || product.price) && (
+                                                        <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-bold text-green-700">
+                                                            Tier Discount Applied
+                                                        </span>
+                                                    )}
                                                 </div>
 
                                                 <div className="flex items-center justify-between">
-                                                    {}
-                                                    <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg p-0.5 h-8">
-                                                        <button 
-                                                            className="w-7 h-full flex items-center justify-center rounded bg-white text-slate-600 shadow-sm hover:text-slate-900 hover:bg-slate-100 font-bold transition-colors disabled:opacity-50" 
-                                                            onClick={() => updateQuantity(itemKey, -moq)}
+                                                    <div className="flex h-8 items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+                                                        <button
+                                                            className="flex h-full w-7 items-center justify-center rounded bg-white font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-100 hover:text-slate-900 disabled:opacity-50"
+                                                            onClick={() =>
+                                                                updateQuantity(itemKey, -moq)
+                                                            }
                                                             disabled={item.quantity <= moq}
                                                         >
                                                             −
                                                         </button>
 
-                                                        {}
-                                                        <input 
+                                                        <input
                                                             type="number"
                                                             min={moq}
                                                             step={moq}
                                                             value={item.quantity}
                                                             onChange={(e) => {
-                                                                const val = parseInt(e.target.value);
+                                                                const val = parseInt(
+                                                                    e.target.value
+                                                                );
                                                                 if (!isNaN(val)) {
                                                                     setExactQuantity(itemKey, val);
                                                                 }
@@ -167,32 +201,40 @@ function CartDrawer({ isOpen, onClose }) {
                                                             onBlur={(e) => {
                                                                 let val = parseInt(e.target.value);
                                                                 if (isNaN(val) || val < moq) {
-                                                                    val = moq; 
+                                                                    val = moq;
                                                                 } else {
                                                                     const remainder = val % moq;
                                                                     if (remainder !== 0) {
-                                                                         val = val - remainder; 
+                                                                        val = val - remainder;
                                                                     }
                                                                 }
                                                                 setExactQuantity(itemKey, val);
                                                             }}
-                                                            className="w-12 text-sm font-bold text-slate-900 text-center bg-transparent border-none outline-none appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none m-0"
+                                                            className="m-0 w-12 appearance-none border-none bg-transparent text-center text-sm font-bold text-slate-900 outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                                         />
 
-                                                        <button 
-                                                            className="w-7 h-full flex items-center justify-center rounded bg-white text-slate-600 shadow-sm hover:text-slate-900 hover:bg-slate-100 font-bold transition-colors" 
-                                                            onClick={() => updateQuantity(itemKey, moq)}
+                                                        <button
+                                                            className="flex h-full w-7 items-center justify-center rounded bg-white font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-100 hover:text-slate-900"
+                                                            onClick={() =>
+                                                                updateQuantity(itemKey, moq)
+                                                            }
                                                         >
                                                             +
                                                         </button>
                                                     </div>
 
-                                                    <span className="text-sm font-bold text-primary">
-                                                        ₹{(price * item.quantity).toLocaleString('en-IN')}
+                                                    <span className="text-primary text-sm font-bold">
+                                                        ₹
+                                                        {(price * item.quantity).toLocaleString(
+                                                            'en-IN'
+                                                        )}
                                                     </span>
                                                 </div>
                                                 {moq > 1 && (
-                                                     <p className="text-[10px] text-slate-400 mt-1 font-medium">Orders in multiples of {moq}</p>
+                                                    <p className="mt-1 flex items-center gap-1 text-[10px] font-bold text-amber-600">
+                                                        <AlertCircle size={10} /> Order multiple:{' '}
+                                                        {moq}
+                                                    </p>
                                                 )}
                                             </div>
                                         </div>
@@ -203,28 +245,38 @@ function CartDrawer({ isOpen, onClose }) {
                     )}
                 </div>
 
-                {}
+                {/* Footer Totals */}
                 {cartItems.length > 0 && (
-                    <div className="p-6 border-t border-slate-200 bg-white shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
-                        <div className="flex items-center gap-2 mb-4 p-2 bg-green-50 border border-green-100 rounded-lg text-green-700 text-xs font-bold">
+                    <div className="relative z-10 border-t border-slate-200 bg-white p-6 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
+                        <div className="mb-4 flex items-center gap-2 rounded-lg border border-green-100 bg-green-50 p-2 text-xs font-bold text-green-700">
                             <ShieldCheck size={14} /> GST Invoice generated at checkout
                         </div>
 
-                        <div className="space-y-2 mb-6">
-                            <div className="flex justify-between items-center text-sm text-slate-500">
-                                <span>Estimated Est. Weight</span>
-                                <span className="font-semibold text-slate-700">{totalEstimatedWeight.toFixed(1)} kg</span>
+                        <div className="mb-6 space-y-2">
+                            <div className="flex items-center justify-between text-sm text-slate-500">
+                                <span>Total Excl. GST</span>
+                                <span className="font-semibold text-slate-700">
+                                    ₹{totals.subtotal.toLocaleString('en-IN')}
+                                </span>
                             </div>
-                            <div className="flex justify-between items-end border-t border-slate-100 pt-2">
-                                <span className="text-slate-700 font-bold text-sm">Total (Excl. GST)</span>
-                                <span className="text-2xl font-extrabold text-slate-900 tracking-tight">
-                                    ₹{totalAmount.toLocaleString('en-IN')}
+                            <div className="flex items-center justify-between text-sm text-slate-500">
+                                <span>Estimated GST (ITC Claimable)</span>
+                                <span className="font-semibold text-slate-700">
+                                    + ₹{totals.gst.toLocaleString('en-IN')}
+                                </span>
+                            </div>
+                            <div className="mt-2 flex items-end justify-between border-t border-slate-100 pt-3">
+                                <span className="text-sm font-bold text-slate-700">
+                                    Total Value
+                                </span>
+                                <span className="text-2xl font-extrabold tracking-tight text-slate-900">
+                                    ₹{(totals.subtotal + totals.gst).toLocaleString('en-IN')}
                                 </span>
                             </div>
                         </div>
 
-                        <button 
-                            className="w-full h-14 flex items-center justify-center gap-2 bg-slate-900 text-white rounded-xl font-bold tracking-wide hover:bg-primary hover:shadow-lg hover:shadow-primary/30 transition-all duration-300" 
+                        <button
+                            className="hover:bg-primary hover:shadow-primary/30 flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 font-bold tracking-wide text-white transition-all duration-300 hover:shadow-lg"
                             onClick={handleCheckout}
                         >
                             Proceed to Bulk Checkout <ArrowRight size={18} />

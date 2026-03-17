@@ -15,15 +15,19 @@ function SearchResults() {
 
     if (!query) {
         return (
-            <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 text-center">
-                <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-400">
+            <div className="mx-auto w-full max-w-7xl px-4 py-24 text-center sm:px-6 lg:px-8">
+                <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-slate-100 text-slate-400">
                     <Search size={32} />
                 </div>
-                <h2 className="text-2xl font-bold text-slate-900 mb-2">What are you looking to source?</h2>
-                <p className="text-slate-500 mb-8 max-w-md mx-auto">Use the search bar above to find specific wholesale products, brands, or SKUs.</p>
-                <button 
+                <h2 className="mb-2 text-2xl font-bold text-slate-900">
+                    What are you looking to source?
+                </h2>
+                <p className="mx-auto mb-8 max-w-md text-slate-500">
+                    Use the search bar above to find specific wholesale products, brands, or SKUs.
+                </p>
+                <button
                     onClick={() => navigate('/')}
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white font-bold rounded-full hover:bg-primary-light transition-colors"
+                    className="bg-primary hover:bg-primary-light inline-flex items-center gap-2 rounded-full px-6 py-3 font-bold text-white transition-colors"
                 >
                     <ArrowLeft size={18} /> Return to Catalog
                 </button>
@@ -32,21 +36,23 @@ function SearchResults() {
     }
 
     return (
-        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12 z-10 animate-in fade-in duration-300">
+        <div className="animate-in fade-in z-10 mx-auto w-full max-w-7xl px-4 py-8 duration-300 sm:px-6 lg:px-8 lg:py-12">
             {}
-            <div className="mb-8 pb-6 border-b border-slate-200">
-                <p className="text-sm font-bold text-primary uppercase tracking-wider mb-2">Search Results</p>
-                <h1 className="text-3xl font-extrabold text-slate-900">
-                    Matches for "{query}"
-                </h1>
-                <p className="text-slate-500 mt-2">Showing wholesale availability and bulk pricing.</p>
+            <div className="mb-8 border-b border-slate-200 pb-6">
+                <p className="text-primary mb-2 text-sm font-bold tracking-wider uppercase">
+                    Search Results
+                </p>
+                <h1 className="text-3xl font-extrabold text-slate-900">Matches for "{query}"</h1>
+                <p className="mt-2 text-slate-500">
+                    Showing wholesale availability and bulk pricing.
+                </p>
             </div>
 
-            <DropshipProducts 
-                externalCategory={selectedCat} 
+            <DropshipProducts
+                externalCategory={selectedCat}
                 onCategoryChange={setSelectedCat}
                 globalSearchQuery={query}
-                hideTitle={true} 
+                hideTitle={true}
             />
         </div>
     );

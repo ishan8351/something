@@ -5,24 +5,27 @@ import { getCategoryIcon } from '../utils/categoryIcons';
 function Categories({ onSelectCategory }) {
     const { data: dbCategories = [] } = useQuery({
         queryKey: ['categories'],
-        queryFn: productApi.getCategories
+        queryFn: productApi.getCategories,
     });
 
     const categories = dbCategories
-    .filter((cat, index, list) => {
-        const normalizedName = cat.name.trim().toLowerCase();
-        return index === list.findIndex(item => item.name.trim().toLowerCase() === normalizedName);
-    })
-    .map(cat => {
-        const visual = getCategoryIcon(cat.name);
-        return {
-            _id: cat._id,
-            name: cat.name,
-            Icon: visual.Icon,
-            color: visual.color,
-            iconColor: visual.iconColor
-        };
-    });
+        .filter((cat, index, list) => {
+            const normalizedName = cat.name.trim().toLowerCase();
+            return (
+                index ===
+                list.findIndex((item) => item.name.trim().toLowerCase() === normalizedName)
+            );
+        })
+        .map((cat) => {
+            const visual = getCategoryIcon(cat.name);
+            return {
+                _id: cat._id,
+                name: cat.name,
+                Icon: visual.Icon,
+                color: visual.color,
+                iconColor: visual.iconColor,
+            };
+        });
 
     const duplicatedCategories = [...categories, ...categories];
 
@@ -45,7 +48,16 @@ function Categories({ onSelectCategory }) {
                                 onClick={() => onSelectCategory && onSelectCategory(cat.name)}
                                 style={{ border: 'none', cursor: 'pointer', textAlign: 'center' }}
                             >
-                                <div className="category-icon" style={{ backgroundColor: cat.color, color: cat.iconColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <div
+                                    className="category-icon"
+                                    style={{
+                                        backgroundColor: cat.color,
+                                        color: cat.iconColor,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                    }}
+                                >
                                     <cat.Icon size={24} strokeWidth={1.8} />
                                 </div>
                                 <span className="category-name">{cat.name}</span>

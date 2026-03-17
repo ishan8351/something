@@ -22,10 +22,10 @@ export const WishlistProvider = ({ children }) => {
         try {
             const res = await api.get('/wishlist');
             if (res.data?.success) {
-                setWishlistItems(res.data.data.items.map(i => i.productId));
+                setWishlistItems(res.data.data.items.map((i) => i.productId));
             }
         } catch (error) {
-            console.error("Failed to fetch wishlist:", error);
+            console.error('Failed to fetch wishlist:', error);
         } finally {
             setLoading(false);
         }
@@ -33,21 +33,21 @@ export const WishlistProvider = ({ children }) => {
 
     const toggleWishlist = async (product) => {
         if (!user) {
-            alert("Please login or create an account to use the wishlist.");
+            alert('Please login or create an account to use the wishlist.');
             return;
         }
 
         const productId = product.id || product._id;
         if (!productId) return;
 
-        const exists = wishlistItems.some(i => {
+        const exists = wishlistItems.some((i) => {
             const currentId = (i?._id || i?.id || i)?.toString();
             return currentId === productId?.toString();
         });
 
-        setWishlistItems(prev => {
+        setWishlistItems((prev) => {
             if (exists) {
-                return prev.filter(i => {
+                return prev.filter((i) => {
                     const currentId = (i?._id || i?.id || i)?.toString();
                     return currentId !== productId?.toString();
                 });
@@ -60,17 +60,17 @@ export const WishlistProvider = ({ children }) => {
             const res = await api.post('/wishlist/toggle', { productId });
 
             if (res.data?.success) {
-                setWishlistItems(res.data.data.wishlist.items.map(i => i.productId));
+                setWishlistItems(res.data.data.wishlist.items.map((i) => i.productId));
             }
         } catch (error) {
-            console.error("Failed to toggle wishlist:", error);
+            console.error('Failed to toggle wishlist:', error);
 
             fetchWishlist();
         }
     };
 
     const isInWishlist = (productId) => {
-        return wishlistItems.some(i => {
+        return wishlistItems.some((i) => {
             const currentId = (i?._id || i?.id || i)?.toString();
             return currentId === productId?.toString();
         });

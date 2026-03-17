@@ -12,13 +12,21 @@ class ErrorBoundary extends React.Component {
 
     componentDidCatch(error, errorInfo) {
         this.setState({ error, errorInfo });
-        console.error("Uncaught error:", error, errorInfo);
+        console.error('Uncaught error:', error, errorInfo);
     }
 
     render() {
         if (this.state.hasError) {
             return (
-                <div style={{ padding: '20px', color: 'red', backgroundColor: '#1e1e1e', height: '100vh', fontFamily: 'monospace' }}>
+                <div
+                    style={{
+                        padding: '20px',
+                        color: 'red',
+                        backgroundColor: '#1e1e1e',
+                        height: '100vh',
+                        fontFamily: 'monospace',
+                    }}
+                >
                     <h2>Something went completely wrong.</h2>
                     <details style={{ whiteSpace: 'pre-wrap', color: '#ffaaaa' }}>
                         {this.state.error && this.state.error.toString()}

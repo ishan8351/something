@@ -4,7 +4,17 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { productApi } from '../features/products/api/productApi.js';
 import { CartContext } from '../CartContext.jsx';
 import { WishlistContext } from '../WishlistContext.jsx';
-import { ShieldCheck, Truck, Building2, Package, FileText, Heart, AlertCircle } from 'lucide-react'; 
+import {
+    ShieldCheck,
+    Truck,
+    Building2,
+    Package,
+    FileText,
+    Heart,
+    AlertCircle,
+    TrendingUp,
+    Percent,
+} from 'lucide-react';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
 import BeautifulDescription from './BeautifulDescription';
@@ -13,12 +23,12 @@ import Footer from './Footer';
 function ProductPage() {
     const { productId } = useParams();
     const navigate = useNavigate();
-    const { addToCart, cartItems, setExactQuantity } = useContext(CartContext);
+    const { addToCart, cartItems } = useContext(CartContext);
     const { isInWishlist, toggleWishlist } = useContext(WishlistContext);
 
     const { data: p } = useSuspenseQuery({
         queryKey: ['product', productId],
-        queryFn: () => productApi.getProductById(productId)
+        queryFn: () => productApi.getProductById(productId),
     });
 
     const [selectedImage, setSelectedImage] = useState(0);
@@ -29,6 +39,8 @@ function ProductPage() {
 
         const basePrice = p.platformSellPrice;
         const moq = p.moq || Math.floor(Math.random() * 50) + 10;
+        const retailMrp = p.compareAtPrice || Math.floor(basePrice * 1.8);
+        const estMargin = Math.round(((retailMrp - basePrice) / retailMrp) * 100);
 
         return {
             id: p._id,
@@ -42,22 +54,27 @@ function ProductPage() {
             supplierYears: Math.floor(Math.random() * 10) + 2,
 
             basePrice: basePrice,
+            retailMrp: retailMrp,
+            estMargin: estMargin,
             moq: moq,
             gstPercent: p.gstPercent || 18,
-            hsnCode: p.hsn || '85437099', 
-            stock: p.inventory?.stock || Math.floor(Math.random() * 5000) + 500, 
+            hsnCode: p.hsn || '85437099',
+            stock: p.inventory?.stock || Math.floor(Math.random() * 5000) + 500,
 
             tiers: [
                 { min: moq, max: moq * 4, price: basePrice },
-                { min: (moq * 4) + 1, max: moq * 9, price: Math.floor(basePrice * 0.95) }, 
-                { min: (moq * 9) + 1, max: '1000+', price: Math.floor(basePrice * 0.88) }  
+                { min: moq * 4 + 1, max: moq * 9, price: Math.floor(basePrice * 0.95) },
+                { min: moq * 9 + 1, max: '1000+', price: Math.floor(basePrice * 0.88) },
             ],
 
-            descriptionHTML: p.descriptionHTML || p.description || p.title, 
-            images: p.images?.length > 0 ? p.images.map(img => img.url) : ['https://images.unsplash.com/photo-1596547609652-9cf5d8d76921?w=500&q=80'],
+            descriptionHTML: p.descriptionHTML || p.description || p.title,
+            images:
+                p.images?.length > 0
+                    ? p.images.map((img) => img.url)
+                    : ['https://images.unsplash.com/photo-1596547609652-9cf5d8d76921?w=500&q=80'],
             rating: p.averageRating || 4.5,
             reviewCount: p.reviewCount || Math.floor(Math.random() * 50) + 5,
-        }
+        };
     }, [p]);
 
     const [quantity, setQuantity] = useState(product?.moq || 1);
@@ -65,13 +82,12 @@ function ProductPage() {
     useEffect(() => {
         window.scrollTo(0, 0);
         if (product) {
-            setQuantity(product.moq); 
+            setQuantity(product.moq);
         }
     }, [productId, product]);
 
-    if (!product) return null;
-
     const currentPrice = React.useMemo(() => {
+        if (!product) return 0;
         let price = product.basePrice;
         for (const tier of product.tiers) {
             if (quantity >= tier.min) {
@@ -82,186 +98,291 @@ function ProductPage() {
     }, [quantity, product]);
 
     const handleQuantityChange = (val) => {
-
         let newQty = Math.max(product.moq, val);
-
         newQty = Math.min(newQty, product.stock);
         setQuantity(newQty);
     };
 
-    const fullStars = Math.floor(product.rating);
-    const hasHalf = product.rating % 1 >= 0.5;
-    const emptyStars = 5 - fullStars - (hasHalf ? 1 : 0);
+    if (!product) return null;
 
     return (
-        <div className="min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-primary/30 flex flex-col">
+        <div className="selection:bg-primary/30 flex min-h-screen flex-col bg-slate-50 pb-24 font-sans text-slate-900 lg:pb-0">
             <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
             <Navbar onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
 
-            <main className="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
-
-                {}
-                <nav className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400 mb-8 overflow-x-auto whitespace-nowrap">
-                    <Link to="/" className="hover:text-primary transition-colors">Catalog</Link>
+            <main className="mx-auto w-full max-w-7xl flex-grow px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
+                {/* Breadcrumbs */}
+                <nav className="mb-8 flex items-center gap-2 overflow-x-auto text-xs font-bold tracking-wider whitespace-nowrap text-slate-400 uppercase">
+                    <Link to="/" className="hover:text-primary transition-colors">
+                        Catalog
+                    </Link>
                     <span>›</span>
-                    <span className="hover:text-primary transition-colors cursor-pointer">{product.category}</span>
+                    <span className="hover:text-primary cursor-pointer transition-colors">
+                        {product.category}
+                    </span>
                     <span>›</span>
-                    <span className="text-slate-900 truncate max-w-[200px] inline-block">{product.name}</span>
+                    <span className="inline-block max-w-[200px] truncate text-slate-900">
+                        {product.name}
+                    </span>
                 </nav>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 mb-20">
-
-                    {}
-                    <div className="lg:col-span-5 flex flex-col-reverse md:flex-row gap-4 h-fit sticky top-28">
-                        <div className="flex md:flex-col gap-3 overflow-x-auto md:overflow-y-auto custom-scrollbar pb-2 md:pb-0 md:pr-2">
+                <div className="mb-12 grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-16">
+                    {/* Image Gallery */}
+                    <div className="sticky top-28 flex h-fit flex-col-reverse gap-4 md:flex-row lg:col-span-5">
+                        <div className="custom-scrollbar flex gap-3 overflow-x-auto pb-2 md:flex-col md:overflow-y-auto md:pr-2 md:pb-0">
                             {product.images.map((img, i) => (
                                 <button
                                     key={i}
-                                    className={`w-20 h-24 flex-shrink-0 rounded-2xl overflow-hidden border-2 transition-all ${selectedImage === i ? 'border-primary shadow-md' : 'border-transparent hover:border-slate-300'}`}
+                                    className={`h-24 w-20 flex-shrink-0 overflow-hidden rounded-2xl border-2 transition-all ${selectedImage === i ? 'border-primary shadow-md' : 'border-transparent hover:border-slate-300'}`}
                                     onClick={() => setSelectedImage(i)}
                                 >
-                                    <img src={img} alt={`View ${i + 1}`} className="w-full h-full object-cover" />
+                                    <img
+                                        src={img}
+                                        alt={`View ${i + 1}`}
+                                        className="h-full w-full object-cover"
+                                    />
                                 </button>
                             ))}
                         </div>
-                        <div className="flex-1 bg-white rounded-3xl p-4 shadow-sm border border-slate-200 aspect-square flex items-center justify-center overflow-hidden relative group">
+                        <div className="group relative flex aspect-square flex-1 items-center justify-center overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
                             <img
                                 src={product.images[selectedImage] || product.images[0]}
                                 alt={product.name}
-                                className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500"
+                                className="h-full w-full object-contain mix-blend-multiply transition-transform duration-500 group-hover:scale-105"
                             />
-                            <button 
-                                className={`absolute top-4 right-4 p-3 rounded-full shadow-md transition-all duration-300 border ${isInWishlist(product.id) ? 'bg-danger text-white border-danger' : 'bg-white/90 backdrop-blur text-slate-400 border-slate-200 hover:text-danger hover:scale-110'}`}
-                                onClick={(e) => { e.preventDefault(); toggleWishlist({ id: product.id, ...product }); }}
+
+                            {/* Badges on Image */}
+                            <div className="absolute top-4 left-4 flex flex-col gap-2">
+                                {product.estMargin >= 40 && (
+                                    <span className="flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-100/90 px-3 py-1.5 text-[11px] font-extrabold text-amber-800 shadow-sm backdrop-blur">
+                                        <TrendingUp size={14} /> High Margin
+                                    </span>
+                                )}
+                            </div>
+
+                            <button
+                                className={`absolute top-4 right-4 rounded-full border p-3 shadow-md transition-all duration-300 ${isInWishlist(product.id) ? 'bg-danger border-danger text-white' : 'hover:text-danger border-slate-200 bg-white/90 text-slate-400 backdrop-blur hover:scale-110'}`}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    toggleWishlist({ id: product.id, ...product });
+                                }}
                             >
-                                <Heart size={20} fill={isInWishlist(product.id) ? "currentColor" : "none"} />
+                                <Heart
+                                    size={20}
+                                    fill={isInWishlist(product.id) ? 'currentColor' : 'none'}
+                                />
                             </button>
                         </div>
                     </div>
 
-                    {}
-                    <div className="lg:col-span-7 flex flex-col">
-
-                        {}
+                    {/* Product Details & Purchasing */}
+                    <div className="flex flex-col lg:col-span-7">
+                        {/* Header & Supplier Info */}
                         <div className="mb-6">
-                            <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight mb-4">
+                            <h1 className="mb-4 text-3xl leading-tight font-extrabold tracking-tight text-slate-900 md:text-4xl">
                                 {product.name}
                             </h1>
 
-                            {}
-                            <div className="flex flex-wrap items-center gap-4 p-3 bg-blue-50/50 border border-blue-100 rounded-xl mb-4">
+                            <div className="mb-6 flex flex-wrap items-center gap-4 rounded-xl border border-blue-100 bg-blue-50/50 p-3">
                                 <div className="flex items-center gap-2">
                                     <Building2 size={18} className="text-blue-600" />
-                                    <span className="text-sm font-bold text-slate-900">{product.supplierName}</span>
+                                    <span className="text-sm font-bold text-slate-900">
+                                        {product.supplierName}
+                                    </span>
                                 </div>
                                 {product.isVerifiedSupplier && (
-                                    <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider bg-green-100 text-green-700 px-2 py-1 rounded-md">
+                                    <span className="flex items-center gap-1 rounded-md bg-green-100 px-2 py-1 text-[10px] font-bold tracking-wider text-green-700 uppercase">
                                         <ShieldCheck size={12} /> Verified Supplier
                                     </span>
                                 )}
-                                <span className="text-xs font-medium text-slate-500 border-l border-slate-300 pl-4">{product.supplierYears} Yrs on Platform</span>
+                                <span className="border-l border-slate-300 pl-4 text-xs font-medium text-slate-500">
+                                    {product.supplierYears} Yrs on Platform
+                                </span>
                             </div>
 
-                            <div className="flex items-center gap-6 text-sm">
-                                <span className="text-slate-500 font-medium">SKU: <span className="font-bold text-slate-900">{product.skuId}</span></span>
-                                <span className="text-slate-500 font-medium">HSN: <span className="font-bold text-slate-900">{product.hsnCode}</span></span>
+                            <div className="mb-6 flex items-center gap-6 border-b border-slate-200 pb-6 text-sm">
+                                <span className="font-medium text-slate-500">
+                                    SKU:{' '}
+                                    <span className="font-bold text-slate-900">
+                                        {product.skuId}
+                                    </span>
+                                </span>
+                                <span className="font-medium text-slate-500">
+                                    HSN:{' '}
+                                    <span className="font-bold text-slate-900">
+                                        {product.hsnCode}
+                                    </span>
+                                </span>
                             </div>
                         </div>
 
-                        {}
-                        <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-8 shadow-sm">
-                            <h3 className="text-sm font-bold text-slate-900 mb-4 uppercase tracking-wider flex items-center gap-2">
-                                <Package size={16}/> Wholesale Tiered Pricing
-                            </h3>
-
-                            <div className="grid grid-cols-3 gap-4 mb-6 text-center">
-                                {product.tiers.map((tier, index) => (
-                                    <div key={index} className={`p-3 rounded-xl border ${quantity >= tier.min && (tier.max === '1000+' || quantity <= tier.max) ? 'bg-primary/5 border-primary shadow-sm' : 'bg-slate-50 border-transparent'}`}>
-                                        <span className="block text-xl font-extrabold text-slate-900 mb-1">
-                                            ₹{tier.price.toLocaleString('en-IN')}
+                        {/* Retail Metrics & Pricing */}
+                        <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                            <div className="mb-6 flex items-start justify-between">
+                                <div>
+                                    <h3 className="mb-1 flex items-center gap-2 text-sm font-bold tracking-wider text-slate-900 uppercase">
+                                        <Package size={16} /> Wholesale Pricing
+                                    </h3>
+                                    <p className="text-xs text-slate-500">
+                                        Retail MRP:{' '}
+                                        <span className="line-through">
+                                            ₹{product.retailMrp.toLocaleString('en-IN')}
                                         </span>
-                                        <span className="block text-xs font-medium text-slate-500">
-                                            {tier.min} - {tier.max} units
-                                        </span>
-                                    </div>
-                                ))}
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <span className="mb-1 flex items-center justify-end gap-1 text-xs font-bold tracking-wider text-emerald-600 uppercase">
+                                        <Percent size={12} /> Est. Retail Margin
+                                    </span>
+                                    <span className="text-xl font-extrabold text-emerald-600">
+                                        ~{product.estMargin}%
+                                    </span>
+                                </div>
                             </div>
 
-                            <div className="flex items-center justify-between py-4 border-t border-slate-100">
+                            {/* Dynamic Tiered Boxes */}
+                            <div className="mb-6 grid grid-cols-3 gap-3 text-center">
+                                {product.tiers.map((tier, index) => {
+                                    // Check if this tier is the currently active one based on selected quantity
+                                    const isMaxTier = tier.max === '1000+';
+                                    const isActive =
+                                        quantity >= tier.min && (isMaxTier || quantity <= tier.max);
+
+                                    return (
+                                        <div
+                                            key={index}
+                                            className={`rounded-xl border p-3 transition-all duration-300 ${isActive ? 'bg-primary/5 border-primary scale-[1.02] shadow-sm' : 'border-transparent bg-slate-50 opacity-70'}`}
+                                        >
+                                            <span
+                                                className={`mb-1 block text-xl font-extrabold ${isActive ? 'text-primary' : 'text-slate-900'}`}
+                                            >
+                                                ₹{tier.price.toLocaleString('en-IN')}
+                                            </span>
+                                            <span
+                                                className={`block text-[11px] font-bold ${isActive ? 'text-primary' : 'text-slate-500'}`}
+                                            >
+                                                {tier.min} {isMaxTier ? '+' : `- ${tier.max}`} units
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Subtotal Calculation */}
+                            <div className="flex items-center justify-between rounded-lg border-t border-slate-100 bg-slate-50/50 px-4 py-4">
                                 <div>
-                                    <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total Excl. GST</span>
-                                    <span className="text-3xl font-extrabold text-slate-900 tracking-tighter">
+                                    <span className="mb-1 block text-xs font-bold tracking-wider text-slate-500 uppercase">
+                                        Total Excl. GST
+                                    </span>
+                                    <span className="text-3xl font-extrabold tracking-tighter text-slate-900">
                                         ₹{(currentPrice * quantity).toLocaleString('en-IN')}
                                     </span>
                                 </div>
                                 <div className="text-right">
-                                    <span className="flex items-center justify-end gap-1 text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-                                        <FileText size={12}/> {product.gstPercent}% GST (ITC Claimable)
+                                    <span className="mb-1 flex items-center justify-end gap-1 text-xs font-bold tracking-wider text-slate-500 uppercase">
+                                        <FileText size={12} /> {product.gstPercent}% GST (ITC
+                                        Claimable)
                                     </span>
-                                    <span className="text-lg font-bold text-slate-500">
-                                        + ₹{((currentPrice * quantity) * (product.gstPercent / 100)).toLocaleString('en-IN')}
+                                    <span className="text-lg font-bold text-slate-600">
+                                        + ₹
+                                        {(
+                                            currentPrice *
+                                            quantity *
+                                            (product.gstPercent / 100)
+                                        ).toLocaleString('en-IN')}
                                     </span>
                                 </div>
                             </div>
                         </div>
 
-                        {}
-                        <div className="mb-8 p-6 bg-slate-50 rounded-2xl border border-slate-200">
-                            <div className="flex flex-col sm:flex-row gap-6 items-end">
-
-                                {}
-                                <div className="flex-1 w-full">
-                                    <div className="flex justify-between items-center mb-2">
-                                        <label className="text-sm font-bold text-slate-900">Procurement Quantity</label>
-                                        <span className="text-xs font-medium text-slate-500">Stock: {product.stock.toLocaleString('en-IN')} units</span>
+                        {/* Procurement Controls */}
+                        <div className="mb-8 rounded-2xl border border-slate-200 bg-slate-50 p-6">
+                            <div className="flex flex-col items-end gap-6 sm:flex-row">
+                                <div className="w-full flex-1">
+                                    <div className="mb-2 flex items-center justify-between">
+                                        <label className="text-sm font-bold text-slate-900">
+                                            Procurement Quantity
+                                        </label>
+                                        <span className="text-xs font-medium text-slate-500">
+                                            Stock: {product.stock.toLocaleString('en-IN')} units
+                                        </span>
                                     </div>
-                                    <div className="flex items-center bg-white border border-slate-300 rounded-xl overflow-hidden focus-within:border-primary focus-within:ring-1 focus-within:ring-primary shadow-sm h-14">
-                                        <button 
-                                            className="w-14 h-full flex items-center justify-center bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 font-bold transition-colors disabled:opacity-50" 
-                                            onClick={() => handleQuantityChange(quantity - product.moq)} 
+                                    <div className="focus-within:border-primary focus-within:ring-primary flex h-14 items-center overflow-hidden rounded-xl border border-slate-300 bg-white shadow-sm focus-within:ring-1">
+                                        <button
+                                            className="flex h-full w-14 items-center justify-center bg-slate-100 font-bold text-slate-600 transition-colors hover:bg-slate-200 hover:text-slate-900 disabled:opacity-50"
+                                            onClick={() =>
+                                                handleQuantityChange(quantity - product.moq)
+                                            }
                                             disabled={quantity <= product.moq}
-                                        >−</button>
-                                        <input 
-                                            type="number" 
-                                            className="flex-1 w-full h-full text-center font-extrabold text-lg text-slate-900 outline-none bg-transparent"
+                                        >
+                                            −
+                                        </button>
+                                        <input
+                                            type="number"
+                                            className="h-full w-full flex-1 bg-transparent text-center text-lg font-extrabold text-slate-900 outline-none"
                                             value={quantity}
-                                            onChange={(e) => handleQuantityChange(parseInt(e.target.value) || product.moq)}
+                                            onChange={(e) =>
+                                                handleQuantityChange(
+                                                    parseInt(e.target.value) || product.moq
+                                                )
+                                            }
                                             onBlur={(e) => {
-    let val = parseInt(e.target.value);
-    if (isNaN(val) || val < product.moq) {
-        setQuantity(product.moq);
-    } else {
-        const remainder = val % product.moq;
-        if (remainder !== 0) {
-            setQuantity(val - remainder); 
-        }
-    }
-}}
+                                                let val = parseInt(e.target.value);
+                                                if (isNaN(val) || val < product.moq) {
+                                                    setQuantity(product.moq);
+                                                } else {
+                                                    // Forces into multiples of MOQ
+                                                    const remainder = val % product.moq;
+                                                    if (remainder !== 0) {
+                                                        setQuantity(val - remainder);
+                                                    }
+                                                }
+                                            }}
                                         />
-                                        <button 
-                                            className="w-14 h-full flex items-center justify-center bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 font-bold transition-colors disabled:opacity-50" 
-                                            onClick={() => handleQuantityChange(quantity + product.moq)} 
+                                        <button
+                                            className="flex h-full w-14 items-center justify-center bg-slate-100 font-bold text-slate-600 transition-colors hover:bg-slate-200 hover:text-slate-900 disabled:opacity-50"
+                                            onClick={() =>
+                                                handleQuantityChange(quantity + product.moq)
+                                            }
                                             disabled={quantity >= product.stock}
-                                        >+</button>
+                                        >
+                                            +
+                                        </button>
                                     </div>
-                                    {quantity === product.moq && (
-                                        <p className="flex items-center gap-1 text-xs text-amber-600 font-bold mt-2">
-                                            <AlertCircle size={12}/> Minimum Order Quantity (MOQ) is {product.moq}
+
+                                    <div className="mt-2 flex items-center justify-between">
+                                        <p className="text-[11px] font-bold text-slate-500">
+                                            Sold in multiples of {product.moq}
                                         </p>
-                                    )}
+                                        {quantity === product.moq && (
+                                            <p className="flex items-center gap-1 text-[11px] font-bold text-amber-600">
+                                                <AlertCircle size={12} /> MOQ is {product.moq}
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
 
-                                {}
-                                <div className="flex-1 w-full">
+                                <div className="hidden w-full flex-1 sm:block">
                                     <button
-                                        className="w-full h-14 bg-primary text-white rounded-xl font-bold tracking-wide hover:bg-primary-light hover:shadow-lg hover:shadow-primary/30 transition-all duration-300 disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                        className="bg-primary hover:bg-primary-light hover:shadow-primary/30 flex h-14 w-full items-center justify-center gap-2 rounded-xl font-bold tracking-wide text-white transition-all duration-300 hover:shadow-lg disabled:cursor-not-allowed disabled:bg-slate-300"
                                         disabled={product.stock < product.moq}
                                         onClick={() => {
                                             if (product.stock < product.moq) return;
-                                            let safeImage = product.images[0] || 'https://images.unsplash.com/photo-1596547609652-9cf5d8d76921?w=500&q=80';
-                                            addToCart({
-                                                _id: product.id, id: product.id, name: product.name, price: currentPrice, image: safeImage, sku: product.skuId, minQuantity: product.moq
-                                            }, quantity);
+                                            let safeImage =
+                                                product.images[0] ||
+                                                'https://images.unsplash.com/photo-1596547609652-9cf5d8d76921?w=500&q=80';
+                                            addToCart(
+                                                {
+                                                    _id: product.id,
+                                                    id: product.id,
+                                                    name: product.name,
+                                                    price: currentPrice,
+                                                    image: safeImage,
+                                                    sku: product.skuId,
+                                                    minQuantity: product.moq,
+                                                },
+                                                quantity
+                                            );
 
                                             alert(`Added ${quantity} units to Procurement Cart`);
                                         }}
@@ -272,36 +393,87 @@ function ProductPage() {
                             </div>
                         </div>
 
-                        {}
-                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm space-y-0 divide-y divide-slate-100 mt-auto">
+                        {/* Logistics info */}
+                        <div className="mt-auto space-y-0 divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white shadow-sm">
                             <div className="flex items-start gap-4 p-5">
-                                <div className="p-2 bg-slate-100 rounded-lg text-slate-600"><Truck size={20}/></div>
+                                <div className="rounded-lg bg-slate-100 p-2 text-slate-600">
+                                    <Truck size={20} />
+                                </div>
                                 <div>
-                                    <h4 className="font-bold text-slate-900">Pan-India Freight Freight</h4>
-                                    <p className="text-sm text-slate-500 font-medium">Dispatches within 48 hours. LTL and FTL logistics available for heavy loads.</p>
+                                    <h4 className="font-bold text-slate-900">
+                                        Pan-India Freight Logistics
+                                    </h4>
+                                    <p className="text-sm font-medium text-slate-500">
+                                        Dispatches within 48 hours. LTL and FTL logistics available
+                                        for heavy loads.
+                                    </p>
                                 </div>
                             </div>
                             <div className="flex items-start gap-4 p-5">
-                                <div className="p-2 bg-slate-100 rounded-lg text-slate-600"><FileText size={20}/></div>
+                                <div className="rounded-lg bg-slate-100 p-2 text-slate-600">
+                                    <FileText size={20} />
+                                </div>
                                 <div>
-                                    <h4 className="font-bold text-slate-900">GST Input Tax Credit</h4>
-                                    <p className="text-sm text-slate-500 font-medium">100% compliant B2B invoicing provided to claim ITC. Ensure your GSTIN is updated in your profile.</p>
+                                    <h4 className="font-bold text-slate-900">
+                                        GST Input Tax Credit
+                                    </h4>
+                                    <p className="text-sm font-medium text-slate-500">
+                                        100% compliant B2B invoicing provided to claim ITC. Ensure
+                                        your GSTIN is updated in your profile.
+                                    </p>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {}
-                <section className="bg-white rounded-3xl p-8 md:p-12 shadow-sm border border-slate-200 mb-20">
-                    <h2 className="text-2xl font-extrabold text-slate-900 mb-6">Product Specifications</h2>
+                {/* Product Specs */}
+                <section className="mb-8 rounded-3xl border border-slate-200 bg-white p-8 shadow-sm md:p-12">
+                    <h2 className="mb-6 text-2xl font-extrabold text-slate-900">
+                        Product Specifications
+                    </h2>
                     <div className="prose prose-slate max-w-none">
-                         <BeautifulDescription rawHtml={product.descriptionHTML} />
+                        <BeautifulDescription rawHtml={product.descriptionHTML} />
                     </div>
                 </section>
-
             </main>
             <Footer />
+
+            {/* Sticky Mobile Buy Bar */}
+            <div className="pb-safe fixed bottom-0 left-0 z-50 w-full border-t border-slate-200 bg-white p-4 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] sm:hidden">
+                <div className="mb-3 flex items-center justify-between">
+                    <span className="text-lg font-extrabold text-slate-900">
+                        ₹{(currentPrice * quantity).toLocaleString('en-IN')}
+                    </span>
+                    <span className="text-xs font-bold text-slate-500">{quantity} units</span>
+                </div>
+                <button
+                    className="bg-primary flex h-12 w-full items-center justify-center gap-2 rounded-xl font-bold tracking-wide text-white transition-all disabled:bg-slate-300"
+                    disabled={product.stock < product.moq}
+                    onClick={() => {
+                        if (product.stock < product.moq) return;
+                        let safeImage =
+                            product.images[0] ||
+                            'https://images.unsplash.com/photo-1596547609652-9cf5d8d76921?w=500&q=80';
+                        addToCart(
+                            {
+                                ...product,
+                                _id: product.id,
+                                id: product.id,
+                                name: product.name,
+                                price: currentPrice,
+                                image: safeImage,
+                                sku: product.skuId,
+                                minQuantity: product.moq,
+                            },
+                            quantity
+                        );
+                        alert(`Added ${quantity} units to Procurement Cart`);
+                    }}
+                >
+                    <Package size={18} /> Add to Bulk Order
+                </button>
+            </div>
         </div>
     );
 }

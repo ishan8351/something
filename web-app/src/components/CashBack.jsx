@@ -7,9 +7,12 @@ function CashBack() {
                         <span className="cashback-badge">Limited Offer</span>
                         <h2 className="cashback-title">Get 5% Cash Back On $200</h2>
                         <p className="cashback-text">
-                            Shopping is a bit of a relaxing hobby for me, which is sometimes troubling for the bank balance.
+                            Shopping is a bit of a relaxing hobby for me, which is sometimes
+                            troubling for the bank balance.
                         </p>
-                        <button className="btn-primary" id="btn-learn-more">Learn More →</button>
+                        <button className="btn-primary" id="btn-learn-more">
+                            Learn More →
+                        </button>
                     </div>
                     <div className="cashback-card-visual">
                         <div className="credit-card">
