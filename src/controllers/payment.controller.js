@@ -77,20 +77,53 @@ export const verifyPaymentSignature = asyncHandler(async (req, res) => {
             );
         }
 
-        const existingPayment = await Payment.findOne({ referenceId: razorpay_payment_id }).session(session);
+        const expectedAmountInPaise = Math.round(invoice.grandTotal * 100);
+
+        if (!isMock) {
+            const rzpPayment = await razorpayInstance.payments.fetch(razorpay_payment_id);
+
+            if (rzpPayment.amount !== expectedAmountInPaise) {
+                throw new ApiError(
+                    400,
+                    `SECURITY ALERT: Amount mismatch. Expected ₹${invoice.grandTotal}, but received ₹${rzpPayment.amount / 100}`
+                );
+            }
+
+            if (rzpPayment.status !== 'captured') {
+                throw new ApiError(
+                    400,
+                    `Payment failed or is pending. Current status: ${rzpPayment.status}`
+                );
+            }
+        } else {
+            console.log(
+                `[MOCK RAZORPAY] Bypassing fetch validation. Assuming ₹${invoice.grandTotal} was paid successfully.`
+            );
+        }
+
+        const existingPayment = await Payment.findOne({ referenceId: razorpay_payment_id }).session(
+            session
+        );
         if (existingPayment) {
             await session.abortTransaction();
             session.endSession();
-            return res.status(200).json(new ApiResponse(200, existingPayment, 'Payment already processed'));
+            return res
+                .status(200)
+                .json(new ApiResponse(200, existingPayment, 'Payment already processed'));
         }
 
-        const paymentArray = await Payment.create([{
-            userId,
-            invoiceId,
-            paymentMethod: 'RAZORPAY',
-            status: 'SUCCESS',
-            referenceId: razorpay_payment_id,
-        }], { session });
+        const paymentArray = await Payment.create(
+            [
+                {
+                    userId,
+                    invoiceId,
+                    paymentMethod: 'RAZORPAY',
+                    status: 'SUCCESS',
+                    referenceId: razorpay_payment_id,
+                },
+            ],
+            { session }
+        );
         const payment = paymentArray[0];
 
         invoice.status = 'PAID';
@@ -103,17 +136,22 @@ export const verifyPaymentSignature = asyncHandler(async (req, res) => {
                 await order.save({ session });
             }
         } else if (invoice.invoiceType === 'WALLET_TOPUP') {
-            await WalletTransaction.create([{
-                userId,
-                paymentId: payment._id,
-                amount: invoice.totalAmount,
-                transactionType: 'CREDIT',
-                description: `Wallet top-up via Razorpay (${razorpay_payment_id})`,
-            }], { session });
+            await WalletTransaction.create(
+                [
+                    {
+                        userId,
+                        paymentId: payment._id,
+                        amount: invoice.grandTotal,
+                        transactionType: 'CREDIT',
+                        description: `Wallet top-up via Razorpay (${razorpay_payment_id})`,
+                    },
+                ],
+                { session }
+            );
 
             await User.findByIdAndUpdate(
                 userId,
-                { $inc: { walletBalance: invoice.totalAmount } },
+                { $inc: { walletBalance: invoice.grandTotal } },
                 { session }
             );
         }
@@ -124,9 +162,7 @@ export const verifyPaymentSignature = asyncHandler(async (req, res) => {
         return res
             .status(200)
             .json(new ApiResponse(200, { payment, invoice }, 'Payment verified securely'));
-
     } catch (error) {
-
         await session.abortTransaction();
         session.endSession();
         throw new ApiError(500, `Payment processing failed: ${error.message}`);

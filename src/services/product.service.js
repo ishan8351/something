@@ -5,6 +5,7 @@ import * as xlsx from 'xlsx';
 import { Product } from '../models/Product.js';
 import { Category } from '../models/Category.js';
 import { ApiError } from '../utils/ApiError.js';
+import { UserPricing } from '../models/UserPricing.js';
 
 const escapeRegex = (string) => {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -70,12 +71,26 @@ export class ProductService {
         };
     }
 
-    static async getProductById(productId) {
+    static async getProductById(productId, userId = null) {
         if (!mongoose.isValidObjectId(productId)) {
             throw new ApiError(400, 'Invalid product ID');
         }
-        const product = await Product.findById(productId).populate('categoryId', 'name');
+
+        const product = await Product.findById(productId).populate('categoryId', 'name').lean();
+
         if (!product) throw new ApiError(404, 'Product not found');
+
+        if (userId) {
+            const customPricing = await UserPricing.findOne({
+                userId: userId,
+                productId: productId,
+            }).lean();
+
+            if (customPricing && customPricing.customPrice) {
+                product.customPrice = customPricing.customPrice;
+            }
+        }
+
         return product;
     }
 

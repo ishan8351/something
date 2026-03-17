@@ -8,12 +8,12 @@ const orderItemSnapshotSchema = new mongoose.Schema(
         image: { type: String },
 
         hsnCode: { type: String, required: true },
-        taxSlab: { type: Number, required: true }, 
-        basePrice: { type: Number, required: true }, 
-        taxAmountPerUnit: { type: Number, required: true }, 
+        taxSlab: { type: Number, required: true },
+        basePrice: { type: Number, required: true },
+        taxAmountPerUnit: { type: Number, required: true },
 
         qty: { type: Number, required: true, min: 1 },
-        totalItemPrice: { type: Number, required: true } 
+        totalItemPrice: { type: Number, required: true },
     },
     { _id: false }
 );
@@ -57,9 +57,9 @@ const orderSchema = new mongoose.Schema(
             default: 'RAZORPAY',
         },
 
-        subTotal: { type: Number, required: true }, 
-        taxTotal: { type: Number, required: true }, 
-        grandTotal: { type: Number, required: true }, 
+        subTotal: { type: Number, required: true },
+        taxTotal: { type: Number, required: true },
+        grandTotal: { type: Number, required: true },
 
         items: [orderItemSnapshotSchema],
         orderDate: { type: Date, default: Date.now },

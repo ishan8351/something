@@ -10,7 +10,8 @@ const invoiceSchema = new mongoose.Schema(
         buyerDetails: {
             companyName: { type: String },
             gstin: { type: String },
-            billingAddress: { type: String }, 
+            billingAddress: { type: String },
+            state: { type: String },
         },
 
         razorpayOrderId: { type: String, sparse: true },

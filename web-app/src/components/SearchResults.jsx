@@ -7,14 +7,13 @@ function SearchResults() {
     const [searchParams] = useSearchParams();
     const query = searchParams.get('q') || '';
     const categoryParam = searchParams.get('category') || 'All Categories';
-    
+
     const navigate = useNavigate();
 
     useEffect(() => {
         window.scrollTo(0, 0);
     }, [query, categoryParam]);
 
-    // Show empty state ONLY if there's no search query AND no category selected
     if (!query && categoryParam === 'All Categories') {
         return (
             <div className="mx-auto w-full max-w-7xl px-4 py-24 text-center sm:px-6 lg:px-8">
@@ -51,7 +50,7 @@ function SearchResults() {
                 </p>
             </div>
 
-            {/* We pass initialCategory down to the grid */}
+            {}
             <DropshipProducts
                 initialCategory={categoryParam}
                 globalSearchQuery={query}

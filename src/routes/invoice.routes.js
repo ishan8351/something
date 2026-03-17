@@ -4,7 +4,7 @@ import {
     listMyInvoices,
     markAsPaidManual,
     generateInvoicePDF,
-    getAllInvoices // NEW IMPORT
+    getAllInvoices,
 } from '../controllers/invoice.controller.js';
 import { verifyJWT, authorize } from '../middlewares/auth.middleware.js';
 
@@ -16,8 +16,7 @@ router.get('/', listMyInvoices);
 router.get('/:id', getInvoice);
 router.get('/:id/pdf', generateInvoicePDF);
 
-// ADMIN ROUTES
-router.get('/admin/all', authorize('ADMIN'), getAllInvoices); // NEW ROUTE
+router.get('/admin/all', authorize('ADMIN'), getAllInvoices);
 router.put('/:id/manual-payment', authorize('ADMIN'), markAsPaidManual);
 
 export default router;

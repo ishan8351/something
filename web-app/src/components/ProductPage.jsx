@@ -4,6 +4,7 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { useCartStore } from '../store/cartStore';
 import { productApi } from '../features/products/api/productApi.js';
 import { WishlistContext } from '../WishlistContext.jsx';
+import { AuthContext } from '../AuthContext.jsx';
 import {
     ShieldCheck,
     Truck,
@@ -14,6 +15,7 @@ import {
     AlertCircle,
     TrendingUp,
     Percent,
+    Tag,
 } from 'lucide-react';
 
 import BeautifulDescription from './BeautifulDescription';
@@ -22,6 +24,7 @@ function ProductPage() {
     const { productId } = useParams();
     const navigate = useNavigate();
     const { isInWishlist, toggleWishlist } = useContext(WishlistContext);
+    const { user } = useContext(AuthContext);
 
     const { data: p } = useSuspenseQuery({
         queryKey: ['product', productId],
@@ -29,41 +32,42 @@ function ProductPage() {
     });
 
     const [selectedImage, setSelectedImage] = useState(0);
-
     const addToCart = useCartStore((state) => state.addToCart);
 
     const product = React.useMemo(() => {
         if (!p) return null;
 
         const basePrice = p.platformSellPrice;
-        const moq = p.moq || Math.floor(Math.random() * 50) + 10;
-        const retailMrp = p.compareAtPrice || Math.floor(basePrice * 1.8);
+        const moq = p.moq || 1;
+        const retailMrp = p.compareAtPrice || Math.floor(basePrice * 1.5);
         const estMargin = Math.round(((retailMrp - basePrice) / retailMrp) * 100);
 
         return {
             id: p._id,
-            skuId: p.sku || `SKU-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+            skuId: p.sku,
             name: p.title,
             category: p.categoryId?.name || p.productType || 'Wholesale Goods',
-
-            supplierName: p.vendor || 'Premium Industries Pvt Ltd',
+            supplierName: p.vendor || 'Sovely Verified Supplier',
             isVerifiedSupplier: true,
-            supplierRating: 4.8,
-            supplierYears: Math.floor(Math.random() * 10) + 2,
-
+            supplierRating: p.averageRating || 4.5,
+            supplierYears: 3,
             basePrice: basePrice,
             retailMrp: retailMrp,
             estMargin: estMargin,
             moq: moq,
             gstPercent: p.gstPercent || 18,
             hsnCode: p.hsn || '85437099',
-            stock: p.inventory?.stock || Math.floor(Math.random() * 5000) + 500,
+            stock: p.inventory?.stock || 0,
 
-            tiers: [
-                { min: moq, max: moq * 4, price: basePrice },
-                { min: moq * 4 + 1, max: moq * 9, price: Math.floor(basePrice * 0.95) },
-                { min: moq * 9 + 1, max: '1000+', price: Math.floor(basePrice * 0.88) },
-            ],
+            customPrice: p.customPrice || null,
+
+            tiers: p.customPrice
+                ? []
+                : [
+                      { min: moq, max: moq * 4, price: basePrice },
+                      { min: moq * 4 + 1, max: moq * 9, price: Math.floor(basePrice * 0.95) },
+                      { min: moq * 9 + 1, max: '1000+', price: Math.floor(basePrice * 0.88) },
+                  ],
 
             descriptionHTML: p.descriptionHTML || p.description || p.title,
             images:
@@ -71,7 +75,7 @@ function ProductPage() {
                     ? p.images.map((img) => img.url)
                     : ['https://images.unsplash.com/photo-1596547609652-9cf5d8d76921?w=500&q=80'],
             rating: p.averageRating || 4.5,
-            reviewCount: p.reviewCount || Math.floor(Math.random() * 50) + 5,
+            reviewCount: p.reviewCount || 0,
         };
     }, [p]);
 
@@ -86,6 +90,11 @@ function ProductPage() {
 
     const currentPrice = React.useMemo(() => {
         if (!product) return 0;
+
+        if (product.customPrice) {
+            return product.customPrice;
+        }
+
         let price = product.basePrice;
         for (const tier of product.tiers) {
             if (quantity >= tier.min) {
@@ -207,6 +216,7 @@ function ProductPage() {
                     </div>
 
                     {}
+                    {}
                     <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                         <div className="mb-6 flex items-start justify-between">
                             <div>
@@ -220,42 +230,67 @@ function ProductPage() {
                                     </span>
                                 </p>
                             </div>
-                            <div className="text-right">
-                                <span className="mb-1 flex items-center justify-end gap-1 text-xs font-bold tracking-wider text-emerald-600 uppercase">
-                                    <Percent size={12} /> Est. Retail Margin
-                                </span>
-                                <span className="text-xl font-extrabold text-emerald-600">
-                                    ~{product.estMargin}%
-                                </span>
-                            </div>
+
+                            {}
+                            {!product.customPrice && (
+                                <div className="text-right">
+                                    <span className="mb-1 flex items-center justify-end gap-1 text-xs font-bold tracking-wider text-emerald-600 uppercase">
+                                        <Percent size={12} /> Est. Retail Margin
+                                    </span>
+                                    <span className="text-xl font-extrabold text-emerald-600">
+                                        ~{product.estMargin}%
+                                    </span>
+                                </div>
+                            )}
                         </div>
 
                         {}
-                        <div className="mb-6 grid grid-cols-3 gap-3 text-center">
-                            {product.tiers.map((tier, index) => {
-                                const isMaxTier = tier.max === '1000+';
-                                const isActive =
-                                    quantity >= tier.min && (isMaxTier || quantity <= tier.max);
-
-                                return (
-                                    <div
-                                        key={index}
-                                        className={`rounded-xl border p-3 transition-all duration-300 ${isActive ? 'bg-primary/5 border-primary scale-[1.02] shadow-sm' : 'border-transparent bg-slate-50 opacity-70'}`}
-                                    >
-                                        <span
-                                            className={`mb-1 block text-xl font-extrabold ${isActive ? 'text-primary' : 'text-slate-900'}`}
-                                        >
-                                            ₹{tier.price.toLocaleString('en-IN')}
+                        {product.customPrice ? (
+                            <div className="border-primary/20 bg-primary/5 mb-6 flex items-center gap-4 rounded-xl border p-4">
+                                <div className="text-primary flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm">
+                                    <Tag size={24} />
+                                </div>
+                                <div>
+                                    <span className="text-primary block text-xs font-bold tracking-widest uppercase">
+                                        Your Negotiated Contract Rate
+                                    </span>
+                                    <div className="flex items-end gap-3">
+                                        <span className="text-3xl font-extrabold text-slate-900">
+                                            ₹{product.customPrice.toLocaleString('en-IN')}
                                         </span>
-                                        <span
-                                            className={`block text-[11px] font-bold ${isActive ? 'text-primary' : 'text-slate-500'}`}
-                                        >
-                                            {tier.min} {isMaxTier ? '+' : `- ${tier.max}`} units
+                                        <span className="mb-1 text-sm font-bold text-slate-400 line-through">
+                                            ₹{product.basePrice.toLocaleString('en-IN')}
                                         </span>
                                     </div>
-                                );
-                            })}
-                        </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="mb-6 grid grid-cols-3 gap-3 text-center">
+                                {product.tiers.map((tier, index) => {
+                                    const isMaxTier = tier.max === '1000+';
+                                    const isActive =
+                                        quantity >= tier.min && (isMaxTier || quantity <= tier.max);
+
+                                    return (
+                                        <div
+                                            key={index}
+                                            className={`rounded-xl border p-3 transition-all duration-300 ${isActive ? 'bg-primary/5 border-primary scale-[1.02] shadow-sm' : 'border-transparent bg-slate-50 opacity-70'}`}
+                                        >
+                                            <span
+                                                className={`mb-1 block text-xl font-extrabold ${isActive ? 'text-primary' : 'text-slate-900'}`}
+                                            >
+                                                ₹{tier.price.toLocaleString('en-IN')}
+                                            </span>
+                                            <span
+                                                className={`block text-[11px] font-bold ${isActive ? 'text-primary' : 'text-slate-500'}`}
+                                            >
+                                                {tier.min} {isMaxTier ? '+' : `- ${tier.max}`} units
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
 
                         {}
                         <div className="flex items-center justify-between rounded-lg border-t border-slate-100 bg-slate-50/50 px-4 py-4">

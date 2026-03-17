@@ -4,7 +4,6 @@ import { ApiError } from '../utils/ApiError.js';
 
 export class AuthService {
     static async registerUser(userData) {
-
         const { name, email, phoneNumber, password, accountType, companyName, gstin } = userData;
 
         const orConditions = [];
@@ -42,7 +41,7 @@ export class AuthService {
         if (accountType === 'B2B') {
             createPayload.companyName = companyName;
             createPayload.gstin = gstin;
-            createPayload.isVerifiedB2B = false; 
+            createPayload.isVerifiedB2B = false;
         }
 
         const user = await User.create(createPayload);
@@ -56,7 +55,6 @@ export class AuthService {
     }
 
     static async loginUser(credentials) {
-
         const { email, phoneNumber, password } = credentials;
 
         const query = email ? { email } : { phoneNumber };

@@ -183,50 +183,60 @@ const AdminProducts = () => {
                                             </div>
                                         </td>
                                         <td className="p-4">
-    {isEdit ? (
-        <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-                <span className="w-10 text-[10px] font-bold text-slate-400 uppercase">Stock</span>
-                <input
-                    type="number"
-                    value={editForm.stock}
-                    onChange={(e) =>
-                        setEditForm({
-                            ...editForm,
-                            stock: e.target.value,
-                        })
-                    }
-                    className="focus:border-accent w-16 rounded border border-slate-300 p-1.5 text-sm font-medium outline-none"
-                />
-            </div>
-            <div className="flex items-center gap-2">
-                <span className="w-10 text-[10px] font-bold text-slate-400 uppercase">MOQ</span>
-                <input
-                    type="number"
-                    value={editForm.moq}
-                    onChange={(e) =>
-                        setEditForm({
-                            ...editForm,
-                            moq: e.target.value,
-                        })
-                    }
-                    className="focus:border-accent w-16 rounded border border-slate-300 p-1.5 text-sm font-medium outline-none"
-                />
-            </div>
-        </div>
-    ) : (
-        <div className="flex flex-col gap-1">
-            <span
-                className={`font-bold ${p.inventory?.stock === 0 ? 'text-red-500' : p.inventory?.stock <= 10 ? 'text-yellow-600' : 'text-slate-900'}`}
-            >
-                {p.inventory?.stock} <span className="text-[10px] font-medium text-slate-400">(In Stock)</span>
-            </span>
-            <span className="text-[10px] font-bold tracking-wider text-slate-500 uppercase">
-                MOQ: <span className="text-slate-700">{p.moq || 1}</span>
-            </span>
-        </div>
-    )}
-</td>
+                                            {isEdit ? (
+                                                <div className="flex flex-col gap-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="w-10 text-[10px] font-bold text-slate-400 uppercase">
+                                                            Stock
+                                                        </span>
+                                                        <input
+                                                            type="number"
+                                                            value={editForm.stock}
+                                                            onChange={(e) =>
+                                                                setEditForm({
+                                                                    ...editForm,
+                                                                    stock: e.target.value,
+                                                                })
+                                                            }
+                                                            className="focus:border-accent w-16 rounded border border-slate-300 p-1.5 text-sm font-medium outline-none"
+                                                        />
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="w-10 text-[10px] font-bold text-slate-400 uppercase">
+                                                            MOQ
+                                                        </span>
+                                                        <input
+                                                            type="number"
+                                                            value={editForm.moq}
+                                                            onChange={(e) =>
+                                                                setEditForm({
+                                                                    ...editForm,
+                                                                    moq: e.target.value,
+                                                                })
+                                                            }
+                                                            className="focus:border-accent w-16 rounded border border-slate-300 p-1.5 text-sm font-medium outline-none"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col gap-1">
+                                                    <span
+                                                        className={`font-bold ${p.inventory?.stock === 0 ? 'text-red-500' : p.inventory?.stock <= 10 ? 'text-yellow-600' : 'text-slate-900'}`}
+                                                    >
+                                                        {p.inventory?.stock}{' '}
+                                                        <span className="text-[10px] font-medium text-slate-400">
+                                                            (In Stock)
+                                                        </span>
+                                                    </span>
+                                                    <span className="text-[10px] font-bold tracking-wider text-slate-500 uppercase">
+                                                        MOQ:{' '}
+                                                        <span className="text-slate-700">
+                                                            {p.moq || 1}
+                                                        </span>
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </td>
                                         <td className="p-4">
                                             {isEdit ? (
                                                 <input

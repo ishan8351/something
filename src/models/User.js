@@ -27,13 +27,16 @@ const userSchema = new mongoose.Schema(
         accountType: { type: String, enum: ['B2B', 'B2C'], default: 'B2C' },
 
         companyName: { type: String, trim: true },
-        gstin: { 
-            type: String, 
-            trim: true, 
+        gstin: {
+            type: String,
+            trim: true,
             uppercase: true,
-            match: [/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, 'Invalid GSTIN format'] 
+            match: [
+                /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/,
+                'Invalid GSTIN format',
+            ],
         },
-        isVerifiedB2B: { type: Boolean, default: false }, 
+        isVerifiedB2B: { type: Boolean, default: false },
 
         walletBalance: { type: Number, default: 0 },
         addresses: [addressSchema],
@@ -57,8 +60,8 @@ userSchema.methods.generateAccessToken = function () {
             email: this.email,
             name: this.name,
             role: this.role,
-            accountType: this.accountType, 
-            isVerifiedB2B: this.isVerifiedB2B
+            accountType: this.accountType,
+            isVerifiedB2B: this.isVerifiedB2B,
         },
         process.env.ACCESS_TOKEN_SECRET || 'fallback_secret',
         {

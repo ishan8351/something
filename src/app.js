@@ -22,15 +22,14 @@ const app = express();
 app.use(helmet());
 
 const allowedOrigins = [
-    process.env.CORS_ORIGIN, 
-    'http://localhost:5173', 
-    'http://127.0.0.1:5173'
+    process.env.CORS_ORIGIN,
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
 ].filter(Boolean);
 
 app.use(
     cors({
         origin: function (origin, callback) {
-
             if (!origin) return callback(null, true);
 
             if (allowedOrigins.indexOf(origin) !== -1) {
@@ -40,13 +39,14 @@ app.use(
             }
         },
         credentials: true,
+        exposedHeaders: ['Content-Disposition'],
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     })
 );
 
 const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, 
-    max: 1000, 
+    windowMs: 15 * 60 * 1000,
+    max: 1000,
     message: 'Too many requests from this IP, please try again later.',
 });
 

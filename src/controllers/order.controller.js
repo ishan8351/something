@@ -9,6 +9,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { User } from '../models/User.js';
 import { Payment } from '../models/Payment.js';
 import { WalletTransaction } from '../models/WalletTransaction.js';
+import { UserPricing } from '../models/UserPricing.js';
 
 const calculateDueDate = (paymentTerms) => {
     const dueDate = new Date();
@@ -18,17 +19,22 @@ const calculateDueDate = (paymentTerms) => {
 };
 
 const calculateTaxBreakdown = (inclusivePrice, taxPercentage) => {
-    const basePrice = inclusivePrice / (1 + (taxPercentage / 100));
+    const basePrice = inclusivePrice / (1 + taxPercentage / 100);
     const taxAmount = inclusivePrice - basePrice;
 
     return {
         basePrice: parseFloat(basePrice.toFixed(2)),
-        taxAmount: parseFloat(taxAmount.toFixed(2))
+        taxAmount: parseFloat(taxAmount.toFixed(2)),
     };
 };
 
 export const placeOrder = asyncHandler(async (req, res) => {
-    const { items, paymentMethod = 'RAZORPAY', paymentTerms = 'DUE_ON_RECEIPT' } = req.body;
+    const {
+        items,
+        paymentMethod = 'RAZORPAY',
+        paymentTerms = 'DUE_ON_RECEIPT',
+        billingDetails = {},
+    } = req.body;
     const userId = req.user._id;
 
     if (!items || !items.length) throw new ApiError(400, 'Items list is empty');
@@ -58,8 +64,26 @@ export const placeOrder = asyncHandler(async (req, res) => {
                 throw new Error(`Insufficient stock for ${title}.`);
             }
 
-            const inclusivePrice = product.platformSellPrice;
-            const taxSlab = product.taxSlab !== undefined ? product.taxSlab : 18; 
+            let inclusivePrice = product.platformSellPrice;
+
+            const customPricing = await UserPricing.findOne({
+                userId,
+                productId: product._id,
+            }).session(session);
+
+            if (customPricing && customPricing.customPrice) {
+                inclusivePrice = customPricing.customPrice;
+            } else if (product.tiers && Array.isArray(product.tiers) && product.tiers.length > 0) {
+                let tierPrice = inclusivePrice;
+                for (const tier of product.tiers) {
+                    if (item.qty >= tier.min) {
+                        tierPrice = tier.price;
+                    }
+                }
+                inclusivePrice = tierPrice;
+            }
+
+            const taxSlab = product.taxSlab !== undefined ? product.taxSlab : 18;
             const hsnCode = product.hsnCode || '0000';
 
             const { basePrice, taxAmount } = calculateTaxBreakdown(inclusivePrice, taxSlab);
@@ -104,7 +128,7 @@ export const placeOrder = asyncHandler(async (req, res) => {
             paymentTerms,
             subTotal: globalSubTotal,
             taxTotal: globalTaxTotal,
-            totalAmount: globalGrandTotal, 
+            totalAmount: globalGrandTotal,
             grandTotal: globalGrandTotal,
             items: orderItems,
         });
@@ -112,10 +136,32 @@ export const placeOrder = asyncHandler(async (req, res) => {
 
         const dueDate = calculateDueDate(paymentTerms);
 
+        const defaultAddress = buyer.addresses?.find((a) => a.isDefault) || {};
+        const finalCompanyName = billingDetails.companyName || buyer.companyName || buyer.name;
+        const finalGstin = billingDetails.gstin || buyer.gstin || 'UNREGISTERED';
+        const finalBillingAddress =
+            billingDetails.billingAddress || defaultAddress.street || 'No Address Provided';
+        const finalState = billingDetails.state || defaultAddress.state || 'UNKNOWN';
+
+        const originState = (process.env.COMPANY_STATE || 'Karnataka').trim().toLowerCase();
+        const buyerState = finalState.trim().toLowerCase();
+        const isIntraState = originState === buyerState;
+
+        let cgstTotal = 0;
+        let sgstTotal = 0;
+        let igstTotal = 0;
+
+        if (isIntraState) {
+            cgstTotal = Math.round((globalTaxTotal / 2 + Number.EPSILON) * 100) / 100;
+            sgstTotal = Math.round((globalTaxTotal - cgstTotal + Number.EPSILON) * 100) / 100;
+        } else {
+            igstTotal = globalTaxTotal;
+        }
+
         const taxBreakdown = {
-            cgstTotal: parseFloat((globalTaxTotal / 2).toFixed(2)),
-            sgstTotal: parseFloat((globalTaxTotal / 2).toFixed(2)),
-            igstTotal: 0
+            cgstTotal,
+            sgstTotal,
+            igstTotal,
         };
 
         const newInvoice = new Invoice({
@@ -124,18 +170,19 @@ export const placeOrder = asyncHandler(async (req, res) => {
             orderId: newOrder._id,
             invoiceType: 'ORDER_BILL',
             buyerDetails: {
-                companyName: buyer.companyName || buyer.name,
-                gstin: buyer.gstin || 'UNREGISTERED',
-                billingAddress: buyer.addresses?.find(a => a.isDefault) || 'No Address Provided'
+                companyName: finalCompanyName,
+                gstin: finalGstin,
+                billingAddress: finalBillingAddress,
+                state: finalState,
             },
             subTotal: globalSubTotal,
             taxBreakdown,
-            totalAmount: globalGrandTotal, 
+            totalAmount: globalGrandTotal,
             grandTotal: globalGrandTotal,
             dueDate,
             paymentMethod,
             paymentTerms,
-            status: paymentMethod === 'BANK_TRANSFER' ? 'UNPAID' : 'UNPAID',
+            status: 'UNPAID',
         });
         await newInvoice.save({ session });
 
@@ -160,13 +207,15 @@ export const placeOrder = asyncHandler(async (req, res) => {
             await walletPayment.save({ session });
 
             await WalletTransaction.create(
-                [{
-                    userId,
-                    paymentId: walletPayment._id,
-                    amount: globalGrandTotal,
-                    transactionType: 'DEBIT',
-                    description: `Order Payment for ${orderIdStr}`,
-                }],
+                [
+                    {
+                        userId,
+                        paymentId: walletPayment._id,
+                        amount: globalGrandTotal,
+                        transactionType: 'DEBIT',
+                        description: `Order Payment for ${orderIdStr}`,
+                    },
+                ],
                 { session }
             );
 
@@ -180,7 +229,15 @@ export const placeOrder = asyncHandler(async (req, res) => {
         await session.commitTransaction();
         session.endSession();
 
-        return res.status(201).json(new ApiResponse(201, { order: newOrder, invoice: newInvoice }, 'Order placed successfully'));
+        return res
+            .status(201)
+            .json(
+                new ApiResponse(
+                    201,
+                    { order: newOrder, invoice: newInvoice },
+                    'Order placed successfully'
+                )
+            );
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
@@ -204,8 +261,11 @@ export const cancelOrder = asyncHandler(async (req, res) => {
     session.startTransaction();
 
     try {
-
-        const order = await Order.findOne({ _id: req.params.id, userId: req.user._id, status: 'PENDING' }).session(session);
+        const order = await Order.findOne({
+            _id: req.params.id,
+            userId: req.user._id,
+            status: 'PENDING',
+        }).session(session);
         if (!order) throw new ApiError(404, 'Order not found or cannot be cancelled');
 
         order.status = 'CANCELLED';
@@ -228,7 +288,9 @@ export const cancelOrder = asyncHandler(async (req, res) => {
         await session.commitTransaction();
         session.endSession();
 
-        return res.status(200).json(new ApiResponse(200, order, 'Order cancelled and stock restored successfully'));
+        return res
+            .status(200)
+            .json(new ApiResponse(200, order, 'Order cancelled and stock restored successfully'));
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
@@ -246,7 +308,8 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
         const order = await Order.findById(req.params.id).session(session);
         if (!order) throw new ApiError(404, 'Order not found');
 
-        const isNewlyCancelled = status && status.toUpperCase() === 'CANCELLED' && order.status !== 'CANCELLED';
+        const isNewlyCancelled =
+            status && status.toUpperCase() === 'CANCELLED' && order.status !== 'CANCELLED';
 
         if (status) order.status = status.toUpperCase();
 
@@ -280,7 +343,9 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
         await session.commitTransaction();
         session.endSession();
 
-        return res.status(200).json(new ApiResponse(200, order, `Order successfully marked as ${order.status}`));
+        return res
+            .status(200)
+            .json(new ApiResponse(200, order, `Order successfully marked as ${order.status}`));
     } catch (error) {
         await session.abortTransaction();
         session.endSession();

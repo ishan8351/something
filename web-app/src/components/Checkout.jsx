@@ -12,7 +12,7 @@ import {
     CheckCircle2,
     AlertCircle,
     Clock,
-    Wallet, // <-- Added the Wallet icon
+    Wallet,
 } from 'lucide-react';
 import api from '../utils/api.js';
 import { useCartStore } from '../store/cartStore';
@@ -32,7 +32,6 @@ const Checkout = () => {
     const navigate = useNavigate();
     const items = location.state?.items;
 
-    // Fixed: Properly pulling clearCart to prevent the post-payment crash
     const clearCart = useCartStore((state) => state.clearCart);
 
     const [paymentMethod, setPaymentMethod] = useState('UPI');
@@ -67,13 +66,12 @@ const Checkout = () => {
         });
 
         return {
-            subtotal: parseFloat(subtotalBase.toFixed(2)),
-            totalGst: parseFloat(totalGst.toFixed(2)),
-            totalAmount: parseFloat((subtotalBase + totalGst).toFixed(2)),
+            subtotal: Math.round((subtotalBase + Number.EPSILON) * 100) / 100,
+            totalGst: Math.round((totalGst + Number.EPSILON) * 100) / 100,
+            totalAmount: Math.round((subtotalBase + totalGst + Number.EPSILON) * 100) / 100,
         };
     }, [items]);
 
-    // Stripped out the Navbar and Footer here since MainLayout handles it
     if (!items || items?.length === 0) {
         return (
             <div className="flex flex-1 items-center justify-center p-6 pb-24 lg:pb-6">
@@ -120,8 +118,7 @@ const Checkout = () => {
                 qty: i.qty,
             }));
 
-            // Added WALLET to the array so the backend knows to trigger Razorpay
-            const backendPaymentMethod = ['UPI', 'CARD', 'NETBANKING', 'WALLET'].includes(paymentMethod)
+            const backendPaymentMethod = ['UPI', 'CARD', 'NETBANKING'].includes(paymentMethod)
                 ? 'RAZORPAY'
                 : paymentMethod;
 
@@ -194,9 +191,8 @@ const Checkout = () => {
         }
     };
 
-    // Removed Navbar, Footer, and min-h-screen wrappers
     return (
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 pb-24 sm:px-6 lg:px-8 lg:py-12 lg:pb-12 text-slate-900 selection:bg-primary/30 font-sans">
+        <main className="selection:bg-primary/30 mx-auto w-full max-w-7xl flex-1 px-4 py-8 pb-24 font-sans text-slate-900 sm:px-6 lg:px-8 lg:py-12 lg:pb-12">
             <Link
                 to="/"
                 className="mb-8 inline-flex items-center gap-2 text-sm font-bold text-slate-400 transition-colors hover:text-slate-900"
@@ -300,14 +296,14 @@ const Checkout = () => {
                                         label: 'Credit / Debit Card',
                                         icon: CreditCard,
                                     },
-                                    { 
-                                        id: 'NETBANKING', 
-                                        label: 'Net Banking', 
-                                        icon: Landmark 
+                                    {
+                                        id: 'NETBANKING',
+                                        label: 'Net Banking',
+                                        icon: Landmark,
                                     },
                                     {
-                                        id: 'WALLET', // <-- Added Wallet Option
-                                        label: 'Wallets (MobiKwik, Amazon)',
+                                        id: 'WALLET',
+                                        label: 'Sovely Wallet (Pay from Balance)',
                                         icon: Wallet,
                                     },
                                     {
@@ -356,55 +352,48 @@ const Checkout = () => {
                                     Net-30 Credit Request
                                 </h4>
                                 <p className="mb-0 text-sm font-medium text-slate-600">
-                                    Your order will be placed as a Purchase Order (PO). Our
-                                    credit team will verify your company details and approve the
-                                    dispatch within 24 hours. Invoice due 30 days from dispatch.
+                                    Your order will be placed as a Purchase Order (PO). Our credit
+                                    team will verify your company details and approve the dispatch
+                                    within 24 hours. Invoice due 30 days from dispatch.
                                 </p>
                             </div>
                         )}
 
-                        {paymentMethod === 'BANK_TRANSFER' &&
-                            paymentTerms === 'DUE_ON_RECEIPT' && (
-                                <div className="animate-in fade-in mb-8 rounded-2xl border border-slate-200 bg-slate-50 p-6 duration-300">
-                                    <h4 className="mb-2 flex items-center gap-2 font-extrabold text-slate-900">
-                                        <Landmark size={18} className="text-slate-500" />
-                                        Manual Transfer Required
-                                    </h4>
-                                    <p className="mb-4 text-sm leading-relaxed font-medium text-slate-600">
-                                        Please transfer exactly{' '}
-                                        <span className="font-extrabold text-slate-900">
-                                            ₹{financials.totalAmount.toLocaleString('en-IN')}
-                                        </span>{' '}
-                                        to the following account:
-                                    </p>
-                                    <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-4 text-sm">
-                                        <div className="flex justify-between">
-                                            <span className="font-bold text-slate-400">
-                                                Bank:
-                                            </span>{' '}
-                                            <span className="font-bold text-slate-900">
-                                                Sovely National Bank
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="font-bold text-slate-400">
-                                                Account:
-                                            </span>{' '}
-                                            <span className="font-mono font-bold tracking-wider text-slate-900">
-                                                1234 5678 9012 3456
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="font-bold text-slate-400">
-                                                IFSC:
-                                            </span>{' '}
-                                            <span className="font-mono font-bold tracking-wider text-slate-900">
-                                                SOVE0001234
-                                            </span>
-                                        </div>
+                        {paymentMethod === 'BANK_TRANSFER' && paymentTerms === 'DUE_ON_RECEIPT' && (
+                            <div className="animate-in fade-in mb-8 rounded-2xl border border-slate-200 bg-slate-50 p-6 duration-300">
+                                <h4 className="mb-2 flex items-center gap-2 font-extrabold text-slate-900">
+                                    <Landmark size={18} className="text-slate-500" />
+                                    Manual Transfer Required
+                                </h4>
+                                <p className="mb-4 text-sm leading-relaxed font-medium text-slate-600">
+                                    Please transfer exactly{' '}
+                                    <span className="font-extrabold text-slate-900">
+                                        ₹{financials.totalAmount.toLocaleString('en-IN')}
+                                    </span>{' '}
+                                    to the following account:
+                                </p>
+                                <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-4 text-sm">
+                                    <div className="flex justify-between">
+                                        <span className="font-bold text-slate-400">Bank:</span>{' '}
+                                        <span className="font-bold text-slate-900">
+                                            Sovely National Bank
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="font-bold text-slate-400">Account:</span>{' '}
+                                        <span className="font-mono font-bold tracking-wider text-slate-900">
+                                            1234 5678 9012 3456
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="font-bold text-slate-400">IFSC:</span>{' '}
+                                        <span className="font-mono font-bold tracking-wider text-slate-900">
+                                            SOVE0001234
+                                        </span>
                                     </div>
                                 </div>
-                            )}
+                            </div>
+                        )}
 
                         <button
                             onClick={handlePlaceOrder}
@@ -439,10 +428,7 @@ const Checkout = () => {
                                 const product = item.product || item;
 
                                 const price =
-                                    item.price ||
-                                    product.price ||
-                                    product.platformSellPrice ||
-                                    0;
+                                    item.price || product.price || product.platformSellPrice || 0;
                                 let safeThumb = 'https://via.placeholder.com/64';
                                 if (product.image)
                                     safeThumb =
@@ -466,13 +452,10 @@ const Checkout = () => {
                                         </div>
                                         <div className="min-w-0 flex-1">
                                             <h4 className="truncate text-sm font-bold text-slate-900">
-                                                {product.title ||
-                                                    product.name ||
-                                                    'Product Item'}
+                                                {product.title || product.name || 'Product Item'}
                                             </h4>
                                             <p className="text-xs font-medium text-slate-500">
-                                                Qty: {item.qty} x ₹
-                                                {price.toLocaleString('en-IN')}
+                                                Qty: {item.qty} x ₹{price.toLocaleString('en-IN')}
                                             </p>
                                         </div>
                                         <div className="text-sm font-extrabold whitespace-nowrap text-slate-900">

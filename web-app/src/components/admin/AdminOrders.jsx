@@ -115,14 +115,14 @@ const AdminOrders = () => {
                                     Customer
                                 </th>
                                 <th className="p-4 text-xs font-bold tracking-wider whitespace-nowrap text-slate-400 uppercase">
-    Amount
-</th>
-<th className="p-4 text-xs font-bold tracking-wider whitespace-nowrap text-slate-400 uppercase">
-    Terms
-</th>
-<th className="p-4 text-xs font-bold tracking-wider whitespace-nowrap text-slate-400 uppercase">
-    Status
-</th>
+                                    Amount
+                                </th>
+                                <th className="p-4 text-xs font-bold tracking-wider whitespace-nowrap text-slate-400 uppercase">
+                                    Terms
+                                </th>
+                                <th className="p-4 text-xs font-bold tracking-wider whitespace-nowrap text-slate-400 uppercase">
+                                    Status
+                                </th>
                                 <th className="p-4 text-xs font-bold tracking-wider whitespace-nowrap text-slate-400 uppercase">
                                     Action
                                 </th>
@@ -169,19 +169,21 @@ const AdminOrders = () => {
                                         ).toLocaleString('en-IN')}
                                     </td>
                                     <td className="p-4">
-    <div className="flex flex-col gap-1.5">
-        <span className="text-[11px] font-black tracking-wider text-slate-700 uppercase">
-            {order.paymentMethod?.replace('_', ' ')}
-        </span>
-        <span className={`inline-flex w-fit items-center rounded px-2 py-0.5 text-[10px] font-extrabold tracking-wider uppercase ${
-            order.paymentTerms?.includes('NET') 
-                ? 'bg-blue-100 text-blue-700' 
-                : 'bg-amber-100 text-amber-700'
-        }`}>
-            {order.paymentTerms?.replace('_', ' ')}
-        </span>
-    </div>
-</td>
+                                        <div className="flex flex-col gap-1.5">
+                                            <span className="text-[11px] font-black tracking-wider text-slate-700 uppercase">
+                                                {order.paymentMethod?.replace('_', ' ')}
+                                            </span>
+                                            <span
+                                                className={`inline-flex w-fit items-center rounded px-2 py-0.5 text-[10px] font-extrabold tracking-wider uppercase ${
+                                                    order.paymentTerms?.includes('NET')
+                                                        ? 'bg-blue-100 text-blue-700'
+                                                        : 'bg-amber-100 text-amber-700'
+                                                }`}
+                                            >
+                                                {order.paymentTerms?.replace('_', ' ')}
+                                            </span>
+                                        </div>
+                                    </td>
                                     <td className="p-4">
                                         <span
                                             className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-extrabold tracking-widest uppercase ${
@@ -284,23 +286,34 @@ const AdminOrders = () => {
 
                             <div className="flex flex-1 flex-col gap-6 overflow-y-auto p-6">
                                 <div className="mb-2 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-    <div className="grid grid-cols-2 gap-4">
-        <div>
-            <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Payment Method</p>
-            <p className="mt-1 text-sm font-black text-slate-800">{selectedOrder.paymentMethod?.replace('_', ' ')}</p>
-        </div>
-        <div>
-            <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Terms</p>
-            <p className="mt-1 text-sm font-black text-slate-800">{selectedOrder.paymentTerms?.replace('_', ' ')}</p>
-        </div>
-        <div className="col-span-2">
-            <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Subtotal / Tax</p>
-            <p className="mt-1 text-sm font-bold text-slate-600">
-                ₹{selectedOrder.subTotal?.toLocaleString('en-IN')} / ₹{selectedOrder.taxTotal?.toLocaleString('en-IN')}
-            </p>
-        </div>
-    </div>
-</div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+                                                Payment Method
+                                            </p>
+                                            <p className="mt-1 text-sm font-black text-slate-800">
+                                                {selectedOrder.paymentMethod?.replace('_', ' ')}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+                                                Terms
+                                            </p>
+                                            <p className="mt-1 text-sm font-black text-slate-800">
+                                                {selectedOrder.paymentTerms?.replace('_', ' ')}
+                                            </p>
+                                        </div>
+                                        <div className="col-span-2">
+                                            <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+                                                Subtotal / Tax
+                                            </p>
+                                            <p className="mt-1 text-sm font-bold text-slate-600">
+                                                ₹{selectedOrder.subTotal?.toLocaleString('en-IN')} /
+                                                ₹{selectedOrder.taxTotal?.toLocaleString('en-IN')}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
                                 <div className="flex flex-col gap-2">
                                     <label className="text-xs font-bold tracking-wider text-slate-500 uppercase">
                                         Order Status

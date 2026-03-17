@@ -8,7 +8,10 @@ const getProducts = asyncHandler(async (req, res) => {
 });
 
 const getProductById = asyncHandler(async (req, res) => {
-    const product = await ProductService.getProductById(req.params.productId);
+    const userId = req.user ? req.user._id : null;
+
+    const product = await ProductService.getProductById(req.params.productId, userId);
+
     return res.status(200).json(new ApiResponse(200, product, 'Product fetched successfully'));
 });
 

@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, ShoppingBag, Users, Package, TrendingUp, Upload, FileText } from 'lucide-react';
+import {
+    LayoutDashboard,
+    ShoppingBag,
+    Users,
+    Package,
+    TrendingUp,
+    Upload,
+    FileText,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Navbar from './Navbar';
 import BulkUpload from './BulkUpload';

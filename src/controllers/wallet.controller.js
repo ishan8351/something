@@ -33,7 +33,8 @@ export const addMoney = asyncHandler(async (req, res) => {
         invoiceNumber: invoiceNumStr,
         userId,
         invoiceType: 'WALLET_TOPUP',
-        totalAmount: amount,
+        subTotal: amount,
+        grandTotal: amount,
         paymentTerms: 'DUE_ON_RECEIPT',
         dueDate: new Date(),
         status: 'UNPAID',
@@ -66,8 +67,7 @@ export const addMoney = asyncHandler(async (req, res) => {
             )
         );
     } catch (error) {
-
-        await Invoice.findByIdAndDelete(invoice._id); 
+        await Invoice.findByIdAndDelete(invoice._id);
         throw new ApiError(500, error.message || 'Failed to initialize Razorpay payment');
     }
 });
