@@ -1,408 +1,417 @@
 import mongoose from 'mongoose';
 import { Order } from '../models/Order.js';
-import { Invoice } from '../models/Invoice.js';
+import { Cart } from '../models/Cart.js';
+import { User } from '../models/User.js';
 import { Product } from '../models/Product.js';
-import { Counter } from '../models/Counter.js';
+import { IdempotencyRecord } from '../models/IdempotencyRecord.js';
+import { WalletTransaction } from '../models/WalletTransaction.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { User } from '../models/User.js';
-import { Payment } from '../models/Payment.js';
-import { WalletTransaction } from '../models/WalletTransaction.js';
-import { UserPricing } from '../models/UserPricing.js';
+import { createInvoiceFromOrder } from './invoice.controller.js';
 
-const calculateDueDate = (paymentTerms) => {
-    const dueDate = new Date();
-    if (paymentTerms === 'NET_15') dueDate.setDate(dueDate.getDate() + 15);
-    else if (paymentTerms === 'NET_30') dueDate.setDate(dueDate.getDate() + 30);
-    return dueDate;
-};
-
-const calculateTaxBreakdown = (inclusivePrice, taxPercentage) => {
-    const basePrice = inclusivePrice / (1 + taxPercentage / 100);
-    const taxAmount = inclusivePrice - basePrice;
-
-    return {
-        basePrice: parseFloat(basePrice.toFixed(2)),
-        taxAmount: parseFloat(taxAmount.toFixed(2)),
-    };
-};
-
-export const placeOrder = asyncHandler(async (req, res) => {
-    const {
-        items,
-        paymentMethod = 'RAZORPAY',
-        paymentTerms = 'DUE_ON_RECEIPT',
-        billingDetails = {},
-    } = req.body;
-    const userId = req.user._id;
-
-    if (!items || !items.length) throw new ApiError(400, 'Items list is empty');
-
-    const buyer = await User.findById(userId);
-    if (!buyer) throw new ApiError(404, 'User not found');
-
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
-        let globalSubTotal = 0;
-        let globalTaxTotal = 0;
-        let globalGrandTotal = 0;
-        const orderItems = [];
-
-        for (const item of items) {
-            const product = await Product.findOneAndUpdate(
-                { _id: item.productId, 'inventory.stock': { $gte: item.qty } },
-                { $inc: { 'inventory.stock': -item.qty } },
-                { session, new: true }
-            );
-
-            if (!product) {
-                const missingProduct = await Product.findById(item.productId).select('title');
-                const title = missingProduct ? missingProduct.title : `ID: ${item.productId}`;
-                throw new Error(`Insufficient stock for ${title}.`);
-            }
-
-            let inclusivePrice = product.platformSellPrice;
-
-            const customPricing = await UserPricing.findOne({
-                userId,
-                productId: product._id,
-            }).session(session);
-
-            if (customPricing && customPricing.customPrice) {
-                inclusivePrice = customPricing.customPrice;
-            } else if (product.tiers && Array.isArray(product.tiers) && product.tiers.length > 0) {
-                let tierPrice = inclusivePrice;
-                for (const tier of product.tiers) {
-                    if (item.qty >= tier.min) {
-                        tierPrice = tier.price;
-                    }
-                }
-                inclusivePrice = tierPrice;
-            }
-
-            const taxSlab = product.taxSlab !== undefined ? product.taxSlab : 18;
-            const hsnCode = product.hsnCode || '0000';
-
-            const { basePrice, taxAmount } = calculateTaxBreakdown(inclusivePrice, taxSlab);
-
-            const itemTotalBase = basePrice * item.qty;
-            const itemTotalTax = taxAmount * item.qty;
-            const itemGrandTotal = inclusivePrice * item.qty;
-
-            globalSubTotal += itemTotalBase;
-            globalTaxTotal += itemTotalTax;
-            globalGrandTotal += itemGrandTotal;
-
-            orderItems.push({
-                productId: product._id,
-                sku: product.sku,
-                title: product.title,
-                image: product.images?.[0]?.url || '',
-                hsnCode,
-                taxSlab,
-                basePrice,
-                taxAmountPerUnit: taxAmount,
-                qty: item.qty,
-                totalItemPrice: itemGrandTotal,
-            });
-        }
-
-        globalSubTotal = parseFloat(globalSubTotal.toFixed(2));
-        globalTaxTotal = parseFloat(globalTaxTotal.toFixed(2));
-        globalGrandTotal = parseFloat(globalGrandTotal.toFixed(2));
-
-        const orderIdSeq = await Counter.getNextSequenceValue('orderId');
-        const invoiceNumSeq = await Counter.getNextSequenceValue('invoiceNumber');
-
-        const orderIdStr = `ORD-${orderIdSeq.toString().padStart(6, '0')}`;
-        const invoiceNumStr = `INV-${invoiceNumSeq.toString().padStart(6, '0')}`;
-
-        const newOrder = new Order({
-            orderId: orderIdStr,
-            userId,
-            status: 'PENDING',
-            paymentMethod,
-            paymentTerms,
-            subTotal: globalSubTotal,
-            taxTotal: globalTaxTotal,
-            totalAmount: globalGrandTotal,
-            grandTotal: globalGrandTotal,
-            items: orderItems,
-        });
-        await newOrder.save({ session });
-
-        const dueDate = calculateDueDate(paymentTerms);
-
-        const defaultAddress = buyer.addresses?.find((a) => a.isDefault) || {};
-        const finalCompanyName = billingDetails.companyName || buyer.companyName || buyer.name;
-        const finalGstin = billingDetails.gstin || buyer.gstin || 'UNREGISTERED';
-        const finalBillingAddress =
-            billingDetails.billingAddress || defaultAddress.street || 'No Address Provided';
-        const finalState = billingDetails.state || defaultAddress.state || 'UNKNOWN';
-
-        const originState = (process.env.COMPANY_STATE || 'Karnataka').trim().toLowerCase();
-        const buyerState = finalState.trim().toLowerCase();
-        const isIntraState = originState === buyerState;
-
-        let cgstTotal = 0;
-        let sgstTotal = 0;
-        let igstTotal = 0;
-
-        if (isIntraState) {
-            cgstTotal = Math.round((globalTaxTotal / 2 + Number.EPSILON) * 100) / 100;
-            sgstTotal = Math.round((globalTaxTotal - cgstTotal + Number.EPSILON) * 100) / 100;
-        } else {
-            igstTotal = globalTaxTotal;
-        }
-
-        const taxBreakdown = {
-            cgstTotal,
-            sgstTotal,
-            igstTotal,
-        };
-
-        const newInvoice = new Invoice({
-            invoiceNumber: invoiceNumStr,
-            userId,
-            orderId: newOrder._id,
-            invoiceType: 'ORDER_BILL',
-            buyerDetails: {
-                companyName: finalCompanyName,
-                gstin: finalGstin,
-                billingAddress: finalBillingAddress,
-                state: finalState,
-            },
-            subTotal: globalSubTotal,
-            taxBreakdown,
-            totalAmount: globalGrandTotal,
-            grandTotal: globalGrandTotal,
-            dueDate,
-            paymentMethod,
-            paymentTerms,
-            status: 'UNPAID',
-        });
-        await newInvoice.save({ session });
-
-        if (paymentMethod === 'WALLET') {
-            const updatedUser = await User.findOneAndUpdate(
-                { _id: userId, walletBalance: { $gte: globalGrandTotal } },
-                { $inc: { walletBalance: -globalGrandTotal } },
-                { session, returnDocument: 'after' }
-            );
-
-            if (!updatedUser) {
-                throw new Error('Insufficient wallet balance for this purchase.');
-            }
-
-            const walletPayment = new Payment({
-                userId,
-                invoiceId: newInvoice._id,
-                paymentMethod: 'WALLET',
-                status: 'SUCCESS',
-                referenceId: `WALL-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-            });
-            await walletPayment.save({ session });
-
-            await WalletTransaction.create(
-                [
-                    {
-                        userId,
-                        paymentId: walletPayment._id,
-                        amount: globalGrandTotal,
-                        transactionType: 'DEBIT',
-                        description: `Order Payment for ${orderIdStr}`,
-                    },
-                ],
-                { session }
-            );
-
-            newOrder.status = 'PROCESSING';
-            await newOrder.save({ session });
-
-            newInvoice.status = 'PAID';
-            await newInvoice.save({ session });
-        }
-
-        await session.commitTransaction();
-        session.endSession();
-
-        return res
-            .status(201)
-            .json(
-                new ApiResponse(
-                    201,
-                    { order: newOrder, invoice: newInvoice },
-                    'Order placed successfully'
-                )
-            );
-    } catch (error) {
-        await session.abortTransaction();
-        session.endSession();
-        throw new ApiError(400, error.message || 'Failed to place order');
+/**
+ * @desc    Place a Dropship or Wholesale Order
+ * @route   POST /api/orders
+ */
+export const createOrder = asyncHandler(async (req, res) => {
+    // 1. --- IDEMPOTENCY CHECK ---
+    const idempotencyKey = req.headers['x-idempotency-key'];
+    if (!idempotencyKey) {
+        throw new ApiError(400, 'Idempotency key is missing. Please update your app.');
     }
-});
 
-export const getMyOrders = asyncHandler(async (req, res) => {
-    const orders = await Order.find({ userId: req.user._id }).sort({ createdAt: -1 });
-    return res.status(200).json(new ApiResponse(200, orders, 'Orders fetched successfully'));
-});
+    // If we've seen this key recently, just return the cached successful response
+    const existingTransaction = await IdempotencyRecord.findOne({ key: idempotencyKey });
+    if (existingTransaction) {
+        return res.status(200).json(existingTransaction.response);
+    }
+    // ----------------------------
 
-export const getOrderById = asyncHandler(async (req, res) => {
-    const order = await Order.findOne({ _id: req.params.id, userId: req.user._id });
-    if (!order) throw new ApiError(404, 'Order not found');
-    return res.status(200).json(new ApiResponse(200, order, 'Order fetched successfully'));
-});
+    const { endCustomerDetails, paymentMethod } = req.body;
+    const resellerId = req.user._id;
 
-export const cancelOrder = asyncHandler(async (req, res) => {
+    const cart = await Cart.findOne({ resellerId });
+    if (!cart || cart.items.length === 0) {
+        throw new ApiError(400, 'Your cart is empty');
+    }
+
+    const hasDropship = cart.items.some((item) => item.orderType === 'DROPSHIP');
+    if (hasDropship && (!endCustomerDetails || !endCustomerDetails.phone)) {
+        throw new ApiError(400, 'End Customer details are mandatory for dropship orders');
+    }
+
+    const productIds = cart.items.map((item) => item.productId);
+    const products = await Product.find({ _id: { $in: productIds } });
+
+    const productMap = products.reduce((acc, p) => {
+        acc[p._id.toString()] = p;
+        return acc;
+    }, {});
+
+    const totalPlatformCost = cart.grandTotalPlatformCost;
+
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
-        const order = await Order.findOne({
-            _id: req.params.id,
-            userId: req.user._id,
-            status: 'PENDING',
-        }).session(session);
-        if (!order) throw new ApiError(404, 'Order not found or cannot be cancelled');
+        const resellerCheck = await User.findById(resellerId).session(session);
+        if (!resellerCheck || resellerCheck.walletBalance < totalPlatformCost) {
+            throw new ApiError(
+                400,
+                `Insufficient wallet balance. Recharge ₹${totalPlatformCost - (resellerCheck?.walletBalance || 0)} to place this order.`
+            );
+        }
 
-        order.status = 'CANCELLED';
-        await order.save({ session });
+        const dropshipItems = [];
+        const wholesaleItems = [];
 
-        await Invoice.findOneAndUpdate(
-            { orderId: order._id, status: 'UNPAID' },
-            { status: 'CANCELLED' },
+        cart.items.forEach((item) => {
+            const trueProduct = productMap[item.productId.toString()];
+            if (!trueProduct) {
+                throw new ApiError(404, `Product ${item.productId} is no longer available.`);
+            }
+
+            const processedItem = {
+                productId: item.productId,
+                sku: trueProduct.sku,
+                title: trueProduct.title,
+                hsnCode: trueProduct.hsnCode || item.hsnCode || '0000',
+                qty: item.qty,
+                platformBasePrice: item.platformUnitCost,
+                resellerSellingPrice: item.resellerSellingPrice,
+                _totalPlatformCost: item.totalItemPlatformCost,
+            };
+
+            if (item.orderType === 'DROPSHIP') {
+                dropshipItems.push(processedItem);
+            } else {
+                wholesaleItems.push(processedItem);
+            }
+        });
+
+        const ordersToCreate = [];
+        const generatedOrderIds = [];
+
+        if (wholesaleItems.length > 0) {
+            const whOrderId = `OD-WH-${Math.floor(1000000 + Math.random() * 9000000)}`;
+            generatedOrderIds.push(whOrderId);
+
+            const whTotalCost = wholesaleItems.reduce(
+                (acc, item) => acc + item._totalPlatformCost,
+                0
+            );
+
+            ordersToCreate.push({
+                orderId: whOrderId,
+                resellerId,
+                endCustomerDetails: undefined,
+                status: 'PENDING',
+                paymentMethod: 'PREPAID_WALLET',
+                totalPlatformCost: whTotalCost,
+                amountToCollect: 0,
+                resellerProfitMargin: 0,
+                items: wholesaleItems.map(({ _totalPlatformCost, ...rest }) => rest),
+                statusHistory: [
+                    { status: 'PENDING', comment: 'Wholesale order placed via Wallet Deduction' },
+                ],
+            });
+        }
+
+        if (dropshipItems.length > 0) {
+            const dsOrderId = `OD-DS-${Math.floor(1000000 + Math.random() * 9000000)}`;
+            generatedOrderIds.push(dsOrderId);
+
+            const dsTotalCost = dropshipItems.reduce(
+                (acc, item) => acc + item._totalPlatformCost,
+                0
+            );
+
+            let amountToCollect = 0;
+            let resellerProfitMargin = 0;
+
+            if (paymentMethod === 'COD') {
+                amountToCollect = dropshipItems.reduce(
+                    (acc, item) => acc + item.resellerSellingPrice * item.qty,
+                    0
+                );
+                resellerProfitMargin = amountToCollect - dsTotalCost;
+            }
+
+            ordersToCreate.push({
+                orderId: dsOrderId,
+                resellerId,
+                endCustomerDetails,
+                status: 'PENDING',
+                paymentMethod,
+                totalPlatformCost: dsTotalCost,
+                amountToCollect,
+                resellerProfitMargin,
+                items: dropshipItems.map(({ _totalPlatformCost, ...rest }) => rest),
+                statusHistory: [
+                    { status: 'PENDING', comment: 'Dropship order placed via Wallet Deduction' },
+                ],
+            });
+        }
+
+        const createdOrders = await Order.insertMany(ordersToCreate, { session });
+
+        for (const orderDoc of createdOrders) {
+            await createInvoiceFromOrder(orderDoc, req.user, session);
+        }
+
+        const updatedReseller = await User.findByIdAndUpdate(
+            resellerId,
+            { $inc: { walletBalance: -totalPlatformCost } },
+            { returnDocument: 'after', session }
+        );
+
+        await WalletTransaction.create(
+            [
+                {
+                    resellerId,
+                    type: 'DEBIT',
+                    purpose: 'ORDER_DEDUCTION',
+                    amount: totalPlatformCost,
+                    closingBalance: updatedReseller.walletBalance,
+                    referenceId: generatedOrderIds.join(', '),
+                    description: `Platform cost deducted for orders: ${generatedOrderIds.join(', ')}`,
+                    status: 'COMPLETED',
+                },
+            ],
             { session }
         );
 
-        for (const item of order.items) {
-            await Product.findByIdAndUpdate(
-                item.productId,
-                { $inc: { 'inventory.stock': item.qty } },
-                { session }
-            );
-        }
-
-        await session.commitTransaction();
-        session.endSession();
-
-        return res
-            .status(200)
-            .json(new ApiResponse(200, order, 'Order cancelled and stock restored successfully'));
-    } catch (error) {
-        await session.abortTransaction();
-        session.endSession();
-        throw new ApiError(500, error.message || 'Failed to cancel order');
-    }
-});
-
-export const updateOrderStatus = asyncHandler(async (req, res) => {
-    const { status, courierName, trackingNumber } = req.body;
-
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
-        const order = await Order.findById(req.params.id).session(session);
-        if (!order) throw new ApiError(404, 'Order not found');
-
-        const isNewlyCancelled =
-            status && status.toUpperCase() === 'CANCELLED' && order.status !== 'CANCELLED';
-
-        if (status) order.status = status.toUpperCase();
-
-        if (courierName || trackingNumber) {
-            order.tracking = {
-                ...order.tracking,
-                courierName: courierName || order.tracking?.courierName,
-                trackingNumber: trackingNumber || order.tracking?.trackingNumber,
-                trackingUrl: `https://${(courierName || order.tracking?.courierName || 'courier').toLowerCase()}.com/track/${trackingNumber || order.tracking?.trackingNumber}`,
-            };
-        }
-
-        await order.save({ session });
-
-        if (isNewlyCancelled) {
-            await Invoice.findOneAndUpdate(
-                { orderId: order._id, status: 'UNPAID' },
-                { status: 'CANCELLED' },
-                { session }
+        for (const item of cart.items) {
+            const updatedProduct = await Product.findOneAndUpdate(
+                { _id: item.productId, 'inventory.stock': { $gte: item.qty } },
+                { $inc: { 'inventory.stock': -item.qty } },
+                { session, returnDocument: 'after' }
             );
 
-            for (const item of order.items) {
-                await Product.findByIdAndUpdate(
-                    item.productId,
-                    { $inc: { 'inventory.stock': item.qty } },
-                    { session }
+            if (!updatedProduct) {
+                throw new ApiError(
+                    400,
+                    `Item ${productMap[item.productId.toString()]?.title || item.sku} is out of stock.`
                 );
             }
         }
 
+        cart.items = [];
+        cart.subTotalPlatformCost = 0;
+        cart.totalTax = 0;
+        cart.grandTotalPlatformCost = 0;
+        cart.totalExpectedProfit = 0;
+        await cart.save({ session });
+
+        // --- NEW: Generate the final success response & save the key ---
+        const finalResponse = new ApiResponse(
+            201,
+            createdOrders,
+            `Successfully processed ${createdOrders.length} order(s).`
+        );
+
+        // Save the key INSIDE the transaction.
+        // If anything above failed, this won't save, allowing the user to retry safely.
+        await IdempotencyRecord.create(
+            [
+                {
+                    key: idempotencyKey,
+                    response: finalResponse,
+                },
+            ],
+            { session }
+        );
+
         await session.commitTransaction();
         session.endSession();
 
-        return res
-            .status(200)
-            .json(new ApiResponse(200, order, `Order successfully marked as ${order.status}`));
+        return res.status(201).json(finalResponse);
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
-        throw new ApiError(500, error.message || 'Failed to update order status');
+        // Check if it's a MongoDB duplicate key error for the Idempotency Record (race condition catch)
+        if (error.code === 11000 && error.keyPattern?.key) {
+            throw new ApiError(409, 'This order is already being processed. Please wait.');
+        }
+        throw new ApiError(
+            error.statusCode || 500,
+            error.message || 'Failed to process order transaction'
+        );
     }
 });
 
-export const getAllOrders = asyncHandler(async (req, res) => {
-    const page = parseInt(req.query.page, 10) || 1;
-    const limit = parseInt(req.query.limit, 10) || 10;
-    const skip = (page - 1) * limit;
+/**
+ * @desc    Get a single order by ID
+ * @route   GET /api/orders/:id
+ */
+export const getOrderById = asyncHandler(async (req, res) => {
+    // Finds the order ensuring it belongs to the logged-in reseller
+    const order = await Order.findOne({ _id: req.params.id, resellerId: req.user._id });
 
-    const search = req.query.search || '';
-    const status = req.query.status || 'ALL';
-
-    const query = {};
-
-    if (status !== 'ALL') {
-        query.status = status;
+    if (!order) {
+        throw new ApiError(404, 'Order not found');
     }
 
-    if (search) {
-        const matchingUsers = await User.find({
-            $or: [
-                { name: { $regex: search, $options: 'i' } },
-                { email: { $regex: search, $options: 'i' } },
-            ],
-        }).select('_id');
+    return res.status(200).json(new ApiResponse(200, order, 'Order fetched successfully'));
+});
 
-        const userIds = matchingUsers.map((u) => u._id);
+/**
+ * @desc    Get Reseller's Orders
+ * @route   GET /api/orders
+ */
+export const getMyOrders = asyncHandler(async (req, res) => {
+    const resellerId = req.user._id;
+    const { status, page = 1, limit = 10 } = req.query;
 
-        query['$or'] = [
-            { orderId: { $regex: search, $options: 'i' } },
-            { userId: { $in: userIds } },
-        ];
-    }
+    const query = { resellerId };
+    if (status) query.status = status;
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const orders = await Order.find(query).sort({ createdAt: -1 }).skip(skip).limit(Number(limit));
 
     const total = await Order.countDocuments(query);
-    const orders = await Order.find(query)
-        .populate('userId', 'name email')
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit);
 
     return res.status(200).json(
         new ApiResponse(
             200,
             {
-                data: orders,
-                pagination: {
-                    total,
-                    page,
-                    limit,
-                    totalPages: Math.ceil(total / limit),
-                },
+                orders,
+                pagination: { total, page: Number(page), pages: Math.ceil(total / Number(limit)) },
             },
-            'All orders fetched successfully'
+            'Orders fetched successfully'
         )
     );
+});
+
+/**
+ * @desc    Update Order Status (ADMIN ONLY) - Handles Profit Payouts & NDR
+ * @route   PUT /api/orders/:id/status
+ */
+export const updateOrderStatus = asyncHandler(async (req, res) => {
+    const { status, awbNumber, courierName, ndrReason } = req.body;
+    const { id } = req.params;
+
+    const order = await Order.findById(id);
+    if (!order) throw new ApiError(404, 'Order not found');
+
+    // Handle Shipping Details
+    if (status === 'SHIPPED') {
+        order.tracking = { awbNumber, courierName };
+    }
+
+    // Handle NDR (Non-Delivery Report)
+    if (status === 'NDR') {
+        order.ndrDetails = {
+            attemptCount: (order.ndrDetails?.attemptCount || 0) + 1,
+            reason: ndrReason || 'Customer Unavailable',
+            resellerAction: 'PENDING',
+        };
+    }
+
+    // FIX: ACID Transaction & Race Condition protection for profit payouts
+    if (status === 'DELIVERED' && order.status !== 'DELIVERED') {
+        if (order.resellerProfitMargin > 0 && order.paymentMethod === 'COD') {
+            const session = await mongoose.startSession();
+            session.startTransaction();
+
+            try {
+                // 1. Atomically add profit to wallet and get the new balance
+                const updatedReseller = await User.findByIdAndUpdate(
+                    order.resellerId,
+                    { $inc: { walletBalance: order.resellerProfitMargin } },
+                    { new: true, session }
+                );
+
+                if (!updatedReseller) throw new Error('Reseller not found during payout');
+
+                // 2. Create the Ledger Entry
+                await WalletTransaction.create(
+                    [
+                        {
+                            resellerId: order.resellerId,
+                            type: 'CREDIT',
+                            purpose: 'PROFIT_CREDIT',
+                            amount: order.resellerProfitMargin,
+                            closingBalance: updatedReseller.walletBalance,
+                            referenceId: order.orderId,
+                            description: `Profit margin credited for COD delivery of ${order.orderId}`,
+                            status: 'COMPLETED',
+                        },
+                    ],
+                    { session }
+                );
+
+                order.statusHistory.push({
+                    status: 'PROFIT_CREDITED',
+                    comment: `₹${order.resellerProfitMargin} added to wallet`,
+                });
+
+                await session.commitTransaction();
+                session.endSession();
+            } catch (error) {
+                await session.abortTransaction();
+                session.endSession();
+                throw new ApiError(
+                    500,
+                    'Failed to process profit payout. Order status not updated.'
+                );
+            }
+        }
+    }
+
+    order.status = status;
+    await order.save();
+
+    return res.status(200).json(new ApiResponse(200, order, `Order status updated to ${status}`));
+});
+
+/**
+ * @desc    Reseller takes action on an NDR (Non-Delivery Report)
+ * @route   POST /api/orders/:id/ndr-action
+ */
+export const resellerActionOnNDR = asyncHandler(async (req, res) => {
+    const { action, updatedPhone } = req.body; // action must be 'REATTEMPT' or 'RTO_REQUESTED'
+    const { id } = req.params;
+    const resellerId = req.user._id;
+
+    // 1. Validate Input
+    if (!['REATTEMPT', 'RTO_REQUESTED'].includes(action)) {
+        throw new ApiError(400, 'Invalid NDR action. Must be REATTEMPT or RTO_REQUESTED.');
+    }
+
+    // 2. Find the Order (Ensure it belongs to this reseller)
+    const order = await Order.findOne({ _id: id, resellerId });
+    if (!order) {
+        throw new ApiError(404, 'Order not found');
+    }
+
+    // 3. Ensure the order is actually in NDR state
+    if (order.status !== 'NDR') {
+        throw new ApiError(
+            400,
+            `Cannot submit NDR action. Order is currently in ${order.status} state.`
+        );
+    }
+
+    // 4. Update the NDR Details
+    order.ndrDetails.resellerAction = action;
+    if (updatedPhone) {
+        order.ndrDetails.updatedCustomerPhone = updatedPhone;
+        // Optionally update the main customer details as well
+        order.endCustomerDetails.phone = updatedPhone;
+    }
+
+    // 5. Log the history
+    order.statusHistory.push({
+        status: 'NDR_ACTION_SUBMITTED',
+        comment: `Reseller requested: ${action}${updatedPhone ? ` with new phone: ${updatedPhone}` : ''}`,
+    });
+
+    await order.save();
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, order, `NDR action '${action}' submitted successfully.`));
 });

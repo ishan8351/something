@@ -2,13 +2,12 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
-const addressSchema = new mongoose.Schema(
+const storeIntegrationSchema = new mongoose.Schema(
     {
-        street: { type: String, required: true },
-        city: { type: String, required: true },
-        state: { type: String, required: true },
-        zip: { type: String, required: true },
-        isDefault: { type: Boolean, default: false },
+        platform: { type: String, enum: ['SHOPIFY', 'WOOCOMMERCE', 'CUSTOM'], required: true },
+        storeUrl: { type: String, required: true },
+        accessToken: { type: String },
+        isActive: { type: Boolean, default: true },
     },
     { _id: false }
 );
@@ -20,26 +19,53 @@ const userSchema = new mongoose.Schema(
         phoneNumber: { type: String, unique: true, sparse: true },
         passwordHash: { type: String, required: true },
         avatar: { type: String, default: '' },
-        role: { type: String, enum: ['ADMIN', 'CUSTOMER'], default: 'CUSTOMER' },
+        customerId: { type: String, unique: true, sparse: true },
+        accountType: { type: String, enum: ['B2C', 'B2B'], default: 'B2C' },
+        isVerifiedB2B: { type: Boolean, default: false },
+
+        // Strict B2B Roles
+        role: { type: String, enum: ['ADMIN', 'RESELLER', 'CUSTOMER'], default: 'CUSTOMER' },
         refreshToken: { type: String },
 
-        customerId: { type: String, sparse: true },
-        accountType: { type: String, enum: ['B2B', 'B2C'], default: 'B2C' },
-
+        // B2B & Business Identity
         companyName: { type: String, trim: true },
         gstin: {
             type: String,
             trim: true,
             uppercase: true,
             match: [
-                /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/,
+                // FIX: Relaxed the 14th character from strict 'Z' to alphanumeric for future-proofing
+                /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}[A-Z0-9]{1}[0-9A-Z]{1}$/,
                 'Invalid GSTIN format',
             ],
         },
-        isVerifiedB2B: { type: Boolean, default: false },
+        kycStatus: {
+            type: String,
+            enum: ['PENDING', 'APPROVED', 'REJECTED'],
+            default: 'PENDING',
+        },
 
+        // Financials & Payouts
         walletBalance: { type: Number, default: 0 },
-        addresses: [addressSchema],
+        bankDetails: {
+            accountName: { type: String },
+            accountNumber: { type: String },
+            ifscCode: { type: String },
+            bankName: { type: String },
+        },
+
+        // Dropshipping Specifics
+        storeIntegrations: [storeIntegrationSchema],
+        billingAddress: {
+            street: { type: String },
+            city: { type: String },
+            state: { type: String },
+            zip: { type: String },
+        },
+
+        // Account Status
+        isActive: { type: Boolean, default: true },
+        deletedAt: { type: Date, default: null },
     },
     { timestamps: true }
 );
@@ -58,15 +84,11 @@ userSchema.methods.generateAccessToken = function () {
         {
             _id: this._id,
             email: this.email,
-            name: this.name,
             role: this.role,
-            accountType: this.accountType,
-            isVerifiedB2B: this.isVerifiedB2B,
+            kycStatus: this.kycStatus,
         },
         process.env.ACCESS_TOKEN_SECRET || 'fallback_secret',
-        {
-            expiresIn: process.env.ACCESS_TOKEN_EXPIRY || '1d',
-        }
+        { expiresIn: process.env.ACCESS_TOKEN_EXPIRY || '1d' }
     );
 };
 

@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
 
 const Login = () => {
@@ -15,6 +15,18 @@ const Login = () => {
 
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+
+    const location = useLocation();
+
+    // Check URL for the expiration flag on mount
+    useEffect(() => {
+        const queryParams = new URLSearchParams(location.search);
+        if (queryParams.get('session_expired')) {
+            setError('Your secure session has expired. Please log in again to continue.');
+            // Optional: Clean up the URL so it doesn't persist on refresh
+            window.history.replaceState({}, document.title, '/login');
+        }
+    }, [location]);
 
     const navigate = useNavigate();
     const { login, loginWithOtpReq, sendOtp } = useContext(AuthContext);

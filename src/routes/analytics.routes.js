@@ -1,10 +1,14 @@
 import { Router } from 'express';
 import { getDashboardAnalytics } from '../controllers/analytics.controller.js';
-import { verifyJWT, authorize } from '../middlewares/auth.middleware.js';
+
+// FIX: Changed 'authorize' to 'authorizeRoles' to match your middleware export
+import { verifyJWT, authorizeRoles } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
-router.use(verifyJWT, authorize('ADMIN'));
+// FIX: Applied authorizeRoles
+// This protects all routes attached to this router moving forward
+router.use(verifyJWT, authorizeRoles('ADMIN'));
 
 router.get('/admin', getDashboardAnalytics);
 

@@ -3,22 +3,27 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import path from 'path';
 
+// --- Route Imports ---
 import healthRouter from './routes/health.routes.js';
-import userRouter from './routes/user.routes.js';
-import productRouter from './routes/product.routes.js';
 import authRouter from './routes/auth.routes.js';
+import userRouter from './routes/user.routes.js';
 import categoryRouter from './routes/category.routes.js';
+import productRouter from './routes/product.routes.js';
+import cartRouter from './routes/cart.routes.js';
 import orderRouter from './routes/order.routes.js';
 import invoiceRouter from './routes/invoice.routes.js';
 import paymentRouter from './routes/payment.routes.js';
 import walletRouter from './routes/wallet.routes.js';
 import wishlistRouter from './routes/wishlist.routes.js';
 import analyticsRouter from './routes/analytics.routes.js';
+import webhookRouter from './routes/webhook.routes.js';
 
 const app = express();
 
+// ==========================================
+// 1. Security & Utility Middlewares
+// ==========================================
 app.use(helmet());
 
 const allowedOrigins = [
@@ -30,46 +35,65 @@ const allowedOrigins = [
 app.use(
     cors({
         origin: function (origin, callback) {
-            if (!origin) return callback(null, true);
-
-            if (allowedOrigins.indexOf(origin) !== -1) {
+            if (!origin || allowedOrigins.includes(origin)) {
                 callback(null, true);
             } else {
                 callback(new Error('Not allowed by CORS'));
             }
         },
-        credentials: true,
+        credentials: true, // Crucial for reading the JWT cookies!
         exposedHeaders: ['Content-Disposition'],
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     })
 );
 
+// Rate Limiter: Prevent API abuse (1000 requests per 15 mins)
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 1000,
     message: 'Too many requests from this IP, please try again later.',
 });
-
 app.use('/api', limiter);
+app.use('/api/webhooks', webhookRouter);
+
+// ==========================================
+// 2. Body Parsers & Static Files
+// ==========================================
 app.use(express.json({ limit: '20kb' }));
 app.use(express.urlencoded({ extended: true, limit: '16kb' }));
 app.use(cookieParser());
+app.use(express.static('public'));
 
-const __dirname = import.meta.dirname;
-app.use(express.static(path.join(__dirname, '../public')));
+// ==========================================
+// 3. Mount B2B API Routes
+// ==========================================
+const apiVersion = '/api/v1';
 
-app.use('/api/v1/health', healthRouter);
-app.use('/api/v1/users', userRouter);
-app.use('/api/v1/products', productRouter);
-app.use('/api/v1/auth', authRouter);
-app.use('/api/v1/categories', categoryRouter);
-app.use('/api/v1/orders', orderRouter);
-app.use('/api/v1/invoices', invoiceRouter);
-app.use('/api/v1/payments', paymentRouter);
-app.use('/api/v1/wallet', walletRouter);
-app.use('/api/v1/wishlist', wishlistRouter);
-app.use('/api/v1/analytics', analyticsRouter);
+// Identity & Platform Health
+app.use(`${apiVersion}/health`, healthRouter);
+app.use(`${apiVersion}/auth`, authRouter);
+app.use(`${apiVersion}/users`, userRouter);
 
+// The B2B Catalog
+app.use(`${apiVersion}/categories`, categoryRouter);
+app.use(`${apiVersion}/products`, productRouter);
+app.use(`${apiVersion}/wishlist`, wishlistRouter);
+
+// The Purchasing Pipeline (Our newly rewritten engine)
+app.use(`${apiVersion}/cart`, cartRouter);
+app.use(`${apiVersion}/orders`, orderRouter);
+
+// Financials & Compliance
+app.use(`${apiVersion}/invoices`, invoiceRouter);
+app.use(`${apiVersion}/payments`, paymentRouter);
+app.use(`${apiVersion}/wallet`, walletRouter);
+
+// Admin Analytics
+app.use(`${apiVersion}/analytics`, analyticsRouter);
+
+// ==========================================
+// 4. Global Error Handler
+// ==========================================
 app.use((err, req, res, next) => {
     if (res.headersSent) {
         return next(err);
@@ -78,8 +102,9 @@ app.use((err, req, res, next) => {
     const statusCode = err.statusCode || 500;
     const message = err.message || 'Internal Server Error';
 
-    if (statusCode !== 401) {
-        console.error('Global Error Handler Caught:', err);
+    // Only log severe/unexpected errors in the console (ignore 401 Unauthorized / 404s)
+    if (statusCode !== 401 && statusCode !== 404) {
+        console.error('🔥 Global Error Caught:', err);
     }
 
     return res.status(statusCode).json({

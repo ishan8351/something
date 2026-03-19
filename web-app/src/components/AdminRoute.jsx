@@ -1,14 +1,17 @@
+// web-app/src/components/AdminRoute.jsx
 import { useContext } from 'react';
 import { Navigate } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
 import LoadingScreen from './LoadingScreen';
 
 const AdminRoute = ({ children }) => {
-    const { user, loading } = useContext(AuthContext);
+    // We can use the clean isAdmin flag we built into the context!
+    const { isAdmin, loading, user } = useContext(AuthContext);
 
     if (loading) return <LoadingScreen />;
 
-    if (!user || user.role !== 'ADMIN') {
+    // If they aren't logged in, or aren't an admin, kick them out
+    if (!user || !isAdmin) {
         return <Navigate to="/" replace />;
     }
 

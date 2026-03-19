@@ -1,6 +1,7 @@
 import React, { useEffect, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
+import { Home, UploadCloud, FileText, Package, Wallet, Settings, Building2, X } from 'lucide-react';
 
 function Sidebar({ isOpen, onClose }) {
     const navigate = useNavigate();
@@ -27,18 +28,15 @@ function Sidebar({ isOpen, onClose }) {
 
     return (
         <div className="relative z-[100]">
-            {}
             <div
                 className={`fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity duration-300 ${isOpen ? 'visible opacity-100' : 'invisible opacity-0'}`}
                 onClick={onClose}
                 aria-hidden="true"
             ></div>
 
-            {}
             <aside
                 className={`fixed inset-y-0 left-0 flex w-[85vw] max-w-sm transform flex-col border-r border-white/50 bg-white/90 shadow-2xl backdrop-blur-xl transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
             >
-                {}
                 <div className="flex items-center justify-between border-b border-slate-100 p-6">
                     <div className="flex items-center gap-3">
                         <div className="rounded-lg border border-slate-100 bg-slate-50 p-1.5 shadow-sm">
@@ -49,7 +47,7 @@ function Sidebar({ isOpen, onClose }) {
                             />
                         </div>
                         <span className="text-xl font-extrabold tracking-tight text-slate-900">
-                            Sovely
+                            Sovely B2B
                         </span>
                     </div>
                     <button
@@ -57,98 +55,67 @@ function Sidebar({ isOpen, onClose }) {
                         onClick={onClose}
                         aria-label="Close sidebar"
                     >
-                        ✕
+                        <X size={20} />
                     </button>
                 </div>
 
-                {}
                 <div className="custom-scrollbar flex-1 space-y-8 overflow-y-auto px-4 py-6">
                     <div>
                         <h3 className="mb-3 px-2 text-xs font-bold tracking-wider text-slate-400 uppercase">
-                            Main Menu
+                            Procurement Portal
                         </h3>
                         <ul className="space-y-1">
                             <li>
-                                <a
-                                    href="#"
+                                <Link
+                                    to="/"
+                                    onClick={onClose}
                                     className="text-accent flex items-center gap-3 rounded-xl bg-slate-100 px-4 py-3 font-bold"
                                 >
-                                    <span className="text-lg">🏠</span> Home
-                                </a>
+                                    <Home size={20} /> Home
+                                </Link>
                             </li>
                             <li>
-                                <a
-                                    href="#"
+                                <Link
+                                    to="/bulk-order"
+                                    onClick={onClose}
                                     className="flex items-center gap-3 rounded-xl px-4 py-3 font-bold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
                                 >
-                                    <span className="text-lg">📦</span> Manage NDR
-                                </a>
+                                    <UploadCloud size={20} /> Quick Order Upload
+                                </Link>
                             </li>
                             <li>
-                                <a
-                                    href="#"
+                                <Link
+                                    to="/my-account/invoices"
+                                    onClick={onClose}
                                     className="flex items-center gap-3 rounded-xl px-4 py-3 font-bold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
                                 >
-                                    <span className="text-lg">🛍️</span> Cart
-                                </a>
+                                    <FileText size={20} /> My Invoices & Tax
+                                </Link>
                             </li>
                             <li>
-                                <a
-                                    href="#"
+                                <Link
+                                    to="/orders"
+                                    onClick={onClose}
                                     className="flex items-center gap-3 rounded-xl px-4 py-3 font-bold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
                                 >
-                                    <span className="text-lg">🚚</span> Order Track
-                                </a>
+                                    <Package size={20} /> Orders & Tracking
+                                </Link>
                             </li>
                             <li>
-                                <a
-                                    href="#"
+                                <Link
+                                    to="/wallet"
+                                    onClick={onClose}
                                     className="flex items-center gap-3 rounded-xl px-4 py-3 font-bold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
                                 >
-                                    <span className="text-lg">📋</span> Inventory
-                                </a>
+                                    <Wallet size={20} /> Wallet & Credit
+                                </Link>
                             </li>
                         </ul>
                     </div>
 
                     <div>
                         <h3 className="mb-3 px-2 text-xs font-bold tracking-wider text-slate-400 uppercase">
-                            Discover
-                        </h3>
-                        <ul className="space-y-1">
-                            <li>
-                                <a
-                                    href="#deals"
-                                    onClick={onClose}
-                                    className="flex items-center gap-3 rounded-xl px-4 py-3 font-bold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
-                                >
-                                    <span className="text-lg">🔥</span> Today's Deals
-                                </a>
-                            </li>
-                            <li>
-                                <a
-                                    href="#categories"
-                                    onClick={onClose}
-                                    className="flex items-center gap-3 rounded-xl px-4 py-3 font-bold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
-                                >
-                                    <span className="text-lg">🏷️</span> All Categories
-                                </a>
-                            </li>
-                            <li>
-                                <a
-                                    href="#services"
-                                    onClick={onClose}
-                                    className="flex items-center gap-3 rounded-xl px-4 py-3 font-bold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
-                                >
-                                    <span className="text-lg">💳</span> Our Services
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
-
-                    <div>
-                        <h3 className="mb-3 px-2 text-xs font-bold tracking-wider text-slate-400 uppercase">
-                            Settings
+                            Business Settings
                         </h3>
                         <ul className="space-y-1">
                             <li>
@@ -157,22 +124,22 @@ function Sidebar({ isOpen, onClose }) {
                                     onClick={onClose}
                                     className="flex items-center gap-3 rounded-xl px-4 py-3 font-bold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
                                 >
-                                    <span className="text-lg">👤</span> My Account
+                                    <Building2 size={20} /> Company Profile
                                 </Link>
                             </li>
                             <li>
-                                <a
-                                    href="#"
+                                <Link
+                                    to="/my-account/settings"
+                                    onClick={onClose}
                                     className="flex items-center gap-3 rounded-xl px-4 py-3 font-bold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
                                 >
-                                    <span className="text-lg">⚙️</span> Preferences
-                                </a>
+                                    <Settings size={20} /> Account Preferences
+                                </Link>
                             </li>
                         </ul>
                     </div>
                 </div>
 
-                {}
                 <div className="border-t border-slate-100 bg-slate-50/50 p-6">
                     {user ? (
                         <div className="flex w-full flex-col items-center">
@@ -186,31 +153,33 @@ function Sidebar({ isOpen, onClose }) {
                                         />
                                     ) : (
                                         <span className="text-2xl font-bold text-slate-400">
-                                            {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                                            {user.companyName
+                                                ? user.companyName.charAt(0).toUpperCase()
+                                                : 'B'}
                                         </span>
                                     )}
                                 </div>
                                 <p className="text-sm font-medium text-slate-500">
-                                    Logged in as{' '}
-                                    <span className="font-bold text-slate-900">
-                                        {user.name || 'User'}
+                                    Purchasing as <br />
+                                    <span className="text-base font-bold text-slate-900">
+                                        {user.companyName || user.name}
                                     </span>
                                 </p>
-                                <p className="mt-0.5 w-48 truncate text-xs text-slate-400">
-                                    {user.email}
+                                <p className="mt-1 flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold tracking-wide text-emerald-700 uppercase">
+                                    GST Verified
                                 </p>
                             </div>
                             <button
                                 onClick={handleLogout}
                                 className="bg-danger/10 text-danger hover:bg-danger w-full rounded-full py-3 font-bold shadow-sm transition-colors hover:text-white"
                             >
-                                Log Out
+                                Secure Log Out
                             </button>
                         </div>
                     ) : (
                         <div className="w-full text-center">
                             <p className="mb-4 text-sm font-bold text-slate-600">
-                                Ready to start selling?
+                                Ready to scale your sourcing?
                             </p>
                             <div className="flex flex-col gap-3">
                                 <Link
@@ -218,14 +187,14 @@ function Sidebar({ isOpen, onClose }) {
                                     onClick={onClose}
                                     className="w-full rounded-full border-2 border-slate-200 py-3 font-bold text-slate-700 transition-all hover:border-slate-300 hover:bg-white"
                                 >
-                                    Log In
+                                    Business Login
                                 </Link>
                                 <Link
                                     to="/signup"
                                     onClick={onClose}
-                                    className="hover:bg-accent hover:shadow-accent/30 w-full rounded-full bg-slate-900 py-3 font-bold text-white transition-all hover:shadow-lg"
+                                    className="hover:bg-primary hover:shadow-primary/30 w-full rounded-full bg-slate-900 py-3 font-bold text-white transition-all hover:shadow-lg"
                                 >
-                                    Sign Up Free
+                                    Apply for Wholesale
                                 </Link>
                             </div>
                         </div>

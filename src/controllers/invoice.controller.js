@@ -13,9 +13,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export const getInvoice = asyncHandler(async (req, res) => {
+    // FIX: Changed userId to resellerId
     const invoice = await Invoice.findOne({
         _id: req.params.id,
-        userId: req.user._id,
+        resellerId: req.user._id,
     }).populate('orderId');
 
     if (!invoice) throw new ApiError(404, 'Invoice not found');
@@ -24,7 +25,8 @@ export const getInvoice = asyncHandler(async (req, res) => {
 });
 
 export const listMyInvoices = asyncHandler(async (req, res) => {
-    const invoices = await Invoice.find({ userId: req.user._id })
+    // FIX: Changed userId to resellerId
+    const invoices = await Invoice.find({ resellerId: req.user._id })
         .populate('orderId')
         .sort({ createdAt: -1 });
 
@@ -43,18 +45,19 @@ export const getAllInvoices = asyncHandler(async (req, res) => {
 
     if (status !== 'ALL') {
         if (status === 'OVERDUE') {
-            query.status = 'UNPAID';
+            query.paymentStatus = 'UNPAID'; // FIX: Changed status to paymentStatus
             query.dueDate = { $lt: new Date() };
         } else {
-            query.status = status;
+            query.paymentStatus = status; // FIX: Changed status to paymentStatus
         }
     }
 
     if (search) {
         query['$or'] = [
             { invoiceNumber: { $regex: search, $options: 'i' } },
-            { 'buyerDetails.companyName': { $regex: search, $options: 'i' } },
-            { 'buyerDetails.gstin': { $regex: search, $options: 'i' } },
+            // FIX: Changed buyerDetails to billedTo
+            { 'billedTo.companyName': { $regex: search, $options: 'i' } },
+            { 'billedTo.gstin': { $regex: search, $options: 'i' } },
         ];
     }
 
@@ -81,21 +84,23 @@ export const markAsPaidManual = asyncHandler(async (req, res) => {
     const invoice = await Invoice.findById(req.params.id);
     if (!invoice) throw new ApiError(404, 'Invoice not found');
 
-    if (invoice.status === 'PAID') {
+    // FIX: Changed status to paymentStatus
+    if (invoice.paymentStatus === 'PAID') {
         throw new ApiError(400, 'Invoice is already paid');
     }
 
-    invoice.status = 'PAID';
+    invoice.paymentStatus = 'PAID';
     await invoice.save();
 
-    if (invoice.invoiceType === 'ORDER_BILL' && invoice.orderId) {
-        await Order.findByIdAndUpdate(invoice.orderId, { status: 'COMPLETED' });
+    if (invoice.invoiceType === 'B2B_WHOLESALE' && invoice.orderId) {
+        await Order.findByIdAndUpdate(invoice.orderId, { status: 'PROCESSING' });
     }
 
     return res.status(200).json(new ApiResponse(200, invoice, 'Invoice marked as paid manually'));
 });
 
 const amountToWords = (amount) => {
+    // Note: In production, consider a robust library like 'number-to-words' for Indian Rupee format
     return `Rupees ${Math.floor(amount).toLocaleString('en-IN')} Only`;
 };
 
@@ -113,8 +118,15 @@ const generateTableRow = (doc, y, c1, c2, c3, c4, c5, c6, c7, c8) => {
 
 export const generateInvoicePDF = async (req, res, next) => {
     try {
-        const query = { _id: req.params.id };
-        if (req.user.role !== 'ADMIN') query.userId = req.user._id;
+        // Support finding by Invoice ID or Order ID
+        const query = {};
+        if (req.params.orderId) {
+            query.orderId = req.params.orderId;
+        } else {
+            query._id = req.params.id;
+        }
+
+        if (req.user.role !== 'ADMIN') query.resellerId = req.user._id;
 
         const invoice = await Invoice.findOne(query).populate('orderId');
 
@@ -141,20 +153,19 @@ export const generateInvoicePDF = async (req, res, next) => {
             try {
                 doc.image(logoPath, 40, 30, { width: 100 });
             } catch (imgError) {
-                console.warn(
-                    '⚠️ PDFKit rejected the logo image. Falling back to text logo.',
-                    imgError.message
-                );
                 doc.fontSize(24).font('Helvetica-Bold').fillColor('#0f172a').text('SOVELY', 40, 35);
             }
         } else {
             doc.fontSize(24).font('Helvetica-Bold').fillColor('#0f172a').text('SOVELY', 40, 35);
         }
 
+        // Title changes based on type
+        const docTitle = invoice.invoiceType === 'WALLET_TOPUP' ? 'RECEIPT' : 'TAX INVOICE';
+
         doc.fillColor('#0f172a')
             .fontSize(18)
             .font('Helvetica-Bold')
-            .text('TAX INVOICE', 0, 35, { align: 'right', width: 555 });
+            .text(docTitle, 0, 35, { align: 'right', width: 555 });
         doc.fontSize(9)
             .font('Helvetica')
             .fillColor('#64748b')
@@ -163,8 +174,7 @@ export const generateInvoicePDF = async (req, res, next) => {
         const topY = 160;
 
         doc.fillColor('#0f172a');
-
-        doc.fontSize(10).font('Helvetica-Bold').text('Sold By:', 40, topY);
+        doc.fontSize(10).font('Helvetica-Bold').text('Issued By:', 40, topY);
         doc.font('Helvetica-Bold')
             .fontSize(11)
             .text('Sovely E-Commerce Pvt. Ltd.', 40, topY + 15);
@@ -184,21 +194,25 @@ export const generateInvoicePDF = async (req, res, next) => {
             .text('ABCDE1234F');
 
         doc.fontSize(10).font('Helvetica-Bold').text('Billed To:', 300, topY);
+        // FIX: Replaced buyerDetails with billedTo
         doc.font('Helvetica-Bold')
             .fontSize(11)
-            .text(invoice.buyerDetails?.companyName || req.user.name, 300, topY + 15);
+            .text(invoice.billedTo?.companyName || req.user.name, 300, topY + 15);
+
+        let addressString = invoice.billedTo?.address?.street
+            ? `${invoice.billedTo.address.street}, ${invoice.billedTo.address.city}, ${invoice.billedTo.address.zip}`
+            : 'Address not provided';
+
         doc.font('Helvetica')
             .fontSize(9)
-            .text(invoice.buyerDetails?.billingAddress || 'Address not provided', 300, topY + 30, {
-                width: 250,
-            })
-            .text(`State: ${invoice.buyerDetails?.state || 'N/A'}`, 300, doc.y + 2);
+            .text(addressString, 300, topY + 30, { width: 250 })
+            .text(`State Code: ${invoice.billedTo?.address?.stateCode || 'N/A'}`, 300, doc.y + 2);
 
-        if (invoice.buyerDetails?.gstin && invoice.buyerDetails?.gstin !== 'UNREGISTERED') {
+        if (invoice.billedTo?.gstin) {
             doc.font('Helvetica-Bold')
                 .text('GSTIN: ', 300, doc.y + 4, { continued: true })
                 .font('Helvetica')
-                .text(invoice.buyerDetails.gstin);
+                .text(invoice.billedTo.gstin);
         }
 
         const metaY = Math.max(topY + 110, doc.y + 15);
@@ -231,7 +245,8 @@ export const generateInvoicePDF = async (req, res, next) => {
 
         let y = metaY + 60;
 
-        if (invoice.invoiceType === 'ORDER_BILL' && invoice.orderId) {
+        // TABLE LOGIC
+        if (invoice.invoiceType !== 'WALLET_TOPUP' && invoice.items && invoice.items.length > 0) {
             doc.rect(40, y, 515, 20).fillAndStroke('#0f172a', '#0f172a');
             doc.fillColor('#ffffff').font('Helvetica-Bold');
             generateTableRow(
@@ -251,7 +266,8 @@ export const generateInvoicePDF = async (req, res, next) => {
             let index = 1;
             doc.fillColor('#0f172a').font('Helvetica');
 
-            for (const item of invoice.orderId.items) {
+            // FIX: Loop through invoice.items, not invoice.orderId.items
+            for (const item of invoice.items) {
                 if (y > 700) {
                     doc.addPage();
                     y = 50;
@@ -275,9 +291,9 @@ export const generateInvoicePDF = async (req, res, next) => {
 
                 const displayTitle =
                     item.title.length > 35 ? item.title.substring(0, 32) + '...' : item.title;
-                const baseTotal = item.basePrice * item.qty;
-                const taxTotal = item.taxAmountPerUnit * item.qty;
-                const finalTotal = item.totalItemPrice;
+                const taxAmount = invoice.isInterState
+                    ? item.igstAmount
+                    : item.cgstAmount + item.sgstAmount;
 
                 if (index % 2 === 0) doc.rect(40, y, 515, 20).fill('#f8fafc');
                 doc.fillColor('#0f172a');
@@ -289,33 +305,43 @@ export const generateInvoicePDF = async (req, res, next) => {
                     displayTitle,
                     item.hsnCode || '0000',
                     item.qty.toString(),
-                    baseTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }),
-                    `${item.taxSlab || 18}%`,
-                    taxTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }),
-                    finalTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })
+                    item.unitBasePrice.toLocaleString('en-IN', { minimumFractionDigits: 2 }),
+                    `${item.gstSlab}%`,
+                    taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 }),
+                    item.totalItemAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })
                 );
 
                 y += 20;
                 index++;
             }
-
             doc.moveTo(40, y).lineTo(555, y).stroke('#cbd5e1');
             y += 15;
+        } else if (invoice.invoiceType === 'WALLET_TOPUP') {
+            // Render a simple single line for Wallet Topup
+            doc.rect(40, y, 515, 20).fillAndStroke('#f8fafc', '#cbd5e1');
+            doc.fillColor('#0f172a').font('Helvetica-Bold').fontSize(10);
+            doc.text('Description: Wallet Top-Up (Prepaid Balance)', 50, y + 6);
+            y += 35;
+        }
 
-            doc.font('Helvetica-Bold').fontSize(9);
-            doc.text('Subtotal (Base):', 360, y);
+        // TOTALS SECTION
+        doc.font('Helvetica-Bold').fontSize(9);
+
+        if (invoice.invoiceType !== 'WALLET_TOPUP') {
+            doc.text('Subtotal (Taxable):', 360, y);
             doc.text(
-                `₹ ${invoice.subTotal?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}`,
+                `₹ ${invoice.totalTaxableValue?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}`,
                 450,
                 y,
                 { align: 'right', width: 100 }
             );
             y += 15;
 
-            if (invoice.taxBreakdown?.igstTotal > 0) {
+            // FIX: Using direct totals from the invoice document
+            if (invoice.isInterState) {
                 doc.text('IGST Amount:', 360, y);
                 doc.text(
-                    `₹ ${invoice.taxBreakdown.igstTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+                    `₹ ${invoice.totalIgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
                     450,
                     y,
                     { align: 'right', width: 100 }
@@ -324,7 +350,7 @@ export const generateInvoicePDF = async (req, res, next) => {
             } else {
                 doc.text('CGST Amount:', 360, y);
                 doc.text(
-                    `₹ ${(invoice.taxBreakdown?.cgstTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+                    `₹ ${(invoice.totalCgst || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
                     450,
                     y,
                     { align: 'right', width: 100 }
@@ -332,36 +358,33 @@ export const generateInvoicePDF = async (req, res, next) => {
                 y += 15;
                 doc.text('SGST Amount:', 360, y);
                 doc.text(
-                    `₹ ${(invoice.taxBreakdown?.sgstTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+                    `₹ ${(invoice.totalSgst || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
                     450,
                     y,
                     { align: 'right', width: 100 }
                 );
                 y += 15;
             }
-
-            doc.rect(350, y, 205, 25).fillAndStroke('#f1f5f9', '#cbd5e1');
-            doc.fillColor('#0f172a')
-                .fontSize(11)
-                .font('Helvetica-Bold')
-                .text('Grand Total:', 360, y + 7);
-            doc.text(
-                `₹ ${(invoice.grandTotal || invoice.totalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
-                450,
-                y + 7,
-                { align: 'right', width: 100 }
-            );
-
-            doc.moveDown(3);
-
-            doc.fontSize(9).font('Helvetica-Bold').text('Amount in Words:');
-            doc.font('Helvetica').text(amountToWords(invoice.grandTotal || invoice.totalAmount));
         }
 
-        if (doc.y > 650) {
-            doc.addPage();
-        }
+        doc.rect(350, y, 205, 25).fillAndStroke('#f1f5f9', '#cbd5e1');
+        doc.fillColor('#0f172a')
+            .fontSize(11)
+            .font('Helvetica-Bold')
+            .text('Grand Total:', 360, y + 7);
+        doc.text(
+            `₹ ${invoice.grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+            450,
+            y + 7,
+            { align: 'right', width: 100 }
+        );
 
+        doc.moveDown(3);
+        doc.fontSize(9).font('Helvetica-Bold').text('Amount in Words:');
+        doc.font('Helvetica').text(amountToWords(invoice.grandTotal));
+
+        // FOOTER
+        if (doc.y > 650) doc.addPage();
         const footerY = doc.y + 40;
 
         doc.rect(40, footerY, 220, 70).stroke('#cbd5e1');
@@ -375,13 +398,15 @@ export const generateInvoicePDF = async (req, res, next) => {
             .text('Account No: 1234567890123456', 45, footerY + 44)
             .text('IFSC Code: SOVE0001234', 45, footerY + 56);
 
-        try {
-            const upiString = `upi://pay?pa=sovely@upi&pn=Sovely+ECommerce&tr=${invoice.invoiceNumber}&am=${(invoice.grandTotal || invoice.totalAmount).toFixed(2)}&cu=INR`;
-            const qrImage = await QRCode.toDataURL(upiString);
-            doc.image(qrImage, 275, footerY - 5, { width: 80 });
-            doc.fontSize(7).text('Scan to Pay via UPI', 280, footerY + 75);
-        } catch (err) {
-            console.error('QR Code generation failed', err);
+        if (invoice.paymentStatus !== 'PAID') {
+            try {
+                const upiString = `upi://pay?pa=sovely@upi&pn=Sovely+ECommerce&tr=${invoice.invoiceNumber}&am=${invoice.grandTotal.toFixed(2)}&cu=INR`;
+                const qrImage = await QRCode.toDataURL(upiString);
+                doc.image(qrImage, 275, footerY - 5, { width: 80 });
+                doc.fontSize(7).text('Scan to Pay via UPI', 280, footerY + 75);
+            } catch (err) {
+                console.error('QR Code generation failed', err);
+            }
         }
 
         doc.font('Helvetica-Bold')
@@ -413,4 +438,91 @@ export const generateInvoicePDF = async (req, res, next) => {
     } catch (error) {
         next(error);
     }
+};
+
+// --- NEW: Internal helper to generate invoices from an Order ---
+export const createInvoiceFromOrder = async (orderDoc, resellerDoc, session) => {
+    // 1. Determine Interstate Tax (Assuming your company is in Karnataka - State Code 29)
+    // In a real app, you'd compare resellerDoc.companyAddress State Code with your HQ State Code
+    const isInterState = false; // Mocking intra-state for now
+
+    // 2. Map Order Items to Invoice Items
+    const invoiceItems = orderDoc.items.map((item) => {
+        const qty = item.qty;
+        const totalAmount =
+            orderDoc.paymentMethod === 'COD'
+                ? item.resellerSellingPrice * qty
+                : item.platformBasePrice * qty; // If wholesale, use platform price
+
+        // Simplified Tax Math (Assuming an 18% inclusive GST for demonstration)
+        const gstSlab = 18;
+        const baseAmount = totalAmount / (1 + gstSlab / 100);
+        const taxAmount = totalAmount - baseAmount;
+
+        return {
+            productId: item.productId,
+            sku: item.sku,
+            title: item.title,
+            hsnCode: item.hsnCode || '0000',
+            qty: qty,
+            unitBasePrice: baseAmount / qty,
+            totalBaseAmount: baseAmount,
+            gstSlab: gstSlab,
+            cgstAmount: isInterState ? 0 : taxAmount / 2,
+            sgstAmount: isInterState ? 0 : taxAmount / 2,
+            igstAmount: isInterState ? taxAmount : 0,
+            totalItemAmount: totalAmount,
+        };
+    });
+
+    // 3. Calculate Totals
+    const totalTaxableValue = invoiceItems.reduce((acc, item) => acc + item.totalBaseAmount, 0);
+    const totalCgst = invoiceItems.reduce((acc, item) => acc + item.cgstAmount, 0);
+    const totalSgst = invoiceItems.reduce((acc, item) => acc + item.sgstAmount, 0);
+    const totalIgst = invoiceItems.reduce((acc, item) => acc + item.igstAmount, 0);
+
+    // 4. Build the Invoice Document
+    const invoiceType = orderDoc.orderId.includes('WH') ? 'B2B_WHOLESALE' : 'DROPSHIP_PLATFORM_FEE';
+
+    const invoice = new Invoice({
+        invoiceNumber: `INV-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`,
+        orderId: orderDoc._id,
+        resellerId: resellerDoc._id,
+        invoiceType: invoiceType,
+        isInterState: isInterState,
+
+        billedTo: {
+            companyName: resellerDoc.companyName || resellerDoc.name,
+            gstin: resellerDoc.gstin || '',
+            address: {
+                street: resellerDoc.address || '',
+                city: 'City', // Replace with actual user city
+                state: 'State',
+                zip: '000000',
+                stateCode: '29',
+            },
+        },
+
+        shippedTo: orderDoc.endCustomerDetails
+            ? {
+                  name: orderDoc.endCustomerDetails.name,
+                  address: orderDoc.endCustomerDetails.address,
+              }
+            : undefined,
+
+        items: invoiceItems,
+
+        totalTaxableValue,
+        totalCgst,
+        totalSgst,
+        totalIgst,
+        grandTotal: totalTaxableValue + totalCgst + totalSgst + totalIgst,
+
+        paymentStatus: 'PAID', // Since your pipeline deducts wallet instantly
+        paymentTerms: 'PREPAID',
+        status: 'GENERATED',
+    });
+
+    await invoice.save({ session });
+    return invoice;
 };

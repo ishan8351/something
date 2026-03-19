@@ -1,495 +1,419 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useSuspenseQuery } from '@tanstack/react-query';
-import { useCartStore } from '../store/cartStore';
-import { productApi } from '../features/products/api/productApi.js';
-import { WishlistContext } from '../WishlistContext.jsx';
-import { AuthContext } from '../AuthContext.jsx';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
+    ShoppingCart,
+    Package,
+    TrendingUp,
+    AlertCircle,
+    CheckCircle2,
     ShieldCheck,
     Truck,
-    Building2,
-    Package,
-    FileText,
-    Heart,
-    AlertCircle,
-    TrendingUp,
-    Percent,
-    Tag,
+    Shield,
+    Minus,
+    Plus,
 } from 'lucide-react';
+import api from '../utils/api';
+import { useCartStore } from '../store/cartStore';
+import LoadingScreen from './LoadingScreen';
 
-import BeautifulDescription from './BeautifulDescription';
-
-function ProductPage() {
+const ProductPage = () => {
     const { productId } = useParams();
     const navigate = useNavigate();
-    const { isInWishlist, toggleWishlist } = useContext(WishlistContext);
-    const { user } = useContext(AuthContext);
+    const { addToCart, isLoading: isCartLoading } = useCartStore();
 
-    const { data: p } = useSuspenseQuery({
-        queryKey: ['product', productId],
-        queryFn: () => productApi.getProductById(productId),
-    });
+    const [product, setProduct] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [addToCartSuccess, setAddToCartSuccess] = useState(false);
+    const [activeImage, setActiveImage] = useState(0); // For Image Gallery
 
-    const [selectedImage, setSelectedImage] = useState(0);
-    const addToCart = useCartStore((state) => state.addToCart);
-
-    const product = React.useMemo(() => {
-        if (!p) return null;
-
-        const basePrice = p.platformSellPrice;
-        const moq = p.moq || 1;
-        const retailMrp = p.compareAtPrice || Math.floor(basePrice * 1.5);
-        const estMargin = Math.round(((retailMrp - basePrice) / retailMrp) * 100);
-
-        return {
-            id: p._id,
-            skuId: p.sku,
-            name: p.title,
-            category: p.categoryId?.name || p.productType || 'Wholesale Goods',
-            supplierName: p.vendor || 'Sovely Verified Supplier',
-            isVerifiedSupplier: true,
-            supplierRating: p.averageRating || 4.5,
-            supplierYears: 3,
-            basePrice: basePrice,
-            retailMrp: retailMrp,
-            estMargin: estMargin,
-            moq: moq,
-            gstPercent: p.gstPercent || 18,
-            hsnCode: p.hsn || '85437099',
-            stock: p.inventory?.stock || 0,
-
-            customPrice: p.customPrice || null,
-
-            tiers: p.customPrice
-                ? []
-                : [
-                      { min: moq, max: moq * 4, price: basePrice },
-                      { min: moq * 4 + 1, max: moq * 9, price: Math.floor(basePrice * 0.95) },
-                      { min: moq * 9 + 1, max: '1000+', price: Math.floor(basePrice * 0.88) },
-                  ],
-
-            descriptionHTML: p.descriptionHTML || p.description || p.title,
-            images:
-                p.images?.length > 0
-                    ? p.images.map((img) => img.url)
-                    : ['https://images.unsplash.com/photo-1596547609652-9cf5d8d76921?w=500&q=80'],
-            rating: p.averageRating || 4.5,
-            reviewCount: p.reviewCount || 0,
-        };
-    }, [p]);
-
-    const [quantity, setQuantity] = useState(product?.moq || 1);
+    // B2B Order Intent State
+    const [orderType, setOrderType] = useState('WHOLESALE');
+    const [quantity, setQuantity] = useState(1);
+    const [customSellingPrice, setCustomSellingPrice] = useState(0);
 
     useEffect(() => {
-        window.scrollTo(0, 0);
-        if (product) {
-            setQuantity(product.moq);
-        }
-    }, [productId, product]);
-
-    const currentPrice = React.useMemo(() => {
-        if (!product) return 0;
-
-        if (product.customPrice) {
-            return product.customPrice;
-        }
-
-        let price = product.basePrice;
-        for (const tier of product.tiers) {
-            if (quantity >= tier.min) {
-                price = tier.price;
+        const fetchProduct = async () => {
+            try {
+                const res = await api.get(`/products/${productId}`);
+                const data = res.data.data;
+                setProduct(data);
+                setQuantity(data.moq || 10);
+                setCustomSellingPrice(data.suggestedRetailPrice || 0);
+            } catch (err) {
+                setError(err.response?.data?.message || 'Failed to load product');
+            } finally {
+                setIsLoading(false);
             }
-        }
-        return price;
-    }, [quantity, product]);
+        };
+        fetchProduct();
+    }, [productId]);
 
-    const handleQuantityChange = (val) => {
-        let newQty = Math.max(product.moq, val);
-        newQty = Math.min(newQty, product.stock);
-        setQuantity(newQty);
+    if (isLoading) return <LoadingScreen />;
+    if (error) return <div className="p-10 text-center font-bold text-red-500">{error}</div>;
+    if (!product) return <div className="p-10 text-center">Product not found</div>;
+
+    // --- Dynamic Pricing Logic ---
+    let currentUnitCost = product.dropshipBasePrice;
+
+    if (orderType === 'WHOLESALE' && product.tieredPricing?.length > 0) {
+        const applicableTier = [...product.tieredPricing]
+            .sort((a, b) => b.minQty - a.minQty)
+            .find((tier) => quantity >= tier.minQty);
+        if (applicableTier) currentUnitCost = applicableTier.pricePerUnit;
+    }
+
+    const estimatedTax = (currentUnitCost * product.gstSlab) / 100;
+    const estimatedProfit =
+        orderType === 'DROPSHIP'
+            ? (customSellingPrice - (currentUnitCost + estimatedTax)) * quantity
+            : 0;
+
+    // --- Handlers ---
+    const updateQuantity = (newQty) => {
+        setAddToCartSuccess(false);
+        if (newQty === '') {
+            setQuantity('');
+            return;
+        }
+        const parsed = Number(newQty);
+        const minQty = product.moq || 1;
+        const maxQty = product.inventory?.stock || 9999;
+
+        if (parsed > maxQty) setQuantity(maxQty);
+        else if (parsed < minQty) setQuantity(minQty);
+        else setQuantity(parsed);
     };
 
-    if (!product) return null;
+    const handleAddToCart = async () => {
+        setAddToCartSuccess(false);
+        const finalQty = quantity === '' ? product.moq || 1 : quantity;
+
+        const res = await addToCart(
+            product._id,
+            finalQty,
+            orderType,
+            orderType === 'DROPSHIP' ? customSellingPrice : 0
+        );
+
+        if (res.success) {
+            setAddToCartSuccess(true);
+            setTimeout(() => setAddToCartSuccess(false), 3000);
+        }
+    };
 
     return (
-        <div className="selection:bg-primary/30 mx-auto w-full max-w-7xl px-4 py-8 pb-24 font-sans text-slate-900 sm:px-6 lg:px-8 lg:py-12 lg:pb-0">
-            {}
-            <nav className="mb-8 flex items-center gap-2 overflow-x-auto text-xs font-bold tracking-wider whitespace-nowrap text-slate-400 uppercase">
-                <Link to="/" className="hover:text-primary transition-colors">
-                    Catalog
-                </Link>
-                <span>›</span>
-                <span className="hover:text-primary cursor-pointer transition-colors">
-                    {product.category}
-                </span>
-                <span>›</span>
-                <span className="inline-block max-w-[200px] truncate text-slate-900">
-                    {product.name}
-                </span>
-            </nav>
+        <div className="mx-auto mb-20 max-w-7xl px-4 py-8 font-sans md:mb-0 md:py-12">
+            <button
+                onClick={() => navigate(-1)}
+                className="mb-6 flex items-center gap-1 text-sm font-bold text-slate-500 hover:text-slate-900"
+            >
+                &larr; Back to Catalog
+            </button>
 
-            <div className="mb-12 grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-16">
-                {}
-                <div className="sticky top-28 flex h-fit flex-col-reverse gap-4 md:flex-row lg:col-span-5">
-                    <div className="custom-scrollbar flex gap-3 overflow-x-auto pb-2 md:flex-col md:overflow-y-auto md:pr-2 md:pb-0">
-                        {product.images.map((img, i) => (
-                            <button
-                                key={i}
-                                className={`h-24 w-20 flex-shrink-0 overflow-hidden rounded-2xl border-2 transition-all ${selectedImage === i ? 'border-primary shadow-md' : 'border-transparent hover:border-slate-300'}`}
-                                onClick={() => setSelectedImage(i)}
-                            >
-                                <img
-                                    src={img}
-                                    alt={`View ${i + 1}`}
-                                    className="h-full w-full object-cover"
-                                />
-                            </button>
-                        ))}
-                    </div>
-                    <div className="group relative flex aspect-square flex-1 items-center justify-center overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="grid grid-cols-1 gap-10 lg:grid-cols-12">
+                {/* Left: Enhanced Image Gallery */}
+                <div className="sticky top-24 h-fit space-y-4 lg:col-span-5">
+                    <div className="group overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                         <img
-                            src={product.images[selectedImage] || product.images[0]}
-                            alt={product.name}
-                            className="h-full w-full object-contain mix-blend-multiply transition-transform duration-500 group-hover:scale-105"
+                            src={
+                                product.images?.[activeImage]?.url ||
+                                'https://via.placeholder.com/600'
+                            }
+                            alt={product.title}
+                            className="h-[400px] w-full object-contain transition-transform duration-500 group-hover:scale-110"
                         />
-
-                        {}
-                        <div className="absolute top-4 left-4 flex flex-col gap-2">
-                            {product.estMargin >= 40 && (
-                                <span className="flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-100/90 px-3 py-1.5 text-[11px] font-extrabold text-amber-800 shadow-sm backdrop-blur">
-                                    <TrendingUp size={14} /> High Margin
-                                </span>
-                            )}
+                    </div>
+                    {/* Thumbnail Strip */}
+                    {product.images?.length > 1 && (
+                        <div className="scrollbar-hide flex gap-3 overflow-x-auto pb-2">
+                            {product.images.map((img, idx) => (
+                                <button
+                                    key={idx}
+                                    onClick={() => setActiveImage(idx)}
+                                    className={`h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl border-2 transition-all ${activeImage === idx ? 'border-indigo-600 shadow-md' : 'border-slate-200 hover:border-slate-400'}`}
+                                >
+                                    <img
+                                        src={img.url}
+                                        alt=""
+                                        className="h-full w-full object-cover"
+                                    />
+                                </button>
+                            ))}
                         </div>
+                    )}
 
-                        <button
-                            className={`absolute top-4 right-4 rounded-full border p-3 shadow-md transition-all duration-300 ${isInWishlist(product.id) ? 'bg-danger border-danger text-white' : 'hover:text-danger border-slate-200 bg-white/90 text-slate-400 backdrop-blur hover:scale-110'}`}
-                            onClick={(e) => {
-                                e.preventDefault();
-                                toggleWishlist({ id: product.id, ...product });
-                            }}
-                        >
-                            <Heart
-                                size={20}
-                                fill={isInWishlist(product.id) ? 'currentColor' : 'none'}
-                            />
-                        </button>
+                    {/* Trust Badges */}
+                    <div className="mt-6 grid grid-cols-2 gap-3">
+                        <div className="flex items-center gap-2 rounded-xl bg-slate-100 p-3 text-xs font-bold text-slate-600">
+                            <Shield className="text-emerald-600" size={18} /> Verified B2B Supplier
+                        </div>
+                        <div className="flex items-center gap-2 rounded-xl bg-slate-100 p-3 text-xs font-bold text-slate-600">
+                            <Truck className="text-indigo-600" size={18} /> Pan-India Dispatch
+                        </div>
                     </div>
                 </div>
 
-                {}
-                <div className="flex flex-col lg:col-span-7">
-                    {}
-                    <div className="mb-6">
-                        <h1 className="mb-4 text-3xl leading-tight font-extrabold tracking-tight text-slate-900 md:text-4xl">
-                            {product.name}
+                {/* Right: B2B Command Center */}
+                <div className="flex flex-col space-y-6 lg:col-span-7">
+                    <div>
+                        <div className="mb-3 flex flex-wrap items-center gap-2">
+                            <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-bold tracking-wider text-white uppercase">
+                                {product.categoryId?.name || 'Category'}
+                            </span>
+                            <span className="flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold tracking-wider text-emerald-700 uppercase">
+                                <ShieldCheck size={14} /> GST: {product.gstSlab}% (ITC Available)
+                            </span>
+                        </div>
+                        <h1 className="text-3xl leading-tight font-extrabold text-slate-900 md:text-4xl">
+                            {product.title}
                         </h1>
-
-                        <div className="mb-6 flex flex-wrap items-center gap-4 rounded-xl border border-blue-100 bg-blue-50/50 p-3">
-                            <div className="flex items-center gap-2">
-                                <Building2 size={18} className="text-blue-600" />
-                                <span className="text-sm font-bold text-slate-900">
-                                    {product.supplierName}
-                                </span>
-                            </div>
-                            {product.isVerifiedSupplier && (
-                                <span className="flex items-center gap-1 rounded-md bg-green-100 px-2 py-1 text-[10px] font-bold tracking-wider text-green-700 uppercase">
-                                    <ShieldCheck size={12} /> Verified Supplier
-                                </span>
-                            )}
-                            <span className="border-l border-slate-300 pl-4 text-xs font-medium text-slate-500">
-                                {product.supplierYears} Yrs on Platform
-                            </span>
-                        </div>
-
-                        <div className="mb-6 flex items-center gap-6 border-b border-slate-200 pb-6 text-sm">
-                            <span className="font-medium text-slate-500">
-                                SKU:{' '}
-                                <span className="font-bold text-slate-900">{product.skuId}</span>
-                            </span>
-                            <span className="font-medium text-slate-500">
-                                HSN:{' '}
-                                <span className="font-bold text-slate-900">{product.hsnCode}</span>
-                            </span>
-                        </div>
+                        <p className="mt-3 inline-block rounded-md bg-slate-100 px-2 py-1 font-mono text-sm font-medium text-slate-500">
+                            SKU: {product.sku}
+                        </p>
                     </div>
 
-                    {}
-                    {}
-                    <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                        <div className="mb-6 flex items-start justify-between">
-                            <div>
-                                <h3 className="mb-1 flex items-center gap-2 text-sm font-bold tracking-wider text-slate-900 uppercase">
-                                    <Package size={16} /> Wholesale Pricing
-                                </h3>
-                                <p className="text-xs text-slate-500">
-                                    Retail MRP:{' '}
-                                    <span className="line-through">
-                                        ₹{product.retailMrp.toLocaleString('en-IN')}
-                                    </span>
-                                </p>
-                            </div>
-
-                            {}
-                            {!product.customPrice && (
-                                <div className="text-right">
-                                    <span className="mb-1 flex items-center justify-end gap-1 text-xs font-bold tracking-wider text-emerald-600 uppercase">
-                                        <Percent size={12} /> Est. Retail Margin
-                                    </span>
-                                    <span className="text-xl font-extrabold text-emerald-600">
-                                        ~{product.estMargin}%
-                                    </span>
-                                </div>
-                            )}
-                        </div>
-
-                        {}
-                        {product.customPrice ? (
-                            <div className="border-primary/20 bg-primary/5 mb-6 flex items-center gap-4 rounded-xl border p-4">
-                                <div className="text-primary flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm">
-                                    <Tag size={24} />
-                                </div>
-                                <div>
-                                    <span className="text-primary block text-xs font-bold tracking-widest uppercase">
-                                        Your Negotiated Contract Rate
-                                    </span>
-                                    <div className="flex items-end gap-3">
-                                        <span className="text-3xl font-extrabold text-slate-900">
-                                            ₹{product.customPrice.toLocaleString('en-IN')}
-                                        </span>
-                                        <span className="mb-1 text-sm font-bold text-slate-400 line-through">
-                                            ₹{product.basePrice.toLocaleString('en-IN')}
-                                        </span>
-                                    </div>
-                                </div>
+                    {/* Stock Indicator */}
+                    <div>
+                        {product.inventory?.stock > 0 ? (
+                            <div className="inline-flex items-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700">
+                                <CheckCircle2 size={16} className="mr-2" /> In Stock & Ready to
+                                Dispatch ({product.inventory.stock} units)
                             </div>
                         ) : (
-                            <div className="mb-6 grid grid-cols-3 gap-3 text-center">
-                                {product.tiers.map((tier, index) => {
-                                    const isMaxTier = tier.max === '1000+';
-                                    const isActive =
-                                        quantity >= tier.min && (isMaxTier || quantity <= tier.max);
-
-                                    return (
-                                        <div
-                                            key={index}
-                                            className={`rounded-xl border p-3 transition-all duration-300 ${isActive ? 'bg-primary/5 border-primary scale-[1.02] shadow-sm' : 'border-transparent bg-slate-50 opacity-70'}`}
-                                        >
-                                            <span
-                                                className={`mb-1 block text-xl font-extrabold ${isActive ? 'text-primary' : 'text-slate-900'}`}
-                                            >
-                                                ₹{tier.price.toLocaleString('en-IN')}
-                                            </span>
-                                            <span
-                                                className={`block text-[11px] font-bold ${isActive ? 'text-primary' : 'text-slate-500'}`}
-                                            >
-                                                {tier.min} {isMaxTier ? '+' : `- ${tier.max}`} units
-                                            </span>
-                                        </div>
-                                    );
-                                })}
+                            <div className="inline-flex items-center rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-bold text-red-700">
+                                <AlertCircle size={16} className="mr-2" /> Out of Stock
                             </div>
                         )}
-
-                        {}
-                        <div className="flex items-center justify-between rounded-lg border-t border-slate-100 bg-slate-50/50 px-4 py-4">
-                            <div>
-                                <span className="mb-1 block text-xs font-bold tracking-wider text-slate-500 uppercase">
-                                    Total Excl. GST
-                                </span>
-                                <span className="text-3xl font-extrabold tracking-tighter text-slate-900">
-                                    ₹{(currentPrice * quantity).toLocaleString('en-IN')}
-                                </span>
-                            </div>
-                            <div className="text-right">
-                                <span className="mb-1 flex items-center justify-end gap-1 text-xs font-bold tracking-wider text-slate-500 uppercase">
-                                    <FileText size={12} /> {product.gstPercent}% GST (ITC Claimable)
-                                </span>
-                                <span className="text-lg font-bold text-slate-600">
-                                    + ₹
-                                    {(
-                                        currentPrice *
-                                        quantity *
-                                        (product.gstPercent / 100)
-                                    ).toLocaleString('en-IN')}
-                                </span>
-                            </div>
-                        </div>
                     </div>
 
-                    {}
-                    <div className="mb-8 rounded-2xl border border-slate-200 bg-slate-50 p-6">
-                        <div className="flex flex-col items-end gap-6 sm:flex-row">
-                            <div className="w-full flex-1">
-                                <div className="mb-2 flex items-center justify-between">
-                                    <label className="text-sm font-bold text-slate-900">
-                                        Procurement Quantity
-                                    </label>
-                                    <span className="text-xs font-medium text-slate-500">
-                                        Stock: {product.stock.toLocaleString('en-IN')} units
-                                    </span>
-                                </div>
-                                <div className="focus-within:border-primary focus-within:ring-primary flex h-14 items-center overflow-hidden rounded-xl border border-slate-300 bg-white shadow-sm focus-within:ring-1">
-                                    <button
-                                        className="flex h-full w-14 items-center justify-center bg-slate-100 font-bold text-slate-600 transition-colors hover:bg-slate-200 hover:text-slate-900 disabled:opacity-50"
-                                        onClick={() => handleQuantityChange(quantity - product.moq)}
-                                        disabled={quantity <= product.moq}
-                                    >
-                                        −
-                                    </button>
-                                    <input
-                                        type="number"
-                                        className="h-full w-full flex-1 bg-transparent text-center text-lg font-extrabold text-slate-900 outline-none"
-                                        value={quantity}
-                                        onChange={(e) =>
-                                            handleQuantityChange(
-                                                parseInt(e.target.value) || product.moq
-                                            )
-                                        }
-                                        onBlur={(e) => {
-                                            let val = parseInt(e.target.value);
-                                            if (isNaN(val) || val < product.moq) {
-                                                setQuantity(product.moq);
-                                            } else {
-                                                const remainder = val % product.moq;
-                                                if (remainder !== 0) {
-                                                    setQuantity(val - remainder);
-                                                }
-                                            }
-                                        }}
-                                    />
-                                    <button
-                                        className="flex h-full w-14 items-center justify-center bg-slate-100 font-bold text-slate-600 transition-colors hover:bg-slate-200 hover:text-slate-900 disabled:opacity-50"
-                                        onClick={() => handleQuantityChange(quantity + product.moq)}
-                                        disabled={quantity >= product.stock}
-                                    >
-                                        +
-                                    </button>
-                                </div>
+                    {/* Order Intent Toggle */}
+                    <div className="flex rounded-2xl bg-slate-200/60 p-1.5">
+                        <button
+                            onClick={() => {
+                                setOrderType('WHOLESALE');
+                                setQuantity(Math.max(10, product.moq || 10));
+                                setAddToCartSuccess(false);
+                            }}
+                            className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-extrabold transition-all ${orderType === 'WHOLESALE' ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            <Package size={18} /> Bulk Buy
+                        </button>
+                        <button
+                            onClick={() => {
+                                setOrderType('DROPSHIP');
+                                setQuantity(1);
+                                setAddToCartSuccess(false);
+                            }}
+                            className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-extrabold transition-all ${orderType === 'DROPSHIP' ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            <TrendingUp size={18} /> Dropship
+                        </button>
+                    </div>
 
-                                <div className="mt-2 flex items-center justify-between">
-                                    <p className="text-[11px] font-bold text-slate-500">
-                                        Sold in multiples of {product.moq}
-                                    </p>
-                                    {quantity === product.moq && (
-                                        <p className="flex items-center gap-1 text-[11px] font-bold text-amber-600">
-                                            <AlertCircle size={12} /> MOQ is {product.moq}
+                    {/* WHOLESALE MODE UI */}
+                    {orderType === 'WHOLESALE' && (
+                        <div className="animate-in fade-in slide-in-from-bottom-2 space-y-6 rounded-3xl border border-indigo-100 bg-indigo-50/50 p-6">
+                            <h3 className="flex items-center gap-2 font-extrabold text-indigo-950">
+                                <ShoppingCart size={20} className="text-indigo-600" /> Factory
+                                Volume Pricing
+                            </h3>
+
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                {product.tieredPricing?.length > 0 ? (
+                                    product.tieredPricing.map((tier, idx) => {
+                                        const isApplicable =
+                                            quantity >= tier.minQty &&
+                                            (!tier.maxQty || quantity <= tier.maxQty);
+                                        return (
+                                            <div
+                                                key={idx}
+                                                className={`flex flex-col justify-center rounded-2xl border p-4 transition-all ${isApplicable ? 'border-indigo-600 bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'border-indigo-100 bg-white text-slate-600'}`}
+                                            >
+                                                <span className="mb-1 text-xs font-bold opacity-90">
+                                                    Buy {tier.minQty}
+                                                    {tier.maxQty ? ` - ${tier.maxQty}` : '+'} units
+                                                </span>
+                                                <span className="text-2xl font-extrabold">
+                                                    ₹{tier.pricePerUnit.toLocaleString('en-IN')}{' '}
+                                                    <span className="text-sm font-medium opacity-75">
+                                                        /ea
+                                                    </span>
+                                                </span>
+                                            </div>
+                                        );
+                                    })
+                                ) : (
+                                    <div className="flex flex-col rounded-2xl border border-indigo-100 bg-white p-4 text-slate-600 sm:col-span-2">
+                                        <span className="mb-1 text-xs font-bold opacity-80">
+                                            Standard Wholesale (MOQ: {product.moq})
+                                        </span>
+                                        <span className="text-2xl font-extrabold text-slate-900">
+                                            ₹{product.dropshipBasePrice?.toLocaleString('en-IN')}{' '}
+                                            <span className="text-sm font-medium opacity-75">
+                                                /ea
+                                            </span>
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex flex-col items-center justify-between gap-4 rounded-2xl border border-indigo-100 bg-white p-4 sm:flex-row">
+                                <div className="w-full sm:w-auto">
+                                    <label className="mb-2 block text-xs font-bold tracking-wider text-slate-400 uppercase">
+                                        Quantity
+                                    </label>
+                                    <div className="flex w-fit items-center rounded-xl border border-slate-200 bg-slate-50 p-1">
+                                        <button
+                                            onClick={() => updateQuantity((quantity || 0) - 1)}
+                                            className="rounded-lg bg-white p-2 text-slate-500 shadow-sm hover:text-slate-900"
+                                        >
+                                            <Minus size={16} />
+                                        </button>
+                                        <input
+                                            type="number"
+                                            value={quantity}
+                                            onChange={(e) => updateQuantity(e.target.value)}
+                                            onBlur={() => {
+                                                if (quantity === '')
+                                                    updateQuantity(product.moq || 1);
+                                            }}
+                                            className="hide-arrows w-16 bg-transparent text-center text-lg font-extrabold text-slate-900 outline-none"
+                                        />
+                                        <button
+                                            onClick={() => updateQuantity((quantity || 0) + 1)}
+                                            className="rounded-lg bg-white p-2 text-slate-500 shadow-sm hover:text-slate-900"
+                                        >
+                                            <Plus size={16} />
+                                        </button>
+                                    </div>
+                                    {quantity < product.moq && (
+                                        <p className="mt-1 text-[10px] font-bold text-red-500">
+                                            Min. order: {product.moq}
                                         </p>
                                     )}
                                 </div>
-                            </div>
-
-                            <div className="hidden w-full flex-1 sm:block">
-                                <button
-                                    className="bg-primary hover:bg-primary-light hover:shadow-primary/30 flex h-14 w-full items-center justify-center gap-2 rounded-xl font-bold tracking-wide text-white transition-all duration-300 hover:shadow-lg disabled:cursor-not-allowed disabled:bg-slate-300"
-                                    disabled={product.stock < product.moq}
-                                    onClick={() => {
-                                        if (product.stock < product.moq) return;
-                                        let safeImage =
-                                            product.images[0] ||
-                                            'https://images.unsplash.com/photo-1596547609652-9cf5d8d76921?w=500&q=80';
-                                        addToCart(
-                                            {
-                                                _id: product.id,
-                                                id: product.id,
-                                                name: product.name,
-                                                price: currentPrice,
-                                                image: safeImage,
-                                                sku: product.skuId,
-                                                minQuantity: product.moq,
-                                            },
-                                            quantity
-                                        );
-
-                                        alert(`Added ${quantity} units to Procurement Cart`);
-                                    }}
-                                >
-                                    <Package size={20} /> Add to Bulk Order
-                                </button>
+                                <div className="w-full border-t border-slate-100 pt-3 text-right sm:w-auto sm:border-t-0 sm:border-l sm:pt-0 sm:pl-6">
+                                    <span className="mb-1 block text-xs font-bold text-slate-400 uppercase">
+                                        Subtotal (Excl. GST)
+                                    </span>
+                                    <span className="text-3xl font-extrabold text-slate-900">
+                                        ₹
+                                        {(currentUnitCost * (quantity || 0)).toLocaleString(
+                                            'en-IN'
+                                        )}
+                                    </span>
+                                </div>
                             </div>
                         </div>
+                    )}
+
+                    {/* DROPSHIP MODE UI */}
+                    {orderType === 'DROPSHIP' && (
+                        <div className="animate-in fade-in slide-in-from-bottom-2 space-y-5 rounded-3xl border border-amber-100 bg-amber-50/50 p-6">
+                            <h3 className="flex items-center gap-2 font-extrabold text-amber-950">
+                                <TrendingUp size={20} className="text-amber-600" /> Reseller Margin
+                                Configurator
+                            </h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="rounded-2xl border border-amber-100 bg-white p-4">
+                                    <p className="mb-1 text-xs font-bold text-slate-400 uppercase">
+                                        Sourcing Cost (Inc. GST)
+                                    </p>
+                                    <p className="text-2xl font-extrabold text-slate-900">
+                                        ₹
+                                        {(product.dropshipBasePrice + estimatedTax).toLocaleString(
+                                            'en-IN',
+                                            { maximumFractionDigits: 0 }
+                                        )}
+                                    </p>
+                                </div>
+                                <div className="rounded-2xl border border-amber-100 bg-white p-4">
+                                    <p className="mb-1 text-xs font-bold text-slate-400 uppercase">
+                                        Suggested Retail
+                                    </p>
+                                    <p className="text-2xl font-extrabold text-slate-900">
+                                        ₹{product.suggestedRetailPrice?.toLocaleString('en-IN')}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="rounded-2xl border border-amber-100 bg-white p-4">
+                                <label className="mb-2 block text-xs font-bold tracking-wider text-slate-500 uppercase">
+                                    Set Your Customer's Price (₹)
+                                </label>
+                                <input
+                                    type="number"
+                                    value={customSellingPrice}
+                                    onChange={(e) => setCustomSellingPrice(Number(e.target.value))}
+                                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xl font-extrabold text-slate-900 transition-all outline-none focus:ring-2 focus:ring-amber-400"
+                                />
+                            </div>
+
+                            <div
+                                className={`flex flex-col items-center justify-between rounded-2xl p-5 shadow-sm transition-all duration-300 sm:flex-row ${estimatedProfit > 0 ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white' : 'bg-red-500 text-white'}`}
+                            >
+                                <span className="text-sm font-bold opacity-90">
+                                    Net Margin (Your Profit):
+                                </span>
+                                <span className="text-3xl font-extrabold">
+                                    ₹
+                                    {estimatedProfit.toLocaleString('en-IN', {
+                                        maximumFractionDigits: 0,
+                                    })}
+                                </span>
+                            </div>
+                            <p className="flex items-center justify-center gap-1 text-center text-xs font-bold text-amber-700/80">
+                                <ShieldCheck size={14} /> Margins credit to Wallet 48hrs
+                                post-delivery.
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Desktop & Mobile Action Button */}
+                    <div className="fixed right-0 bottom-0 left-0 z-40 border-t border-slate-200 bg-white p-4 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] lg:relative lg:z-auto lg:border-none lg:bg-transparent lg:p-0 lg:shadow-none">
+                        <button
+                            onClick={handleAddToCart}
+                            disabled={
+                                isCartLoading ||
+                                product.inventory?.stock <= 0 ||
+                                (orderType === 'WHOLESALE' && quantity < product.moq)
+                            }
+                            className={`flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-lg font-extrabold tracking-wide transition-all duration-300 ${
+                                addToCartSuccess
+                                    ? 'scale-[0.98] bg-emerald-500 text-white shadow-lg shadow-emerald-500/40'
+                                    : 'bg-slate-900 text-white hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0'
+                            }`}
+                        >
+                            {isCartLoading ? (
+                                <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                            ) : addToCartSuccess ? (
+                                <>
+                                    <CheckCircle2 size={24} /> Added to Cart
+                                </>
+                            ) : (
+                                <>
+                                    <ShoppingCart size={20} />{' '}
+                                    {orderType === 'WHOLESALE'
+                                        ? 'Add Bulk Order to Cart'
+                                        : 'Push to Dropship Queue'}
+                                </>
+                            )}
+                        </button>
                     </div>
 
-                    {}
-                    <div className="mt-auto space-y-0 divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white shadow-sm">
-                        <div className="flex items-start gap-4 p-5">
-                            <div className="rounded-lg bg-slate-100 p-2 text-slate-600">
-                                <Truck size={20} />
-                            </div>
-                            <div>
-                                <h4 className="font-bold text-slate-900">
-                                    Pan-India Freight Logistics
-                                </h4>
-                                <p className="text-sm font-medium text-slate-500">
-                                    Dispatches within 48 hours. LTL and FTL logistics available for
-                                    heavy loads.
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex items-start gap-4 p-5">
-                            <div className="rounded-lg bg-slate-100 p-2 text-slate-600">
-                                <FileText size={20} />
-                            </div>
-                            <div>
-                                <h4 className="font-bold text-slate-900">GST Input Tax Credit</h4>
-                                <p className="text-sm font-medium text-slate-500">
-                                    100% compliant B2B invoicing provided to claim ITC. Ensure your
-                                    GSTIN is updated in your profile.
-                                </p>
-                            </div>
-                        </div>
+                    {/* Info Tabs / Specs */}
+                    <div className="border-t border-slate-100 pt-6">
+                        <h4 className="mb-2 font-bold text-slate-900">Product Description</h4>
+                        <p className="text-sm leading-relaxed whitespace-pre-line text-slate-600">
+                            {product.description ||
+                                'Premium quality materials sourced directly from verified manufacturers. Ideal for B2B procurement and high-margin retail reselling.'}
+                        </p>
                     </div>
                 </div>
-            </div>
-
-            {}
-            <section className="mb-8 rounded-3xl border border-slate-200 bg-white p-8 shadow-sm md:p-12">
-                <h2 className="mb-6 text-2xl font-extrabold text-slate-900">
-                    Product Specifications
-                </h2>
-                <div className="prose prose-slate max-w-none">
-                    <BeautifulDescription rawHtml={product.descriptionHTML} />
-                </div>
-            </section>
-
-            {}
-            <div className="pb-safe fixed bottom-0 left-0 z-50 w-full border-t border-slate-200 bg-white p-4 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] sm:hidden">
-                <div className="mb-3 flex items-center justify-between">
-                    <span className="text-lg font-extrabold text-slate-900">
-                        ₹{(currentPrice * quantity).toLocaleString('en-IN')}
-                    </span>
-                    <span className="text-xs font-bold text-slate-500">{quantity} units</span>
-                </div>
-                <button
-                    className="bg-primary flex h-12 w-full items-center justify-center gap-2 rounded-xl font-bold tracking-wide text-white transition-all disabled:bg-slate-300"
-                    disabled={product.stock < product.moq}
-                    onClick={() => {
-                        if (product.stock < product.moq) return;
-                        let safeImage =
-                            product.images[0] ||
-                            'https://images.unsplash.com/photo-1596547609652-9cf5d8d76921?w=500&q=80';
-                        addToCart(
-                            {
-                                ...product,
-                                _id: product.id,
-                                id: product.id,
-                                name: product.name,
-                                price: currentPrice,
-                                image: safeImage,
-                                sku: product.skuId,
-                                minQuantity: product.moq,
-                            },
-                            quantity
-                        );
-                        alert(`Added ${quantity} units to Procurement Cart`);
-                    }}
-                >
-                    <Package size={18} /> Add to Bulk Order
-                </button>
             </div>
         </div>
     );
-}
+};
 
 export default ProductPage;

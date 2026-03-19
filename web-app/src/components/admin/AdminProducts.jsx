@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Edit2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Edit2, ChevronLeft, ChevronRight, Plus, Package } from 'lucide-react';
 import api from '../../utils/api.js';
 import CreateProductModal from './CreateProductModal';
-import { Plus } from 'lucide-react';
 
 const AdminProducts = () => {
     const [products, setProducts] = useState([]);
@@ -14,8 +13,6 @@ const AdminProducts = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [filterOption, setFilterOption] = useState('ALL');
-    const [priceFilter, setPriceFilter] = useState('ALL');
-    const [stockFilter, setStockFilter] = useState('ALL');
 
     const [updatingId, setUpdatingId] = useState(null);
     const [editForm, setEditForm] = useState({});
@@ -29,25 +26,26 @@ const AdminProducts = () => {
 
     useEffect(() => {
         setPage(1);
-    }, [debouncedSearch, filterOption, priceFilter, stockFilter]);
+    }, [debouncedSearch, filterOption]);
 
     useEffect(() => {
         const fetchProducts = async () => {
             setLoading(true);
             try {
+                // Ensure this endpoint uses the new B2B product controller logic
                 const res = await api.get('/products/admin/all', {
                     params: {
                         page,
                         limit: 10,
                         search: debouncedSearch,
-                        status: filterOption,
-                        price: priceFilter,
-                        stock: stockFilter,
+                        status: filterOption === 'ALL' ? '' : filterOption,
                     },
                 });
 
-                setProducts(res.data.data.data);
-                setTotalPages(res.data.data.pagination.totalPages);
+                // Adjust based on your actual backend response structure
+                const data = res.data?.data?.products || res.data?.data?.data || [];
+                setProducts(data);
+                setTotalPages(res.data?.data?.pagination?.pages || 1);
             } catch (err) {
                 console.error(err);
             } finally {
@@ -55,16 +53,17 @@ const AdminProducts = () => {
             }
         };
         fetchProducts();
-    }, [page, debouncedSearch, filterOption, priceFilter, stockFilter]);
+    }, [page, debouncedSearch, filterOption]);
 
     const submitProductUpdate = async (id) => {
         setIsSaving(true);
         try {
-            const res = await api.put(`/products/admin/${id}`, {
-                platformSellPrice: Number(editForm.price),
-                stock: Number(editForm.stock),
+            const res = await api.put(`/products/${id}`, {
+                dropshipBasePrice: Number(editForm.dropshipBasePrice),
+                suggestedRetailPrice: Number(editForm.suggestedRetailPrice),
                 moq: Number(editForm.moq),
                 status: editForm.status,
+                'inventory.stock': Number(editForm.stock), // Mongoose dot notation for nested objects
             });
 
             setProducts((prev) => prev.map((p) => (p._id === id ? res.data.data : p)));
@@ -78,8 +77,9 @@ const AdminProducts = () => {
 
     return (
         <>
+            {/* Header / Filters */}
             <div className="mb-6 flex flex-wrap gap-4">
-                <div className="focus-within:border-accent focus-within:ring-accent flex min-w-[250px] flex-1 items-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm transition-all focus-within:ring-1">
+                <div className="flex min-w-[250px] flex-1 items-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm transition-all focus-within:border-slate-900 focus-within:ring-1 focus-within:ring-slate-900">
                     <Search size={18} className="text-slate-400" />
                     <input
                         type="text"
@@ -93,47 +93,28 @@ const AdminProducts = () => {
                 <select
                     value={filterOption}
                     onChange={(e) => setFilterOption(e.target.value)}
-                    className="focus:border-accent cursor-pointer rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm outline-none"
+                    className="cursor-pointer rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm outline-none"
                 >
                     <option value="ALL">All Statuses</option>
                     <option value="active">Active</option>
                     <option value="draft">Draft</option>
-                </select>
-
-                <select
-                    value={priceFilter}
-                    onChange={(e) => setPriceFilter(e.target.value)}
-                    className="focus:border-accent cursor-pointer rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm outline-none"
-                >
-                    <option value="ALL">All Prices</option>
-                    <option value="UNDER_500">Under ₹500</option>
-                    <option value="OVER_1000">Over ₹1,000</option>
-                </select>
-
-                <select
-                    value={stockFilter}
-                    onChange={(e) => setStockFilter(e.target.value)}
-                    className="focus:border-accent cursor-pointer rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm outline-none"
-                >
-                    <option value="ALL">All Stock</option>
-                    <option value="IN_STOCK">In Stock ({'>'}10)</option>
-                    <option value="LOW_STOCK">Low Stock (1-10)</option>
-                    <option value="OUT_OF_STOCK">Out of Stock (0)</option>
+                    <option value="archived">Archived</option>
                 </select>
 
                 <button
                     onClick={() => setIsCreateModalOpen(true)}
-                    className="hover:bg-accent flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-colors"
+                    className="flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-slate-800"
                 >
-                    <Plus size={18} /> New Product
+                    <Plus size={18} /> New B2B Product
                 </button>
             </div>
 
+            {/* Product Table */}
             <div className="mb-6 overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm">
                 <div className="relative min-h-[300px] overflow-x-auto">
                     {loading && (
                         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/60 text-slate-400 backdrop-blur-sm">
-                            <div className="border-t-accent mb-2 h-8 w-8 animate-spin rounded-full border-4 border-slate-200"></div>
+                            <div className="mb-2 h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900"></div>
                         </div>
                     )}
                     <table className="w-full border-collapse text-left">
@@ -143,10 +124,10 @@ const AdminProducts = () => {
                                     Product
                                 </th>
                                 <th className="p-4 text-xs font-bold tracking-wider whitespace-nowrap text-slate-400 uppercase">
-                                    Price (₹)
+                                    Dropship Info
                                 </th>
                                 <th className="p-4 text-xs font-bold tracking-wider whitespace-nowrap text-slate-400 uppercase">
-                                    Stock
+                                    Logistics
                                 </th>
                                 <th className="p-4 text-xs font-bold tracking-wider whitespace-nowrap text-slate-400 uppercase">
                                     Status
@@ -157,105 +138,141 @@ const AdminProducts = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {!loading && products.length === 0 ? (
+                            {!loading && products.length === 0 && (
                                 <tr>
                                     <td
                                         colSpan="5"
-                                        className="p-8 text-center font-medium text-slate-500"
+                                        className="p-12 text-center font-medium text-slate-500"
                                     >
-                                        No products found.
+                                        <Package size={48} className="mx-auto mb-4 opacity-20" />
+                                        No products found in catalog.
                                     </td>
                                 </tr>
-                            ) : null}
+                            )}
                             {products.map((p) => {
                                 const isEdit = updatingId === p._id;
                                 return (
                                     <tr
                                         key={p._id}
-                                        className="transition-colors hover:bg-slate-50/50"
+                                        className="group transition-colors hover:bg-slate-50/50"
                                     >
                                         <td className="p-4">
-                                            <div className="max-w-[250px] truncate font-bold text-slate-900">
-                                                {p.title}
-                                            </div>
-                                            <div className="mt-1 text-[10px] font-extrabold tracking-widest text-slate-400 uppercase">
-                                                SKU: {p.sku}
+                                            <div className="flex items-center gap-3">
+                                                <img
+                                                    src={
+                                                        p.images?.[0]?.url ||
+                                                        'https://via.placeholder.com/40'
+                                                    }
+                                                    alt=""
+                                                    className="h-10 w-10 rounded-lg border border-slate-200 object-cover"
+                                                />
+                                                <div>
+                                                    <div className="max-w-[200px] truncate font-bold text-slate-900">
+                                                        {p.title}
+                                                    </div>
+                                                    <div className="text-[10px] font-extrabold tracking-widest text-slate-400 uppercase">
+                                                        SKU: {p.sku}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </td>
                                         <td className="p-4">
                                             {isEdit ? (
                                                 <div className="flex flex-col gap-2">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="w-10 text-[10px] font-bold text-slate-400 uppercase">
-                                                            Stock
-                                                        </span>
-                                                        <input
-                                                            type="number"
-                                                            value={editForm.stock}
-                                                            onChange={(e) =>
-                                                                setEditForm({
-                                                                    ...editForm,
-                                                                    stock: e.target.value,
-                                                                })
-                                                            }
-                                                            className="focus:border-accent w-16 rounded border border-slate-300 p-1.5 text-sm font-medium outline-none"
-                                                        />
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="w-10 text-[10px] font-bold text-slate-400 uppercase">
-                                                            MOQ
-                                                        </span>
-                                                        <input
-                                                            type="number"
-                                                            value={editForm.moq}
-                                                            onChange={(e) =>
-                                                                setEditForm({
-                                                                    ...editForm,
-                                                                    moq: e.target.value,
-                                                                })
-                                                            }
-                                                            className="focus:border-accent w-16 rounded border border-slate-300 p-1.5 text-sm font-medium outline-none"
-                                                        />
-                                                    </div>
+                                                    <input
+                                                        type="number"
+                                                        placeholder="Base Cost"
+                                                        value={editForm.dropshipBasePrice}
+                                                        onChange={(e) =>
+                                                            setEditForm({
+                                                                ...editForm,
+                                                                dropshipBasePrice: e.target.value,
+                                                            })
+                                                        }
+                                                        className="w-24 rounded border border-slate-300 p-1.5 text-xs font-bold outline-none"
+                                                        title="Base Cost"
+                                                    />
+                                                    <input
+                                                        type="number"
+                                                        placeholder="Retail SRP"
+                                                        value={editForm.suggestedRetailPrice}
+                                                        onChange={(e) =>
+                                                            setEditForm({
+                                                                ...editForm,
+                                                                suggestedRetailPrice:
+                                                                    e.target.value,
+                                                            })
+                                                        }
+                                                        className="w-24 rounded border border-slate-300 p-1.5 text-xs font-bold outline-none"
+                                                        title="Suggested Retail"
+                                                    />
                                                 </div>
                                             ) : (
                                                 <div className="flex flex-col gap-1">
-                                                    <span
-                                                        className={`font-bold ${p.inventory?.stock === 0 ? 'text-red-500' : p.inventory?.stock <= 10 ? 'text-yellow-600' : 'text-slate-900'}`}
-                                                    >
-                                                        {p.inventory?.stock}{' '}
-                                                        <span className="text-[10px] font-medium text-slate-400">
-                                                            (In Stock)
+                                                    <div className="text-xs font-bold text-slate-500">
+                                                        Base Cost:{' '}
+                                                        <span className="text-slate-900">
+                                                            ₹{p.dropshipBasePrice}
                                                         </span>
-                                                    </span>
-                                                    <span className="text-[10px] font-bold tracking-wider text-slate-500 uppercase">
-                                                        MOQ:{' '}
-                                                        <span className="text-slate-700">
-                                                            {p.moq || 1}
+                                                    </div>
+                                                    <div className="text-xs font-bold text-slate-500">
+                                                        Retail SRP:{' '}
+                                                        <span className="text-slate-900">
+                                                            ₹{p.suggestedRetailPrice}
                                                         </span>
-                                                    </span>
+                                                    </div>
+                                                    <div className="text-[10px] font-extrabold tracking-wider text-emerald-600">
+                                                        EST MARGIN: {p.estimatedMarginPercent}%
+                                                    </div>
                                                 </div>
                                             )}
                                         </td>
                                         <td className="p-4">
                                             {isEdit ? (
-                                                <input
-                                                    type="number"
-                                                    value={editForm.stock}
-                                                    onChange={(e) =>
-                                                        setEditForm({
-                                                            ...editForm,
-                                                            stock: e.target.value,
-                                                        })
-                                                    }
-                                                    className="focus:border-accent w-16 rounded border border-slate-300 p-1.5 text-sm font-medium outline-none"
-                                                />
+                                                <div className="flex flex-col gap-2">
+                                                    <input
+                                                        type="number"
+                                                        placeholder="Stock"
+                                                        value={editForm.stock}
+                                                        onChange={(e) =>
+                                                            setEditForm({
+                                                                ...editForm,
+                                                                stock: e.target.value,
+                                                            })
+                                                        }
+                                                        className="w-20 rounded border border-slate-300 p-1.5 text-xs font-bold outline-none"
+                                                        title="Stock"
+                                                    />
+                                                    <input
+                                                        type="number"
+                                                        placeholder="MOQ"
+                                                        value={editForm.moq}
+                                                        onChange={(e) =>
+                                                            setEditForm({
+                                                                ...editForm,
+                                                                moq: e.target.value,
+                                                            })
+                                                        }
+                                                        className="w-20 rounded border border-slate-300 p-1.5 text-xs font-bold outline-none"
+                                                        title="Minimum Order Qty"
+                                                    />
+                                                </div>
                                             ) : (
-                                                <span
-                                                    className={`font-bold ${p.inventory?.stock === 0 ? 'text-danger' : p.inventory?.stock <= 10 ? 'text-yellow-600' : 'text-slate-900'}`}
-                                                >
-                                                    {p.inventory?.stock}
-                                                </span>
+                                                <div className="flex flex-col gap-1">
+                                                    <span
+                                                        className={`text-xs font-bold ${p.inventory?.stock === 0 ? 'text-red-500' : p.inventory?.stock <= 10 ? 'text-amber-600' : 'text-slate-900'}`}
+                                                    >
+                                                        Stock: {p.inventory?.stock}
+                                                    </span>
+                                                    <span className="text-xs font-bold text-slate-500">
+                                                        MOQ: {p.moq || 1}
+                                                    </span>
+                                                    {p.tieredPricing?.length > 0 && (
+                                                        <span className="w-fit rounded bg-indigo-50 px-2 py-0.5 text-[10px] font-extrabold tracking-wider text-indigo-600">
+                                                            Wholesale Tiers Active
+                                                        </span>
+                                                    )}
+                                                </div>
                                             )}
                                         </td>
                                         <td className="p-4">
@@ -268,10 +285,11 @@ const AdminProducts = () => {
                                                             status: e.target.value,
                                                         })
                                                     }
-                                                    className="focus:border-accent rounded border border-slate-300 p-1.5 text-xs font-bold outline-none"
+                                                    className="rounded border border-slate-300 p-1.5 text-xs font-bold outline-none"
                                                 >
                                                     <option value="active">Active</option>
                                                     <option value="draft">Draft</option>
+                                                    <option value="archived">Archived</option>
                                                 </select>
                                             ) : (
                                                 <span
@@ -287,7 +305,7 @@ const AdminProducts = () => {
                                                     <button
                                                         disabled={isSaving}
                                                         onClick={() => submitProductUpdate(p._id)}
-                                                        className="hover:bg-accent rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white transition-colors disabled:opacity-50"
+                                                        className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white transition-colors disabled:opacity-50"
                                                     >
                                                         {isSaving ? '...' : 'Save'}
                                                     </button>
@@ -303,13 +321,15 @@ const AdminProducts = () => {
                                                     onClick={() => {
                                                         setUpdatingId(p._id);
                                                         setEditForm({
-                                                            price: p.platformSellPrice,
+                                                            dropshipBasePrice: p.dropshipBasePrice,
+                                                            suggestedRetailPrice:
+                                                                p.suggestedRetailPrice,
                                                             moq: p.moq || 1,
-                                                            stock: p.inventory?.stock,
+                                                            stock: p.inventory?.stock || 0,
                                                             status: p.status,
                                                         });
                                                     }}
-                                                    className="text-accent bg-accent/10 rounded-lg p-2 transition-colors hover:bg-slate-100 hover:text-slate-900"
+                                                    className="rounded-lg bg-slate-100 p-2 opacity-0 transition-all group-hover:opacity-100 hover:bg-slate-200 hover:text-slate-900"
                                                 >
                                                     <Edit2 size={16} />
                                                 </button>
@@ -323,7 +343,7 @@ const AdminProducts = () => {
                 </div>
             </div>
 
-            {}
+            {/* Pagination */}
             <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
                 <button
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
@@ -333,8 +353,7 @@ const AdminProducts = () => {
                     <ChevronLeft size={16} /> Previous
                 </button>
                 <span className="text-sm font-bold text-slate-500">
-                    Page <span className="text-slate-900">{page}</span> of{' '}
-                    <span className="text-slate-900">{totalPages || 1}</span>
+                    Page <span className="text-slate-900">{page}</span> of {totalPages || 1}
                 </span>
                 <button
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
@@ -344,12 +363,11 @@ const AdminProducts = () => {
                     Next <ChevronRight size={16} />
                 </button>
             </div>
+
             <CreateProductModal
                 isOpen={isCreateModalOpen}
                 onClose={() => setIsCreateModalOpen(false)}
-                onSuccess={() => {
-                    setPage(1);
-                }}
+                onSuccess={() => setPage(1)}
             />
         </>
     );

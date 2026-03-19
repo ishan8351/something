@@ -38,7 +38,7 @@ export const razorpayInstance =
 
 export const verifyPaymentSignature = asyncHandler(async (req, res) => {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, invoiceId } = req.body;
-    const userId = req.user._id;
+    const resellerId = req.user._id;
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !invoiceId) {
         throw new ApiError(400, 'Missing required payment parameters');
@@ -58,17 +58,28 @@ export const verifyPaymentSignature = asyncHandler(async (req, res) => {
         if (expectedSignature !== razorpay_signature) {
             throw new ApiError(400, 'Invalid payment signature');
         }
-    } else {
-        console.log('[MOCK RAZORPAY] Bypassing signature validation for dummy environment.');
     }
 
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
+        // Idempotency check up front to save DB reads
+        const existingPayment = await Payment.findOne({ referenceId: razorpay_payment_id }).session(
+            session
+        );
+        if (existingPayment) {
+            await session.abortTransaction();
+            session.endSession();
+            return res
+                .status(200)
+                .json(new ApiResponse(200, existingPayment, 'Payment already processed'));
+        }
+
         const invoice = await Invoice.findById(invoiceId).session(session);
         if (!invoice) throw new ApiError(404, 'Invoice not found');
-        if (invoice.status === 'PAID') throw new ApiError(400, 'Invoice already marked as PAID');
+        if (invoice.paymentStatus === 'PAID')
+            throw new ApiError(400, 'Invoice already marked as PAID');
 
         if (invoice.razorpayOrderId !== razorpay_order_id) {
             throw new ApiError(
@@ -81,41 +92,24 @@ export const verifyPaymentSignature = asyncHandler(async (req, res) => {
 
         if (!isMock) {
             const rzpPayment = await razorpayInstance.payments.fetch(razorpay_payment_id);
-
             if (rzpPayment.amount !== expectedAmountInPaise) {
                 throw new ApiError(
                     400,
-                    `SECURITY ALERT: Amount mismatch. Expected ₹${invoice.grandTotal}, but received ₹${rzpPayment.amount / 100}`
+                    `SECURITY ALERT: Amount mismatch. Expected ₹${invoice.grandTotal}`
                 );
             }
-
             if (rzpPayment.status !== 'captured') {
                 throw new ApiError(
                     400,
                     `Payment failed or is pending. Current status: ${rzpPayment.status}`
                 );
             }
-        } else {
-            console.log(
-                `[MOCK RAZORPAY] Bypassing fetch validation. Assuming ₹${invoice.grandTotal} was paid successfully.`
-            );
-        }
-
-        const existingPayment = await Payment.findOne({ referenceId: razorpay_payment_id }).session(
-            session
-        );
-        if (existingPayment) {
-            await session.abortTransaction();
-            session.endSession();
-            return res
-                .status(200)
-                .json(new ApiResponse(200, existingPayment, 'Payment already processed'));
         }
 
         const paymentArray = await Payment.create(
             [
                 {
-                    userId,
+                    userId: resellerId,
                     invoiceId,
                     paymentMethod: 'RAZORPAY',
                     status: 'SUCCESS',
@@ -126,7 +120,7 @@ export const verifyPaymentSignature = asyncHandler(async (req, res) => {
         );
         const payment = paymentArray[0];
 
-        invoice.status = 'PAID';
+        invoice.paymentStatus = 'PAID';
         await invoice.save({ session });
 
         if (invoice.invoiceType === 'ORDER_BILL' && invoice.orderId) {
@@ -136,22 +130,28 @@ export const verifyPaymentSignature = asyncHandler(async (req, res) => {
                 await order.save({ session });
             }
         } else if (invoice.invoiceType === 'WALLET_TOPUP') {
+            // FIX: Update User FIRST to secure the closing balance
+            const updatedUser = await User.findByIdAndUpdate(
+                resellerId,
+                { $inc: { walletBalance: invoice.grandTotal } },
+                { new: true, session }
+            );
+
+            if (!updatedUser) throw new ApiError(404, 'User not found during wallet update');
+
+            // FIX: Use exact schema field names for WalletTransaction
             await WalletTransaction.create(
                 [
                     {
-                        userId,
-                        paymentId: payment._id,
+                        resellerId: resellerId,
+                        type: 'CREDIT',
+                        purpose: 'WALLET_RECHARGE',
                         amount: invoice.grandTotal,
-                        transactionType: 'CREDIT',
+                        closingBalance: updatedUser.walletBalance,
+                        referenceId: razorpay_payment_id,
                         description: `Wallet top-up via Razorpay (${razorpay_payment_id})`,
                     },
                 ],
-                { session }
-            );
-
-            await User.findByIdAndUpdate(
-                userId,
-                { $inc: { walletBalance: invoice.grandTotal } },
                 { session }
             );
         }
@@ -171,16 +171,18 @@ export const verifyPaymentSignature = asyncHandler(async (req, res) => {
 
 export const createRazorpayOrder = asyncHandler(async (req, res) => {
     const { invoiceId } = req.body;
-    const userId = req.user._id;
+    const resellerId = req.user._id;
 
     if (!invoiceId) throw new ApiError(400, 'invoiceId is required');
 
-    const invoice = await Invoice.findOne({ _id: invoiceId, userId });
+    // FIX: Changed userId to resellerId
+    const invoice = await Invoice.findOne({ _id: invoiceId, resellerId });
 
     if (!invoice) throw new ApiError(404, 'Invoice not found or does not belong to user');
-    if (invoice.status === 'PAID') throw new ApiError(400, 'Invoice is already paid');
+    if (invoice.paymentStatus === 'PAID') throw new ApiError(400, 'Invoice is already paid');
 
-    const amountInINR = invoice.totalAmount;
+    // FIX: Changed totalAmount to grandTotal
+    const amountInINR = invoice.grandTotal;
 
     const options = {
         amount: Math.round(amountInINR * 100),
@@ -195,14 +197,13 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
     invoice.razorpayOrderId = order.id;
     await invoice.save();
 
-    return res.status(200).json(
-        new ApiResponse(
-            200,
-            {
-                razorpayOrder: order,
-                amount: amountInINR,
-            },
-            'Razorpay order created securely'
-        )
-    );
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                { razorpayOrder: order, amount: amountInINR },
+                'Razorpay order created securely'
+            )
+        );
 });

@@ -1,66 +1,226 @@
-import { ProductService } from '../services/product.service.js';
+import { Product } from '../models/Product.js';
+import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
-const getProducts = asyncHandler(async (req, res) => {
-    const result = await ProductService.getAllProducts(req.query);
-    return res.status(200).json(new ApiResponse(200, result, 'Products fetched successfully'));
+/**
+ * @desc    Create a new B2B/Dropship Product (ADMIN ONLY)
+ * @route   POST /api/products
+ */
+export const createProduct = asyncHandler(async (req, res) => {
+    const {
+        sku,
+        title,
+        descriptionHTML,
+        vendor,
+        categoryId,
+        images,
+        dropshipBasePrice,
+        suggestedRetailPrice,
+        tieredPricing,
+        weightGrams,
+        dimensions,
+        hsnCode,
+        gstSlab,
+        shippingDays,
+        inventory,
+        moq,
+        status,
+        tags,
+    } = req.body;
+
+    // Basic B2B Validation
+    if (
+        !sku ||
+        !title ||
+        !dropshipBasePrice ||
+        !suggestedRetailPrice ||
+        !hsnCode ||
+        gstSlab === undefined
+    ) {
+        throw new ApiError(400, 'Missing mandatory B2B fields (SKU, Title, Prices, HSN, GST Slab)');
+    }
+
+    const productExists = await Product.findOne({ sku });
+    if (productExists) {
+        throw new ApiError(409, `Product with SKU ${sku} already exists`);
+    }
+
+    const product = await Product.create({
+        sku,
+        title,
+        descriptionHTML,
+        vendor,
+        categoryId,
+        images,
+        dropshipBasePrice,
+        suggestedRetailPrice,
+        tieredPricing,
+        weightGrams,
+        dimensions,
+        hsnCode,
+        gstSlab,
+        shippingDays,
+        inventory,
+        moq,
+        status,
+        tags,
+    });
+
+    // Note: estimatedMarginPercent is auto-calculated by the Mongoose pre-save hook!
+
+    return res.status(201).json(new ApiResponse(201, product, 'B2B Product created successfully'));
 });
 
-const getProductById = asyncHandler(async (req, res) => {
-    const userId = req.user ? req.user._id : null;
+/**
+ * @desc    Get all products with Reseller/B2B filters (Regex Search)
+ * @route   GET /api/products
+ */
+export const getProducts = asyncHandler(async (req, res) => {
+    const {
+        search,
+        category,
+        minMargin,
+        maxBasePrice,
+        minBasePrice, // NEW
+        minMoq, // NEW
+        maxMoq, // NEW
+        inStock, // NEW
+        isDropship,
+        page = 1,
+        limit = 20,
+    } = req.query;
 
-    const product = await ProductService.getProductById(req.params.productId, userId);
+    const query = { status: 'active', deletedAt: null };
+    let projection = { '-__v': 0 };
 
-    return res.status(200).json(new ApiResponse(200, product, 'Product fetched successfully'));
+    // 1. Regex Text Search
+    if (search) {
+        const safeSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const searchRegex = new RegExp(safeSearch, 'i');
+
+        query.$or = [
+            { title: { $regex: searchRegex } },
+            { sku: { $regex: searchRegex } },
+            { tags: { $regex: searchRegex } },
+            { vendor: { $regex: searchRegex } },
+        ];
+    }
+
+    // 2. Category Filter
+    if (category) query.categoryId = category;
+
+    // 3. Profit Margin Filter
+    if (minMargin) query.estimatedMarginPercent = { $gte: Number(minMargin) };
+
+    // 4. Base Price Filters
+    if (minBasePrice || maxBasePrice) {
+        query.dropshipBasePrice = {};
+        if (minBasePrice) query.dropshipBasePrice.$gte = Number(minBasePrice);
+        if (maxBasePrice) query.dropshipBasePrice.$lte = Number(maxBasePrice);
+    }
+
+    // 5. MOQ Filters
+    if (minMoq || maxMoq) {
+        query.moq = {};
+        if (minMoq) query.moq.$gte = Number(minMoq);
+        if (maxMoq) query.moq.$lte = Number(maxMoq);
+    } else if (isDropship === 'true') {
+        query.moq = 1;
+    } else if (isDropship === 'false') {
+        query.moq = { $gt: 1 };
+    }
+
+    // 6. Ready to Ship (In Stock) Filter
+    if (inStock === 'true') {
+        query['inventory.stock'] = { $gt: 0 };
+    }
+
+    // Setup Pagination & Sorting
+    const skip = (Number(page) - 1) * Number(limit);
+    const sortParams = { createdAt: -1 };
+
+    const products = await Product.find(query, projection)
+        .sort(sortParams)
+        .skip(skip)
+        .limit(Number(limit))
+        .populate('categoryId', 'name slug');
+
+    const total = await Product.countDocuments(query);
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                products,
+                pagination: {
+                    total,
+                    page: Number(page),
+                    pages: Math.ceil(total / Number(limit)),
+                },
+            },
+            'Products fetched successfully'
+        )
+    );
 });
 
-const getBestDeals = asyncHandler(async (req, res) => {
-    const deals = await ProductService.getBestDeals(req.query.limit);
-    return res.status(200).json(new ApiResponse(200, deals, 'Best deals fetched successfully'));
-});
+/**
+ * @desc    Get single product details (Includes Tiered Pricing for UI rendering)
+ * @route   GET /api/products/:id
+ */
+export const getProductById = asyncHandler(async (req, res) => {
+    // FIX: Ensure we don't fetch soft-deleted products
+    const product = await Product.findOne({ _id: req.params.id, deletedAt: null }).populate(
+        'categoryId',
+        'name slug'
+    );
 
-const getAdminProducts = asyncHandler(async (req, res) => {
-    const result = await ProductService.getAdminProducts(req.query);
-    return res.status(200).json(new ApiResponse(200, result, 'Admin products fetched'));
-});
+    if (!product) {
+        throw new ApiError(404, 'Product not found or has been removed');
+    }
 
-export const updateAdminProduct = asyncHandler(async (req, res) => {
-    const updatedProduct = await ProductService.updateProduct(req.params.id, req.body);
     return res
         .status(200)
-        .json(new ApiResponse(200, updatedProduct, 'Product updated successfully'));
+        .json(new ApiResponse(200, product, 'Product details fetched successfully'));
 });
 
-const bulkUploadProducts = asyncHandler(async (req, res) => {
-    const totalProcessed = await ProductService.processBulkUpload(req.file);
+/**
+ * @desc    Update a Product (ADMIN ONLY)
+ * @route   PUT /api/products/:id
+ */
+export const updateProduct = asyncHandler(async (req, res) => {
+    // FIX: Prevent updating a product that has been soft-deleted
+    const product = await Product.findOne({ _id: req.params.id, deletedAt: null });
+
+    if (!product) {
+        throw new ApiError(404, 'Product not found or has been removed');
+    }
+
+    // Update fields (Mongoose will trigger the pre-save hook to recalculate margins if prices change)
+    Object.assign(product, req.body);
+    await product.save();
+
+    return res.status(200).json(new ApiResponse(200, product, 'Product updated successfully'));
+});
+
+/**
+ * @desc    Soft Delete a Product (ADMIN ONLY)
+ * @route   DELETE /api/products/:id
+ */
+export const deleteProduct = asyncHandler(async (req, res) => {
+    // We don't use findByIdAndDelete because we need to preserve historical orders
+    const product = await Product.findOne({ _id: req.params.id, deletedAt: null });
+
+    if (!product) {
+        throw new ApiError(404, 'Product not found or already deleted');
+    }
+
+    // Apply Soft Delete
+    product.deletedAt = new Date();
+    product.status = 'archived'; // Double safety to remove it from active queries
+    await product.save();
+
     return res
         .status(200)
-        .json(new ApiResponse(200, { total: totalProcessed }, 'Products uploaded successfully'));
+        .json(new ApiResponse(200, null, 'Product successfully deleted (archived)'));
 });
-
-const generateSampleTemplate = asyncHandler(async (req, res) => {
-    const headers =
-        'Handle,Title,Body (HTML),Vendor,Product Category,Type,Tags,Published,Option1 Name,Option1 Value,Option1 Linked To,Option2 Name,Option2 Value,Option2 Linked To,Option3 Name,Option3 Value,Option3 Linked To,Variant SKU,Variant Grams,Variant Inventory Tracker,Variant Inventory Policy,Variant Fulfillment Service,Variant Price,Variant Compare At Price,Variant Requires Shipping,Variant Taxable,Unit Price Total Measure,Unit Price Total Measure Unit,Unit Price Base Measure,Unit Price Base Measure Unit,Variant Barcode,Image Src,Image Position,Image Alt Text,Gift Card,SEO Title,SEO Description,Google Shopping / Google Product Category,Google Shopping / Gender,Google Shopping / Age Group,Google Shopping / MPN,Google Shopping / Condition,Google Shopping / Custom Product,Google Shopping / Custom Label 0,Google Shopping / Custom Label 1,Google Shopping / Custom Label 2,Google Shopping / Custom Label 3,Google Shopping / Custom Label 4,Variant Image,Variant Weight Unit,Variant Tax Code,Cost per item,Included / India,Price / India,Compare At Price / India,Status';
-    const sampleRow =
-        '\nwhite-waterproof-phone-pouch,"White Waterproof Phone Pouch Bag","<p>Protect your phone underwater!</p>",Sovely,Electronics > Communications > Telephony > Mobile Phone Accessories,Mobile Covers,"Mobile Accessories, monsoon, Waterproof",TRUE,Title,Default Title,,,,,,,,SHIRT-001,168,shopify,deny,manual,78,234,TRUE,TRUE,,,,,,https://example.com/image1.jpg,1,,FALSE,Shop Waterproof Phone Pouch,"Protect your phone from water!",2353,,,,,,,,,,,,g,,,TRUE,,,active';
-
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename=sample_products_template.csv');
-    return res.status(200).send(headers + sampleRow);
-});
-
-const createProduct = asyncHandler(async (req, res) => {
-    const newProduct = await ProductService.createProduct(req.body, req.files);
-    return res.status(201).json(new ApiResponse(201, newProduct, 'Product created successfully'));
-});
-
-export {
-    getProducts,
-    getProductById,
-    getBestDeals,
-    getAdminProducts,
-    bulkUploadProducts,
-    generateSampleTemplate,
-    createProduct,
-};

@@ -12,7 +12,8 @@ export const getBalance = asyncHandler(async (req, res) => {
 });
 
 export const getTransactionHistory = asyncHandler(async (req, res) => {
-    const transactions = await WalletTransaction.find({ userId: req.user._id })
+    // FIX: Changed userId to resellerId to match the schema
+    const transactions = await WalletTransaction.find({ resellerId: req.user._id })
         .sort({ createdAt: -1 })
         .limit(50);
     return res.status(200).json(new ApiResponse(200, transactions, 'Transaction history fetched'));
@@ -20,7 +21,7 @@ export const getTransactionHistory = asyncHandler(async (req, res) => {
 
 export const addMoney = asyncHandler(async (req, res) => {
     const { amount } = req.body;
-    const userId = req.user._id;
+    const resellerId = req.user._id;
 
     if (!amount || amount <= 0) {
         throw new ApiError(400, 'Valid amount is required to add money');
@@ -29,15 +30,16 @@ export const addMoney = asyncHandler(async (req, res) => {
     const invoiceNumSeq = await Counter.getNextSequenceValue('invoiceNumber');
     const invoiceNumStr = `INV-${invoiceNumSeq.toString().padStart(6, '0')}`;
 
+    // FIX: Aligned with the updated Invoice schema (removed subTotal, added proper B2B fields)
     const invoice = await Invoice.create({
         invoiceNumber: invoiceNumStr,
-        userId,
+        resellerId, // FIX: Changed from userId to resellerId
         invoiceType: 'WALLET_TOPUP',
-        subTotal: amount,
+        totalTaxableValue: amount,
         grandTotal: amount,
         paymentTerms: 'DUE_ON_RECEIPT',
         dueDate: new Date(),
-        status: 'UNPAID',
+        paymentStatus: 'UNPAID', // FIX: Changed from status: 'UNPAID' to paymentStatus
     });
 
     const options = {

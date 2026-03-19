@@ -8,12 +8,14 @@ export const getDashboardAnalytics = asyncHandler(async (req, res) => {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
+    // 1. Revenue & Order Trends (Last 30 Days)
     const revenueTrend = await Order.aggregate([
         { $match: { createdAt: { $gte: thirtyDaysAgo }, status: { $ne: 'CANCELLED' } } },
         {
             $group: {
                 _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-                revenue: { $sum: '$totalAmount' },
+                // FIX: Changed $totalAmount to $totalPlatformCost
+                revenue: { $sum: '$totalPlatformCost' },
                 orders: { $sum: 1 },
             },
         },
@@ -38,9 +40,13 @@ export const getDashboardAnalytics = asyncHandler(async (req, res) => {
         });
     }
 
+    // 2. Order Status Distribution
     const orderStatus = await Order.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]);
 
+    // 3. Inventory Health (Excluding soft-deleted products)
     const inventoryHealth = await Product.aggregate([
+        // FIX: Ignore archived/deleted products in the health report
+        { $match: { deletedAt: null } },
         {
             $project: {
                 stockStatus: {
@@ -49,7 +55,7 @@ export const getDashboardAnalytics = asyncHandler(async (req, res) => {
                         then: 'Out of Stock',
                         else: {
                             $cond: {
-                                if: { $lte: ['$inventory.stock', 10] },
+                                if: { $lte: ['$inventory.stock', '$inventory.alertThreshold'] }, // Dynamic check instead of hardcoded 10
                                 then: 'Low Stock',
                                 else: 'In Stock',
                             },
@@ -61,20 +67,36 @@ export const getDashboardAnalytics = asyncHandler(async (req, res) => {
         { $group: { _id: '$stockStatus', count: { $sum: 1 } } },
     ]);
 
+    // 4. Lifetime Platform KPIs
     const totalRevenueAgg = await Order.aggregate([
         { $match: { status: { $ne: 'CANCELLED' } } },
-        { $group: { _id: null, total: { $sum: '$totalAmount' } } },
+        // FIX: Changed $totalAmount to $totalPlatformCost
+        { $group: { _id: null, total: { $sum: '$totalPlatformCost' } } },
     ]);
     const totalRevenue = totalRevenueAgg[0]?.total || 0;
 
-    const totalCustomers = await User.countDocuments({ role: 'CUSTOMER' });
+    // FIX: Changed role to 'RESELLER' and excluded deleted/banned accounts
+    const totalCustomers = await User.countDocuments({
+        role: 'RESELLER',
+        isActive: true,
+        deletedAt: null,
+    });
+
     const processingOrders = await Order.countDocuments({ status: 'PROCESSING' });
+
+    // NEW: Count Pending KYC applications for the admin to review
+    const pendingKycCount = await User.countDocuments({
+        role: 'RESELLER',
+        kycStatus: 'PENDING',
+        isActive: true,
+        deletedAt: null,
+    });
 
     return res.status(200).json(
         new ApiResponse(
             200,
             {
-                kpis: { totalRevenue, totalCustomers, processingOrders },
+                kpis: { totalRevenue, totalCustomers, processingOrders, pendingKycCount },
                 revenueTrend: completeRevenueTrend,
                 orderStatus: orderStatus.map((item) => ({ name: item._id, value: item.count })),
                 inventoryHealth: inventoryHealth.map((item) => ({

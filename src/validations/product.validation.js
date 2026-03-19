@@ -7,47 +7,58 @@ export const productValidation = {
         query: z.object({
             page: z.string().regex(/^\d+$/).optional(),
             limit: z.string().regex(/^\d+$/).optional(),
-            query: z.string().optional(),
-            categoryId: z.union([objectId, z.literal('All')]).optional(),
-            minPrice: z
+            search: z.string().optional(),
+            category: objectId.optional(),
+            minMargin: z.string().regex(/^\d+$/).optional(),
+            maxBasePrice: z
                 .string()
                 .regex(/^\d+(\.\d{1,2})?$/)
                 .optional(),
-            maxPrice: z
-                .string()
-                .regex(/^\d+(\.\d{1,2})?$/)
-                .optional(),
-            saleOnly: z.enum(['true', 'false']).optional(),
-            shipping: z.string().optional(),
-            minRating: z
-                .string()
-                .regex(/^[1-5]$/)
-                .optional(),
-            sort: z.enum(['price-asc', 'price-desc', 'rating', 'reviews', 'newest']).optional(),
+            isDropship: z.enum(['true', 'false']).optional(),
         }),
     }),
 
     getProductById: z.object({
         params: z.object({
-            productId: objectId,
+            id: objectId, // Matched to req.params.id
         }),
     }),
 
     createProduct: z.object({
         body: z.object({
             title: z.string().min(3),
-            sku: z.string(),
+            sku: z.string().min(3),
             categoryId: objectId,
-            platformSellPrice: z.number().positive(),
+
+            // New B2B Pricing Structure
+            dropshipBasePrice: z.number().positive(),
+            suggestedRetailPrice: z.number().positive(),
+            tieredPricing: z
+                .array(
+                    z.object({
+                        minQty: z.number().int().positive(),
+                        pricePerUnit: z.number().positive(),
+                    })
+                )
+                .optional(),
+
+            // Logistics
+            weightGrams: z.number().positive(),
             hsnCode: z.string().min(4, 'HSN Code must be at least 4 digits'),
-            taxSlab: z.union([
+            gstSlab: z.union([
                 z.literal(0),
                 z.literal(5),
                 z.literal(12),
                 z.literal(18),
                 z.literal(28),
             ]),
-            stock: z.number().int().nonnegative().optional(),
+            moq: z.number().int().positive().default(1),
+            inventory: z
+                .object({
+                    stock: z.number().int().nonnegative(),
+                    alertThreshold: z.number().int().nonnegative().optional(),
+                })
+                .optional(),
             status: z.enum(['active', 'draft', 'archived']).optional(),
         }),
     }),
@@ -58,9 +69,19 @@ export const productValidation = {
         }),
         body: z
             .object({
-                platformSellPrice: z.number().positive().optional(),
+                title: z.string().min(3).optional(),
+                dropshipBasePrice: z.number().positive().optional(),
+                suggestedRetailPrice: z.number().positive().optional(),
+                tieredPricing: z
+                    .array(
+                        z.object({
+                            minQty: z.number().int().positive(),
+                            pricePerUnit: z.number().positive(),
+                        })
+                    )
+                    .optional(),
                 hsnCode: z.string().min(4).optional(),
-                taxSlab: z
+                gstSlab: z
                     .union([
                         z.literal(0),
                         z.literal(5),
@@ -69,9 +90,15 @@ export const productValidation = {
                         z.literal(28),
                     ])
                     .optional(),
-                stock: z.number().int().nonnegative().optional(),
+                moq: z.number().int().positive().optional(),
+                inventory: z
+                    .object({
+                        stock: z.number().int().nonnegative().optional(),
+                        alertThreshold: z.number().int().nonnegative().optional(),
+                    })
+                    .optional(),
                 status: z.enum(['active', 'draft', 'archived']).optional(),
             })
-            .strict(),
+            .strict(), // Strict prevents users from injecting fields like estimatedMarginPercent manually
     }),
 };

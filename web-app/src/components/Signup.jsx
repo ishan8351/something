@@ -67,13 +67,11 @@ const Signup = () => {
 
     const handleSignup = async (e) => {
         e.preventDefault();
-        if (contactMethod === 'phone' && !otpSent) {
-            setError('Please request and enter an OTP first.');
-            return;
-        }
 
-        if (accountType === 'B2B') {
-            const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+        // Strict B2B GSTIN check - ONLY if they selected B2B and provided a GSTIN
+        if (accountType === 'B2B' && gstin) {
+            const gstinRegex =
+                /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}[Z0-9A-Z]{1}[0-9A-Z]{1}$/;
             if (!gstinRegex.test(gstin.toUpperCase())) {
                 return setError('Please enter a valid 15-character GSTIN');
             }
@@ -83,22 +81,36 @@ const Signup = () => {
         setIsLoading(true);
 
         try {
+            // Only send the contact method they actually used!
             const userData = {
                 name,
                 password,
                 accountType,
-                ...(accountType === 'B2B' && { companyName, gstin: gstin.toUpperCase() }),
-                ...(contactMethod === 'email' ? { email } : { phoneNumber, otpCode }),
+                // Dynamically add email OR phone, not both
+                ...(contactMethod === 'email' ? { email } : { phoneNumber }),
+                // Only send B2B fields if it's a B2B account
+                ...(accountType === 'B2B' && {
+                    companyName,
+                    gstin: gstin ? gstin.toUpperCase() : undefined,
+                }),
             };
 
             const response = await register(userData);
             if (response.success) {
+                if (accountType === 'B2B') {
+                    alert(
+                        'Business Account Created! You must complete KYC to unlock wholesale features.'
+                    );
+                } else {
+                    alert('Account Created successfully!');
+                }
                 navigate('/');
             } else {
-                throw new Error(response.message || 'Failed to create account. Please try again.');
+                throw new Error(response.message || 'Failed to create account.');
             }
         } catch (err) {
             setError(err.message);
+        } finally {
             setIsLoading(false);
         }
     };
@@ -175,6 +187,7 @@ const Signup = () => {
                 )}
 
                 <form onSubmit={handleSignup} autoComplete="off" className="space-y-5">
+                    {/* Full Name Field */}
                     <div className="space-y-2">
                         <label className="pl-1 text-xs font-bold tracking-wider text-slate-400 uppercase">
                             Full Name *
@@ -189,39 +202,7 @@ const Signup = () => {
                         />
                     </div>
 
-                    {}
-                    {accountType === 'B2B' && (
-                        <div className="animate-[fadeIn_0.3s_ease-out] space-y-5">
-                            <div className="space-y-2">
-                                <label className="pl-1 text-xs font-bold tracking-wider text-slate-400 uppercase">
-                                    Company Name *
-                                </label>
-                                <input
-                                    type="text"
-                                    placeholder="Acme Corp Ltd."
-                                    value={companyName}
-                                    onChange={(e) => setCompanyName(e.target.value)}
-                                    required={accountType === 'B2B'}
-                                    className="focus:border-accent focus:ring-accent w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3.5 text-sm font-medium text-slate-900 transition-all outline-none placeholder:text-slate-400 focus:ring-1"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="pl-1 text-xs font-bold tracking-wider text-slate-400 uppercase">
-                                    GSTIN *
-                                </label>
-                                <input
-                                    type="text"
-                                    placeholder="22AAAAA0000A1Z5"
-                                    value={gstin}
-                                    onChange={(e) => setGstin(e.target.value)}
-                                    maxLength="15"
-                                    required={accountType === 'B2B'}
-                                    className="focus:border-accent focus:ring-accent w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3.5 text-sm font-medium text-slate-900 uppercase transition-all outline-none placeholder:text-slate-400 focus:ring-1"
-                                />
-                            </div>
-                        </div>
-                    )}
-
+                    {/* Conditional Contact Field (Email vs Phone) */}
                     {contactMethod === 'email' ? (
                         <div className="animate-[fadeIn_0.3s_ease-out] space-y-2">
                             <label className="pl-1 text-xs font-bold tracking-wider text-slate-400 uppercase">
@@ -237,110 +218,97 @@ const Signup = () => {
                             />
                         </div>
                     ) : (
-                        <div className="animate-[fadeIn_0.3s_ease-out] space-y-5">
-                            <div className="space-y-2">
-                                <label className="pl-1 text-xs font-bold tracking-wider text-slate-400 uppercase">
-                                    Mobile Number *
-                                </label>
-                                <div className="flex gap-3">
-                                    <div className="relative flex-1">
-                                        <span className="absolute top-1/2 left-5 -translate-y-1/2 font-bold text-slate-400">
-                                            +91
-                                        </span>
-                                        <input
-                                            type="tel"
-                                            inputMode="numeric"
-                                            placeholder="10 digit number"
-                                            value={phoneNumber}
-                                            onChange={(e) =>
-                                                setPhoneNumber(e.target.value.replace(/\D/g, ''))
-                                            }
-                                            disabled={otpSent && cooldown > 0}
-                                            required
-                                            className="focus:border-accent focus:ring-accent w-full rounded-2xl border border-slate-200 bg-slate-50 py-3.5 pr-5 pl-14 text-sm font-bold text-slate-900 transition-all outline-none placeholder:text-slate-400 focus:ring-1 disabled:bg-slate-100 disabled:opacity-60"
-                                        />
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={handleSendOtp}
-                                        disabled={cooldown > 0 || isLoading}
-                                        className="min-w-[110px] rounded-2xl border border-slate-200 bg-white px-5 font-bold whitespace-nowrap text-slate-700 transition-all hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                        {cooldown > 0
-                                            ? `Resend (${cooldown}s)`
-                                            : otpSent
-                                              ? 'Resend'
-                                              : 'Get OTP'}
-                                    </button>
-                                </div>
+                        <div className="animate-[fadeIn_0.3s_ease-out] space-y-2">
+                            <label className="pl-1 text-xs font-bold tracking-wider text-slate-400 uppercase">
+                                Mobile Number *
+                            </label>
+                            <div className="relative">
+                                <span className="absolute top-1/2 left-5 -translate-y-1/2 font-bold text-slate-400">
+                                    +91
+                                </span>
+                                <input
+                                    type="tel"
+                                    inputMode="numeric"
+                                    placeholder="Enter 10 digit number"
+                                    value={phoneNumber}
+                                    onChange={(e) =>
+                                        setPhoneNumber(e.target.value.replace(/\D/g, ''))
+                                    }
+                                    maxLength="10"
+                                    required
+                                    className="focus:border-accent focus:ring-accent w-full rounded-2xl border border-slate-200 bg-slate-50 py-3.5 pr-5 pl-14 text-sm font-bold text-slate-900 transition-all outline-none placeholder:text-slate-400 focus:ring-1"
+                                />
                             </div>
-                            {otpSent && (
-                                <div className="animate-[fadeIn_0.3s_ease-out] space-y-2">
-                                    <label className="pl-1 text-xs font-bold tracking-wider text-slate-400 uppercase">
-                                        Enter 4-Digit OTP *
-                                    </label>
-                                    <input
-                                        type="text"
-                                        inputMode="numeric"
-                                        maxLength="4"
-                                        placeholder="1234"
-                                        value={otpCode}
-                                        onChange={(e) =>
-                                            setOtpCode(e.target.value.replace(/\D/g, ''))
-                                        }
-                                        autoFocus
-                                        required
-                                        className="focus:border-accent focus:ring-accent w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3.5 text-center text-lg font-extrabold tracking-widest text-slate-900 transition-all outline-none placeholder:font-medium placeholder:text-slate-300 focus:ring-1"
-                                    />
-                                </div>
-                            )}
                         </div>
                     )}
 
+                    {/* Password Field with Strength Indicator */}
                     <div className="space-y-2">
                         <label className="pl-1 text-xs font-bold tracking-wider text-slate-400 uppercase">
                             Password *
                         </label>
                         <input
                             type="password"
-                            placeholder="Create a strong password"
+                            placeholder="••••••••"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            autoComplete="new-password"
                             required
                             className="focus:border-accent focus:ring-accent w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3.5 text-sm font-medium tracking-widest text-slate-900 transition-all outline-none placeholder:text-slate-400 focus:ring-1"
                         />
-
+                        {/* Password Strength Bar */}
                         {password.length > 0 && (
-                            <div className="px-1 pt-2">
-                                <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                                    <div
-                                        className="h-full rounded-full transition-all duration-500 ease-out"
-                                        style={{
-                                            width: strength.width,
-                                            backgroundColor: strength.color,
-                                        }}
-                                    ></div>
-                                </div>
-                                <span
-                                    className="mt-1.5 block text-right text-[10px] font-extrabold tracking-widest uppercase"
-                                    style={{ color: strength.color }}
-                                >
-                                    {strength.label}
-                                </span>
+                            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                                <div
+                                    className="h-full transition-all duration-300"
+                                    style={{
+                                        width: strength.width,
+                                        backgroundColor: strength.color,
+                                    }}
+                                ></div>
                             </div>
                         )}
                     </div>
 
-                    <div className="pt-4">
-                        <button
-                            type="submit"
-                            disabled={isLoading || (contactMethod === 'phone' && !otpSent)}
-                            className="hover:bg-accent hover:shadow-accent/30 w-full rounded-2xl bg-slate-900 py-4 font-bold tracking-wide text-white transition-all duration-300 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-70"
-                        >
-                            {isLoading ? 'Creating Account...' : 'Create Account'}
-                        </button>
-                    </div>
+                    {/* Conditional B2B Fields */}
+                    {accountType === 'B2B' && (
+                        <div className="animate-[fadeIn_0.3s_ease-out] space-y-5 rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
+                            <div className="space-y-2">
+                                <label className="pl-1 text-xs font-bold tracking-wider text-slate-400 uppercase">
+                                    Company / Store Name *
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="e.g. Acme Dropshipping"
+                                    value={companyName}
+                                    onChange={(e) => setCompanyName(e.target.value)}
+                                    required={accountType === 'B2B'}
+                                    className="focus:border-accent focus:ring-accent w-full rounded-2xl border border-slate-200 bg-white px-5 py-3.5 text-sm font-medium text-slate-900 transition-all outline-none placeholder:text-slate-400 focus:ring-1"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="pl-1 text-xs font-bold tracking-wider text-slate-400 uppercase">
+                                    GSTIN (Optional for KYC Tier 1)
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="22AAAAA0000A1Z5"
+                                    value={gstin}
+                                    onChange={(e) => setGstin(e.target.value)}
+                                    maxLength="15"
+                                    className="focus:border-accent focus:ring-accent w-full rounded-2xl border border-slate-200 bg-white px-5 py-3.5 text-sm font-medium text-slate-900 uppercase transition-all outline-none placeholder:text-slate-400 focus:ring-1"
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Submit Button */}
+                    <button
+                        type="submit"
+                        disabled={isLoading}
+                        className="hover:bg-accent hover:shadow-accent/30 mt-4 w-full rounded-2xl bg-slate-900 py-4 font-bold tracking-wide text-white transition-all duration-300 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                        {isLoading ? 'Creating Account...' : 'Sign Up'}
+                    </button>
                 </form>
 
                 <div className="mt-8 border-t border-slate-100 pt-6 text-center">

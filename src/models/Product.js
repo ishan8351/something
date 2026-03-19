@@ -1,9 +1,27 @@
 import mongoose from 'mongoose';
 
+const tieredPriceSchema = new mongoose.Schema(
+    {
+        minQty: { type: Number, required: true },
+        maxQty: { type: Number },
+        pricePerUnit: { type: Number, required: true },
+    },
+    { _id: false }
+);
+
 const inventorySchema = new mongoose.Schema(
     {
         stock: { type: Number, required: true, default: 0 },
         alertThreshold: { type: Number, default: 10 },
+    },
+    { _id: false }
+);
+
+const dimensionsSchema = new mongoose.Schema(
+    {
+        length: { type: Number, default: 0, required: true },
+        width: { type: Number, default: 0, required: true },
+        height: { type: Number, default: 0, required: true },
     },
     { _id: false }
 );
@@ -14,7 +32,6 @@ const productSchema = new mongoose.Schema(
         title: { type: String, required: true, trim: true },
         descriptionHTML: { type: String },
         vendor: { type: String },
-        productType: { type: String },
         tags: [{ type: String }],
         categoryId: {
             type: mongoose.Schema.Types.ObjectId,
@@ -28,67 +45,58 @@ const productSchema = new mongoose.Schema(
                 altText: { type: String },
             },
         ],
-        platformSellPrice: { type: Number, required: true },
-        compareAtPrice: { type: Number },
-        discountPercent: { type: Number, default: 0 },
-        weightGrams: { type: Number },
-        seoTitle: { type: String },
-        seoDescription: { type: String },
+
+        // --- B2B & Dropshipping Pricing Engine ---
+        dropshipBasePrice: { type: Number, required: true },
+        suggestedRetailPrice: { type: Number, required: true },
+        estimatedMarginPercent: { type: Number, default: 0 },
+        tieredPricing: [tieredPriceSchema],
+
+        // --- Logistics & Shipping ---
+        weightGrams: { type: Number, required: true },
+        dimensions: dimensionsSchema,
+        hsnCode: { type: String, required: true },
+        gstSlab: { type: Number, enum: [0, 5, 12, 18, 28], required: true },
+        shippingDays: { type: String, default: '3-5' },
+
+        returnPolicy: {
+            type: String,
+            enum: ['NO_RETURNS', '7_DAYS_REPLACEMENT', '7_DAYS_RETURN'],
+            default: 'NO_RETURNS',
+        },
+
+        // --- Status, Tracking & Soft Deletes ---
         status: { type: String, enum: ['active', 'draft', 'archived'], default: 'active' },
+        deletedAt: { type: Date, default: null }, // NEW: True soft deletes for audit integrity
+
         moq: { type: Number, default: 1 },
         inventory: inventorySchema,
 
-        shippingDays: { type: String, default: '3-5' },
         averageRating: { type: Number, default: 0, min: 0, max: 5 },
         reviewCount: { type: Number, default: 0 },
     },
-    { timestamps: true }
+    // NEW: optimisticConcurrency protects against race conditions on product edits
+    { timestamps: true, optimisticConcurrency: true }
 );
 
-productSchema.index(
-    {
-        sku: 'text',
-        title: 'text',
-        tags: 'text',
-        vendor: 'text',
-        productType: 'text',
-        descriptionHTML: 'text',
-    },
-    {
-        weights: {
-            sku: 10,
-            title: 8,
-            tags: 5,
-            productType: 3,
-            vendor: 3,
-            descriptionHTML: 1,
-        },
-        name: 'B2B_Search_Index',
-    }
-);
-
+// Search Indexes
+// productSchema.index({ sku: 1 });
+productSchema.index({ title: 1 });
+productSchema.index({ tags: 1 });
+productSchema.index({ vendor: 1 });
 productSchema.index({ categoryId: 1 });
-
-productSchema.index({ status: 1, discountPercent: -1 });
-
-productSchema.index({ platformSellPrice: 1 });
-productSchema.index({ averageRating: -1 });
-
+productSchema.index({ status: 1 });
 productSchema.index({ 'inventory.stock': 1 });
 
-productSchema.pre('save', function (next) {
-    if (
-        this.compareAtPrice &&
-        this.compareAtPrice > this.platformSellPrice &&
-        this.platformSellPrice > 0
-    ) {
-        this.discountPercent = Math.round(
-            ((this.compareAtPrice - this.platformSellPrice) / this.compareAtPrice) * 100
+// Auto-calculate the estimated profit margin percentage
+productSchema.pre('save', function () {
+    if (this.suggestedRetailPrice > this.dropshipBasePrice && this.dropshipBasePrice > 0) {
+        this.estimatedMarginPercent = Math.round(
+            ((this.suggestedRetailPrice - this.dropshipBasePrice) / this.suggestedRetailPrice) * 100
         );
     } else {
-        this.discountPercent = 0;
+        this.estimatedMarginPercent = 0;
     }
-    next();
 });
 
 export const Product = mongoose.model('Product', productSchema);
