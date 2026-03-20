@@ -1,25 +1,31 @@
-import { useContext } from 'react';
-import { Navigate } from 'react-router-dom';
+import React, { useContext } from 'react';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
-import LoadingScreen from './LoadingScreen';
+import { ROUTES } from '../utils/routes';
 
-const ResellerRoute = ({ children }) => {
-    const { user, loading, isKycApproved } = useContext(AuthContext);
+const ResellerRoute = () => {
+    const { user, loading } = useContext(AuthContext);
+    const location = useLocation();
 
-    if (loading) return <LoadingScreen />;
+    // Show nothing while checking auth state to prevent flashing
+    if (loading) return null; 
 
-    // Must be logged in
+    // If not logged in, boot to login
     if (!user) {
-        return <Navigate to="/login" replace />;
+        return <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />;
     }
 
-    // Must be a B2B user with approved KYC
-    if (user.accountType === 'B2B' && !isKycApproved) {
-        // Redirect them to a KYC pending page or dashboard
-        return <Navigate to="/kyc-pending" replace />;
+    // Allow both ADMIN and normal business users to access these routes.
+    // Adjust 'RESELLER' to match whatever your standard business user role string is.
+    const hasAccess = user.role === 'ADMIN' || user.role === 'RESELLER' || user.role === 'USER';
+
+    if (!hasAccess) {
+        // If they somehow have a restricted role, send them to the homepage
+        return <Navigate to={ROUTES.HOME} replace />;
     }
 
-    return children;
+    // CRITICAL FIX: Use Outlet to render the nested child routes (MyAccount, Settings, etc.)
+    return <Outlet />;
 };
 
 export default ResellerRoute;
