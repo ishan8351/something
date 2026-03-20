@@ -4,7 +4,8 @@ import {
     getProducts,
     getProductById,
     updateProduct,
-    deleteProduct, // NEW: Imported the delete function
+    deleteProduct,
+    getAllAdminProducts
 } from '../controllers/product.controller.js';
 import { verifyJWT, authorizeRoles } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validate.middleware.js';
@@ -20,6 +21,7 @@ router.get('/:id', getProductById);
 router.post('/', verifyJWT, authorizeRoles('ADMIN'), createProduct);
 router.put('/:id', verifyJWT, authorizeRoles('ADMIN'), updateProduct);
 router.delete('/:id', verifyJWT, authorizeRoles('ADMIN'), deleteProduct);
+router.route('/admin/all').get(verifyJWT, authorizeRoles('ADMIN'), getAllAdminProducts);
 router.post(
     '/',
     verifyJWT,

@@ -5,11 +5,12 @@ import {
     updateOrderStatus,
     resellerActionOnNDR,
     getOrderById,
+    getAllAdminOrders,
 } from '../controllers/order.controller.js';
 import { verifyJWT, authorizeRoles, requireKycApproved } from '../middlewares/auth.middleware.js';
 
 const router = Router();
-
+router.route('/all').get(verifyJWT, authorizeRoles('ADMIN'), getAllAdminOrders);
 // All order routes require authentication
 router.use(verifyJWT);
 

@@ -1,25 +1,26 @@
 import { useContext } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
 import LoadingScreen from './LoadingScreen';
 
-const ResellerRoute = ({ children }) => {
-    const { user, loading, isKycApproved } = useContext(AuthContext);
+const ResellerRoute = () => {
+    const location = useLocation();
+    const { user, loading } = useContext(AuthContext);
 
     if (loading) return <LoadingScreen />;
 
-    // Must be logged in
+    // Redirect to login if not authenticated
     if (!user) {
-        return <Navigate to="/login" replace />;
+        return <Navigate to="/login" state={{ from: location }} replace />;
     }
 
-    // Must be a B2B user with approved KYC
-    if (user.accountType === 'B2B' && !isKycApproved) {
-        // Redirect them to a KYC pending page or dashboard
-        return <Navigate to="/kyc-pending" replace />;
-    }
+    // Optional: Add role-based protection if this is strictly for verified resellers/admins
+    // if (user.role !== 'RESELLER' && user.role !== 'ADMIN') {
+    //     return <Navigate to="/" replace />;
+    // }
 
-    return children;
+    // CRITICAL FIX: Return <Outlet /> instead of children or nothing
+    return <Outlet />;
 };
 
 export default ResellerRoute;

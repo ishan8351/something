@@ -8,12 +8,17 @@ import {
     ShieldCheck,
     Clock,
     Edit2,
+    ChevronLeft,
+    ChevronRight,
 } from 'lucide-react';
 import api from '../../utils/api.js';
 
 const AdminUsers = () => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
+
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
 
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -22,6 +27,7 @@ const AdminUsers = () => {
     const [roleFilter, setRoleFilter] = useState('ALL');
 
     const [updatingId, setUpdatingId] = useState(null);
+    const [editForm, setEditForm] = useState({});
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
@@ -30,22 +36,29 @@ const AdminUsers = () => {
     }, [searchQuery]);
 
     useEffect(() => {
+        setPage(1);
+    }, [debouncedSearch, roleFilter, kycFilter]);
+
+    useEffect(() => {
         const fetchUsers = async () => {
             setLoading(true);
             try {
-                // Assuming you have an admin user fetching route
-                // If you didn't build one, it's just a standard GET to /users with admin middleware
                 const res = await api.get('/users/admin/all', {
                     params: {
+                        page,
+                        limit: 10,
                         search: debouncedSearch,
-                        role: roleFilter,
-                        kycStatus: kycFilter,
+                        role: roleFilter === 'ALL' ? '' : roleFilter,
+                        kycStatus: kycFilter === 'ALL' ? '' : kycFilter,
                     },
                 });
 
                 // Handle different response structures gracefully
-                const data = res.data?.data?.users || res.data?.data || res.data || [];
+                const data = res.data?.data?.users || res.data?.data?.data || res.data?.data || [];
                 setUsers(Array.isArray(data) ? data : []);
+                setTotalPages(
+                    res.data?.data?.pagination?.pages || res.data?.data?.pagination?.totalPages || 1
+                );
             } catch (err) {
                 console.error('Failed to fetch users:', err);
             } finally {
@@ -53,21 +66,32 @@ const AdminUsers = () => {
             }
         };
         fetchUsers();
-    }, [debouncedSearch, roleFilter, kycFilter]);
+    }, [page, debouncedSearch, roleFilter, kycFilter]);
+
+    const submitUserUpdate = async (id) => {
+        setIsSaving(true);
+        try {
+            const res = await api.put(`/users/admin/${id}/role`, { role: editForm.role });
+            setUsers((prev) => prev.map((u) => (u._id === id ? res.data.data : u)));
+            setUpdatingId(null);
+        } catch (err) {
+            alert('Failed to update user role');
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     const updateKycStatus = async (id, newStatus) => {
         if (!window.confirm(`Are you sure you want to mark this Reseller as ${newStatus}?`)) return;
 
         try {
-            // This endpoint needs to be created in your backend if it doesn't exist
-            // e.g. PUT /api/v1/users/admin/:id/kyc
+            // Preserving your specific B2B KYC endpoint
             const res = await api.put(`/users/admin/${id}/kyc`, { kycStatus: newStatus });
 
-            // Optimistic UI update
+            // Optimistic update
             setUsers((prev) =>
                 prev.map((u) => (u._id === id ? { ...u, kycStatus: newStatus } : u))
             );
-            alert(`Reseller KYC updated to ${newStatus}`);
         } catch (err) {
             alert('Failed to update KYC status. Ensure your backend route exists.');
         }
@@ -99,9 +123,9 @@ const AdminUsers = () => {
 
     return (
         <>
-            {/* Filters Header */}
-            <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div className="flex items-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm transition-all focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500">
+            {/* Filters Header (Using the clean grid from main) */}
+            <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-4 lg:grid-cols-5">
+                <div className="flex items-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm transition-all focus-within:border-slate-900 focus-within:ring-1 focus-within:ring-slate-900 md:col-span-2 lg:col-span-3">
                     <Search size={18} className="text-slate-400" />
                     <input
                         type="text"
@@ -112,7 +136,7 @@ const AdminUsers = () => {
                     />
                 </div>
 
-                <div className="flex items-center rounded-xl border border-slate-200 bg-white px-4 shadow-sm transition-all focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500">
+                <div className="flex items-center rounded-xl border border-slate-200 bg-white px-4 shadow-sm transition-all focus-within:border-slate-900 focus-within:ring-1 focus-within:ring-slate-900">
                     <Filter size={16} className="mr-2 text-slate-400" />
                     <select
                         value={kycFilter}
@@ -120,13 +144,13 @@ const AdminUsers = () => {
                         className="w-full cursor-pointer border-none bg-transparent py-2.5 text-sm font-bold text-slate-700 outline-none"
                     >
                         <option value="ALL">All KYC Statuses</option>
-                        <option value="PENDING">Pending Approval (Action Req.)</option>
-                        <option value="APPROVED">Approved Resellers</option>
+                        <option value="PENDING">Pending (Action Req.)</option>
+                        <option value="APPROVED">Approved</option>
                         <option value="REJECTED">Rejected</option>
                     </select>
                 </div>
 
-                <div className="flex items-center rounded-xl border border-slate-200 bg-white px-4 shadow-sm transition-all focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500">
+                <div className="flex items-center rounded-xl border border-slate-200 bg-white px-4 shadow-sm transition-all focus-within:border-slate-900 focus-within:ring-1 focus-within:ring-slate-900">
                     <ShieldCheck size={16} className="mr-2 text-slate-400" />
                     <select
                         value={roleFilter}
@@ -134,7 +158,7 @@ const AdminUsers = () => {
                         className="w-full cursor-pointer border-none bg-transparent py-2.5 text-sm font-bold text-slate-700 outline-none"
                     >
                         <option value="ALL">All Roles</option>
-                        <option value="RESELLER">Reseller</option>
+                        <option value="RESELLER">Reseller / Customer</option>
                         <option value="ADMIN">Admin</option>
                     </select>
                 </div>
@@ -145,7 +169,7 @@ const AdminUsers = () => {
                 <div className="relative min-h-[300px] overflow-x-auto">
                     {loading && (
                         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/60 text-slate-400 backdrop-blur-sm">
-                            <div className="mb-2 h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-emerald-500"></div>
+                            <div className="mb-2 h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900"></div>
                             <span className="text-sm font-bold">Loading Matrix...</span>
                         </div>
                     )}
@@ -183,86 +207,170 @@ const AdminUsers = () => {
                                     </td>
                                 </tr>
                             ) : (
-                                users.map((u) => (
-                                    <tr
-                                        key={u._id}
-                                        className="group transition-colors hover:bg-slate-50/50"
-                                    >
-                                        {/* Identity */}
-                                        <td className="p-4 whitespace-nowrap">
-                                            <div className="flex items-center gap-2 font-bold text-slate-900">
-                                                {u.name}
-                                                {u.role === 'ADMIN' && (
-                                                    <span className="rounded bg-slate-900 px-1.5 py-0.5 text-[9px] tracking-wider text-white uppercase">
-                                                        Admin
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="text-sm font-medium text-slate-500">
-                                                {u.email || u.phoneNumber}
-                                            </div>
-                                        </td>
-
-                                        {/* Business */}
-                                        <td className="p-4 whitespace-nowrap">
-                                            <div className="flex items-center gap-1.5 font-bold text-slate-800">
-                                                <Building2 size={14} className="text-slate-400" />
-                                                {u.companyName || 'Not Provided'}
-                                            </div>
-                                            <div className="mt-0.5 text-[11px] font-bold tracking-wider text-slate-500">
-                                                GSTIN:{' '}
-                                                <span className="font-mono text-slate-900">
-                                                    {u.gstin || 'None'}
-                                                </span>
-                                            </div>
-                                        </td>
-
-                                        {/* Wallet */}
-                                        <td className="p-4 whitespace-nowrap">
-                                            <div className="font-black text-emerald-600">
-                                                ₹
-                                                {u.walletBalance?.toLocaleString('en-IN') || '0.00'}
-                                            </div>
-                                        </td>
-
-                                        {/* KYC Status */}
-                                        <td className="p-4 whitespace-nowrap">
-                                            {getKycBadge(u.kycStatus)}
-                                        </td>
-
-                                        {/* Actions */}
-                                        <td className="p-4 text-right whitespace-nowrap">
-                                            {u.role !== 'ADMIN' && (
-                                                <div className="flex justify-end gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-                                                    {u.kycStatus !== 'APPROVED' && (
-                                                        <button
-                                                            onClick={() =>
-                                                                updateKycStatus(u._id, 'APPROVED')
-                                                            }
-                                                            className="flex items-center gap-1 rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-200"
-                                                        >
-                                                            <CheckCircle size={14} /> Approve
-                                                        </button>
-                                                    )}
-                                                    {u.kycStatus !== 'REJECTED' && (
-                                                        <button
-                                                            onClick={() =>
-                                                                updateKycStatus(u._id, 'REJECTED')
-                                                            }
-                                                            className="rounded-lg bg-red-100 px-3 py-1.5 text-xs font-bold text-red-700 transition-colors hover:bg-red-200"
-                                                        >
-                                                            Reject
-                                                        </button>
+                                users.map((u) => {
+                                    const isEdit = updatingId === u._id;
+                                    return (
+                                        <tr
+                                            key={u._id}
+                                            className="group transition-colors hover:bg-slate-50/50"
+                                        >
+                                            {/* Identity */}
+                                            <td className="p-4 whitespace-nowrap">
+                                                <div className="flex items-center gap-2 font-bold text-slate-900">
+                                                    {u.name}
+                                                    {u.role === 'ADMIN' && (
+                                                        <span className="rounded bg-slate-900 px-1.5 py-0.5 text-[9px] tracking-wider text-white uppercase">
+                                                            Admin
+                                                        </span>
                                                     )}
                                                 </div>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))
+                                                <div className="text-sm font-medium text-slate-500">
+                                                    {u.email || u.phoneNumber}
+                                                </div>
+                                            </td>
+
+                                            {/* Business */}
+                                            <td className="p-4 whitespace-nowrap">
+                                                <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                                                    <Building2
+                                                        size={14}
+                                                        className="text-slate-400"
+                                                    />
+                                                    {u.companyName || 'Not Provided'}
+                                                </div>
+                                                <div className="mt-0.5 text-[11px] font-bold tracking-wider text-slate-500">
+                                                    GSTIN:{' '}
+                                                    <span className="font-mono text-slate-900">
+                                                        {u.gstin || 'None'}
+                                                    </span>
+                                                </div>
+                                            </td>
+
+                                            {/* Wallet */}
+                                            <td className="p-4 whitespace-nowrap">
+                                                <div className="font-black text-emerald-600">
+                                                    ₹
+                                                    {u.walletBalance?.toLocaleString('en-IN') ||
+                                                        '0.00'}
+                                                </div>
+                                            </td>
+
+                                            {/* KYC Status */}
+                                            <td className="p-4 whitespace-nowrap">
+                                                {getKycBadge(u.kycStatus)}
+                                            </td>
+
+                                            {/* Actions */}
+                                            <td className="p-4 text-right whitespace-nowrap">
+                                                {isEdit ? (
+                                                    <div className="flex justify-end gap-2">
+                                                        <select
+                                                            value={editForm.role}
+                                                            onChange={(e) =>
+                                                                setEditForm({
+                                                                    ...editForm,
+                                                                    role: e.target.value,
+                                                                })
+                                                            }
+                                                            className="rounded border border-slate-300 p-1.5 text-xs font-bold outline-none focus:border-slate-900"
+                                                        >
+                                                            <option value="CUSTOMER">
+                                                                Customer / Reseller
+                                                            </option>
+                                                            <option value="ADMIN">Admin</option>
+                                                        </select>
+                                                        <button
+                                                            disabled={isSaving}
+                                                            onClick={() => submitUserUpdate(u._id)}
+                                                            className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-slate-800 disabled:opacity-50"
+                                                        >
+                                                            {isSaving ? '...' : 'Save'}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setUpdatingId(null)}
+                                                            className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-200"
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex justify-end gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+                                                        {/* Role Edit Trigger */}
+                                                        <button
+                                                            onClick={() => {
+                                                                setUpdatingId(u._id);
+                                                                setEditForm({ role: u.role });
+                                                            }}
+                                                            title="Edit System Role"
+                                                            className="rounded-lg bg-slate-100 p-1.5 text-slate-600 transition-colors hover:bg-slate-200 hover:text-slate-900"
+                                                        >
+                                                            <Edit2 size={16} />
+                                                        </button>
+
+                                                        {/* KYC Quick Actions */}
+                                                        {u.role !== 'ADMIN' && (
+                                                            <>
+                                                                {u.kycStatus !== 'APPROVED' && (
+                                                                    <button
+                                                                        onClick={() =>
+                                                                            updateKycStatus(
+                                                                                u._id,
+                                                                                'APPROVED'
+                                                                            )
+                                                                        }
+                                                                        className="flex items-center gap-1 rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-200"
+                                                                    >
+                                                                        <CheckCircle size={14} />{' '}
+                                                                        Approve
+                                                                    </button>
+                                                                )}
+                                                                {u.kycStatus !== 'REJECTED' && (
+                                                                    <button
+                                                                        onClick={() =>
+                                                                            updateKycStatus(
+                                                                                u._id,
+                                                                                'REJECTED'
+                                                                            )
+                                                                        }
+                                                                        className="rounded-lg bg-red-100 px-3 py-1.5 text-xs font-bold text-red-700 transition-colors hover:bg-red-200"
+                                                                    >
+                                                                        Reject
+                                                                    </button>
+                                                                )}
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })
                             )}
                         </tbody>
                     </table>
                 </div>
+            </div>
+
+            {/* Pagination */}
+            <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                <button
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="flex items-center gap-1 rounded-lg bg-slate-50 px-3 py-1.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                    <ChevronLeft size={16} /> Previous
+                </button>
+                <span className="text-sm font-bold text-slate-500">
+                    Page <span className="text-slate-900">{page}</span> of{' '}
+                    <span className="text-slate-900">{totalPages || 1}</span>
+                </span>
+                <button
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages || totalPages === 0}
+                    className="flex items-center gap-1 rounded-lg bg-slate-50 px-3 py-1.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                    Next <ChevronRight size={16} />
+                </button>
             </div>
         </>
     );

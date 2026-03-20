@@ -13,6 +13,8 @@ const AdminProducts = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [filterOption, setFilterOption] = useState('ALL');
+    const [priceFilter, setPriceFilter] = useState('ALL');
+    const [stockFilter, setStockFilter] = useState('ALL');
 
     const [updatingId, setUpdatingId] = useState(null);
     const [editForm, setEditForm] = useState({});
@@ -26,26 +28,38 @@ const AdminProducts = () => {
 
     useEffect(() => {
         setPage(1);
-    }, [debouncedSearch, filterOption]);
+    }, [debouncedSearch, filterOption, priceFilter, stockFilter]);
 
     useEffect(() => {
         const fetchProducts = async () => {
             setLoading(true);
             try {
-                // Ensure this endpoint uses the new B2B product controller logic
+                // Hitting the B2B product controller with the new filters
                 const res = await api.get('/products/admin/all', {
                     params: {
                         page,
                         limit: 10,
                         search: debouncedSearch,
                         status: filterOption === 'ALL' ? '' : filterOption,
+                        price: priceFilter === 'ALL' ? '' : priceFilter,
+                        stock: stockFilter === 'ALL' ? '' : stockFilter,
+                        sort: 'stock_asc',
                     },
                 });
 
-                // Adjust based on your actual backend response structure
-                const data = res.data?.data?.products || res.data?.data?.data || [];
-                setProducts(data);
-                setTotalPages(res.data?.data?.pagination?.pages || 1);
+                let fetchedProducts = res.data?.data?.products || res.data?.data?.data || [];
+
+                // Sort the fetched items from Lowest Stock -> Highest Stock to prioritize alerts
+                fetchedProducts.sort((a, b) => {
+                    const stockA = a.inventory?.stock || 0;
+                    const stockB = b.inventory?.stock || 0;
+                    return stockA - stockB;
+                });
+
+                setProducts(fetchedProducts);
+                setTotalPages(
+                    res.data?.data?.pagination?.pages || res.data?.data?.pagination?.totalPages || 1
+                );
             } catch (err) {
                 console.error(err);
             } finally {
@@ -53,20 +67,27 @@ const AdminProducts = () => {
             }
         };
         fetchProducts();
-    }, [page, debouncedSearch, filterOption]);
+    }, [page, debouncedSearch, filterOption, priceFilter, stockFilter]);
 
     const submitProductUpdate = async (id) => {
         setIsSaving(true);
         try {
+            // Preserving your custom B2B payload
             const res = await api.put(`/products/${id}`, {
                 dropshipBasePrice: Number(editForm.dropshipBasePrice),
                 suggestedRetailPrice: Number(editForm.suggestedRetailPrice),
                 moq: Number(editForm.moq),
                 status: editForm.status,
-                'inventory.stock': Number(editForm.stock), // Mongoose dot notation for nested objects
+                'inventory.stock': Number(editForm.stock),
             });
 
-            setProducts((prev) => prev.map((p) => (p._id === id ? res.data.data : p)));
+            // Update and re-sort
+            setProducts((prev) => {
+                const updatedList = prev.map((p) => (p._id === id ? res.data.data : p));
+                return updatedList.sort(
+                    (a, b) => (a.inventory?.stock || 0) - (b.inventory?.stock || 0)
+                );
+            });
             setUpdatingId(null);
         } catch (err) {
             alert('Failed to update product');
@@ -93,12 +114,33 @@ const AdminProducts = () => {
                 <select
                     value={filterOption}
                     onChange={(e) => setFilterOption(e.target.value)}
-                    className="cursor-pointer rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm outline-none"
+                    className="cursor-pointer rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
                 >
                     <option value="ALL">All Statuses</option>
                     <option value="active">Active</option>
                     <option value="draft">Draft</option>
                     <option value="archived">Archived</option>
+                </select>
+
+                <select
+                    value={priceFilter}
+                    onChange={(e) => setPriceFilter(e.target.value)}
+                    className="cursor-pointer rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
+                >
+                    <option value="ALL">All Prices</option>
+                    <option value="UNDER_500">Under ₹500</option>
+                    <option value="OVER_1000">Over ₹1,000</option>
+                </select>
+
+                <select
+                    value={stockFilter}
+                    onChange={(e) => setStockFilter(e.target.value)}
+                    className="cursor-pointer rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
+                >
+                    <option value="ALL">All Stock Levels</option>
+                    <option value="IN_STOCK">In Stock ({'>'}10)</option>
+                    <option value="LOW_STOCK">Low Stock (1-10)</option>
+                    <option value="OUT_OF_STOCK">Out of Stock (0)</option>
                 </select>
 
                 <button
@@ -189,7 +231,7 @@ const AdminProducts = () => {
                                                                 dropshipBasePrice: e.target.value,
                                                             })
                                                         }
-                                                        className="w-24 rounded border border-slate-300 p-1.5 text-xs font-bold outline-none"
+                                                        className="w-24 rounded border border-slate-300 p-1.5 text-xs font-bold outline-none focus:border-slate-900"
                                                         title="Base Cost"
                                                     />
                                                     <input
@@ -203,7 +245,7 @@ const AdminProducts = () => {
                                                                     e.target.value,
                                                             })
                                                         }
-                                                        className="w-24 rounded border border-slate-300 p-1.5 text-xs font-bold outline-none"
+                                                        className="w-24 rounded border border-slate-300 p-1.5 text-xs font-bold outline-none focus:border-slate-900"
                                                         title="Suggested Retail"
                                                     />
                                                 </div>
@@ -230,45 +272,72 @@ const AdminProducts = () => {
                                         <td className="p-4">
                                             {isEdit ? (
                                                 <div className="flex flex-col gap-2">
-                                                    <input
-                                                        type="number"
-                                                        placeholder="Stock"
-                                                        value={editForm.stock}
-                                                        onChange={(e) =>
-                                                            setEditForm({
-                                                                ...editForm,
-                                                                stock: e.target.value,
-                                                            })
-                                                        }
-                                                        className="w-20 rounded border border-slate-300 p-1.5 text-xs font-bold outline-none"
-                                                        title="Stock"
-                                                    />
-                                                    <input
-                                                        type="number"
-                                                        placeholder="MOQ"
-                                                        value={editForm.moq}
-                                                        onChange={(e) =>
-                                                            setEditForm({
-                                                                ...editForm,
-                                                                moq: e.target.value,
-                                                            })
-                                                        }
-                                                        className="w-20 rounded border border-slate-300 p-1.5 text-xs font-bold outline-none"
-                                                        title="Minimum Order Qty"
-                                                    />
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="w-8 text-[10px] font-bold text-slate-400 uppercase">
+                                                            Stock
+                                                        </span>
+                                                        <input
+                                                            type="number"
+                                                            value={editForm.stock}
+                                                            onChange={(e) =>
+                                                                setEditForm({
+                                                                    ...editForm,
+                                                                    stock: e.target.value,
+                                                                })
+                                                            }
+                                                            className="w-16 rounded border border-slate-300 p-1.5 text-sm font-medium outline-none focus:border-slate-900"
+                                                        />
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="w-8 text-[10px] font-bold text-slate-400 uppercase">
+                                                            MOQ
+                                                        </span>
+                                                        <input
+                                                            type="number"
+                                                            value={editForm.moq}
+                                                            onChange={(e) =>
+                                                                setEditForm({
+                                                                    ...editForm,
+                                                                    moq: e.target.value,
+                                                                })
+                                                            }
+                                                            className="w-16 rounded border border-slate-300 p-1.5 text-sm font-medium outline-none focus:border-slate-900"
+                                                        />
+                                                    </div>
                                                 </div>
                                             ) : (
-                                                <div className="flex flex-col gap-1">
-                                                    <span
-                                                        className={`text-xs font-bold ${p.inventory?.stock === 0 ? 'text-red-500' : p.inventory?.stock <= 10 ? 'text-amber-600' : 'text-slate-900'}`}
-                                                    >
-                                                        Stock: {p.inventory?.stock}
+                                                <div className="flex flex-col items-start gap-1">
+                                                    <span className="font-extrabold text-slate-900">
+                                                        {p.inventory?.stock}{' '}
+                                                        <span className="text-[10px] font-medium text-slate-500">
+                                                            Units
+                                                        </span>
                                                     </span>
-                                                    <span className="text-xs font-bold text-slate-500">
-                                                        MOQ: {p.moq || 1}
-                                                    </span>
+                                                    <div className="mt-1 flex items-center gap-2">
+                                                        <span
+                                                            className={`inline-flex w-fit rounded px-1.5 py-0.5 text-[9px] font-extrabold tracking-wider uppercase ${
+                                                                p.inventory?.stock === 0
+                                                                    ? 'bg-red-100 text-red-700'
+                                                                    : p.inventory?.stock <= 10
+                                                                      ? 'bg-amber-100 text-amber-700'
+                                                                      : 'bg-green-100 text-green-700'
+                                                            }`}
+                                                        >
+                                                            {p.inventory?.stock === 0
+                                                                ? 'Out of Stock'
+                                                                : p.inventory?.stock <= 10
+                                                                  ? 'Low Stock'
+                                                                  : 'In Stock'}
+                                                        </span>
+                                                        <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+                                                            MOQ:{' '}
+                                                            <span className="text-slate-700">
+                                                                {p.moq || 1}
+                                                            </span>
+                                                        </span>
+                                                    </div>
                                                     {p.tieredPricing?.length > 0 && (
-                                                        <span className="w-fit rounded bg-indigo-50 px-2 py-0.5 text-[10px] font-extrabold tracking-wider text-indigo-600">
+                                                        <span className="mt-1 w-fit rounded bg-indigo-50 px-2 py-0.5 text-[9px] font-extrabold tracking-wider text-indigo-600">
                                                             Wholesale Tiers Active
                                                         </span>
                                                     )}
@@ -285,7 +354,7 @@ const AdminProducts = () => {
                                                             status: e.target.value,
                                                         })
                                                     }
-                                                    className="rounded border border-slate-300 p-1.5 text-xs font-bold outline-none"
+                                                    className="rounded border border-slate-300 p-1.5 text-xs font-bold outline-none focus:border-slate-900"
                                                 >
                                                     <option value="active">Active</option>
                                                     <option value="draft">Draft</option>
@@ -293,7 +362,11 @@ const AdminProducts = () => {
                                                 </select>
                                             ) : (
                                                 <span
-                                                    className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-extrabold tracking-wider uppercase ${p.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}
+                                                    className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-extrabold tracking-wider uppercase ${
+                                                        p.status === 'active'
+                                                            ? 'bg-green-100 text-green-700'
+                                                            : 'bg-slate-100 text-slate-600'
+                                                    }`}
                                                 >
                                                     {p.status}
                                                 </span>
@@ -305,7 +378,7 @@ const AdminProducts = () => {
                                                     <button
                                                         disabled={isSaving}
                                                         onClick={() => submitProductUpdate(p._id)}
-                                                        className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white transition-colors disabled:opacity-50"
+                                                        className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-slate-800 disabled:opacity-50"
                                                     >
                                                         {isSaving ? '...' : 'Save'}
                                                     </button>
@@ -353,7 +426,8 @@ const AdminProducts = () => {
                     <ChevronLeft size={16} /> Previous
                 </button>
                 <span className="text-sm font-bold text-slate-500">
-                    Page <span className="text-slate-900">{page}</span> of {totalPages || 1}
+                    Page <span className="text-slate-900">{page}</span> of{' '}
+                    <span className="text-slate-900">{totalPages || 1}</span>
                 </span>
                 <button
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}

@@ -37,10 +37,20 @@ const AdminInvoices = () => {
         setLoading(true);
         try {
             const res = await api.get('/invoices/admin/all', {
-                params: { page, limit: 10, search: debouncedSearch, status: filterOption },
+                params: {
+                    page,
+                    limit: 10,
+                    search: debouncedSearch,
+                    status: filterOption === 'ALL' ? '' : filterOption,
+                },
             });
-            setInvoices(res.data.data.data);
-            setTotalPages(res.data.data.pagination.totalPages);
+
+            // Graceful data extraction
+            const data = res.data?.data?.invoices || res.data?.data?.data || [];
+            setInvoices(data);
+            setTotalPages(
+                res.data?.data?.pagination?.pages || res.data?.data?.pagination?.totalPages || 1
+            );
         } catch (err) {
             console.error(err);
         } finally {
@@ -87,9 +97,9 @@ const AdminInvoices = () => {
 
     return (
         <>
-            {}
+            {/* Header / Filters */}
             <div className="mb-6 flex flex-col gap-4 md:flex-row">
-                <div className="focus-within:border-primary focus-within:ring-primary flex flex-1 items-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm transition-all focus-within:ring-1">
+                <div className="flex flex-1 items-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm transition-all focus-within:border-slate-900 focus-within:ring-1 focus-within:ring-slate-900">
                     <Search size={18} className="text-slate-400" />
                     <input
                         type="text"
@@ -99,7 +109,7 @@ const AdminInvoices = () => {
                         className="ml-3 w-full border-none text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400"
                     />
                 </div>
-                <div className="focus-within:border-primary focus-within:ring-primary flex items-center rounded-xl border border-slate-200 bg-white px-4 shadow-sm transition-all focus-within:ring-1">
+                <div className="flex items-center rounded-xl border border-slate-200 bg-white px-4 shadow-sm transition-all focus-within:border-slate-900 focus-within:ring-1 focus-within:ring-slate-900">
                     <Filter size={18} className="mr-2 text-slate-400" />
                     <select
                         value={filterOption}
@@ -114,12 +124,12 @@ const AdminInvoices = () => {
                 </div>
             </div>
 
-            {}
+            {/* Invoices Table */}
             <div className="mb-6 overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm">
                 <div className="relative min-h-[300px] overflow-x-auto">
                     {loading && (
                         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/60 text-slate-400 backdrop-blur-sm">
-                            <div className="border-t-primary mb-2 h-8 w-8 animate-spin rounded-full border-4 border-slate-200"></div>
+                            <div className="mb-2 h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900"></div>
                         </div>
                     )}
                     <table className="w-full border-collapse text-left">
@@ -254,7 +264,7 @@ const AdminInvoices = () => {
                                                     }
                                                     disabled={downloadingId === inv._id}
                                                     title="Download Tax Invoice PDF"
-                                                    className="text-primary bg-primary/10 hover:bg-primary flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold transition-colors hover:text-white disabled:opacity-50"
+                                                    className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-slate-800 disabled:opacity-50"
                                                 >
                                                     {downloadingId === inv._id ? (
                                                         <Loader2
@@ -286,7 +296,7 @@ const AdminInvoices = () => {
                 </div>
             </div>
 
-            {}
+            {/* Pagination */}
             <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
                 <button
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
