@@ -2,75 +2,70 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import {
-    Star,
     Check,
-    SlidersHorizontal,
     ChevronDown,
     X,
     ShieldCheck,
     Box,
-    TrendingUp,
     Clock,
-    Percent,
     ShoppingCart,
-    AlertTriangle,
-    Package,
+    LayoutGrid,
+    List as ListIcon,
+    Receipt,
+    Truck,
 } from 'lucide-react';
 import api from '../utils/api.js';
 import { useCartStore } from '../store/cartStore';
-import B2BFilterBar from './B2BFilterBar';
 
 const SORT_OPTIONS = [
-    { value: 'default', label: 'Recommended Suppliers' },
-    { value: 'price-asc', label: 'Bulk Price: Low to High' },
-    { value: 'price-desc', label: 'Bulk Price: High to Low' },
-    { value: 'rating', label: 'Top Rated Suppliers' },
-    { value: 'margin', label: 'Highest Profit Margin' },
+    { value: 'default', label: 'Recommended' },
+    { value: 'price-asc', label: 'Price: Low to High' },
+    { value: 'price-desc', label: 'Price: High to Low' },
+    { value: 'margin', label: 'Highest Margin' },
 ];
 
 function DropshipProducts({
     filters = {},
     globalSearchQuery = '',
     initialCategory = 'All Categories',
-    customTitle = 'Verified Wholesale Inventory',
-    customSubtitle = 'Source direct from manufacturers. Maximize your retail margins.',
-    hideTitle = false,
 }) {
     const addToCart = useCartStore((state) => state.addToCart);
 
     const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+    const [viewMode, setViewMode] = useState('list');
+
+    // --- ADVANCED FILTER STATE ---
     const [category, setCategory] = useState('All Categories');
     const [sort, setSort] = useState('default');
     const [minPrice, setMinPrice] = useState('');
     const [maxPrice, setMaxPrice] = useState('');
-    const [minRating, setMinRating] = useState(0);
+    const [selectedGst, setSelectedGst] = useState([]); // Array of GST percentages
+    const [maxDispatchDays, setMaxDispatchDays] = useState(''); // 1, 3, or 7
+    const [verifiedOnly, setVerifiedOnly] = useState(false);
+
     const [addedIds, setAddedIds] = useState([]);
 
+    // Parent quick filters (from B2BFilterBar)
     const [b2bFilters, setB2bFilters] = useState({
         moq: filters.moq || 'all',
-        margin: filters.margin || 'all',
+        margin: filters.margin || 0,
         readyToShip: filters.readyToShip || false,
+        lowRtoRisk: filters.lowRtoRisk || false,
     });
 
     useEffect(() => {
         setB2bFilters({
             moq: filters.moq || 'all',
-            margin: filters.margin || 'all',
+            margin: filters.margin || 0,
             readyToShip: filters.readyToShip || false,
+            lowRtoRisk: filters.lowRtoRisk || false,
         });
     }, [filters]);
 
-    const handleFilterChange = (key, value) => {
-        setB2bFilters((prev) => ({ ...prev, [key]: value }));
-    };
-
     useEffect(() => {
-        if (initialCategory) {
-            setCategory(initialCategory);
-        }
+        if (initialCategory) setCategory(initialCategory);
     }, [initialCategory]);
 
-    // API Call: Fetch Categories
     const { data: rawCategories = [] } = useQuery({
         queryKey: ['categories'],
         queryFn: async () => {
@@ -100,13 +95,11 @@ function DropshipProducts({
     useEffect(() => {
         if (globalSearchQuery) {
             setCategory('All Categories');
-            setMinPrice('');
-            setMaxPrice('');
-            setMinRating(0);
+            resetAdvancedFilters();
         }
     }, [globalSearchQuery]);
 
-    // API Call: Fetch Products with Infinite Scroll
+    // --- API CALL & QUERY BUILDER ---
     const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useInfiniteQuery({
         queryKey: [
             'products',
@@ -114,48 +107,37 @@ function DropshipProducts({
             sort,
             minPrice,
             maxPrice,
-            minRating,
+            selectedGst,
+            maxDispatchDays,
+            verifiedOnly,
             b2bFilters,
             globalSearchQuery,
         ],
         queryFn: async ({ pageParam = 1 }) => {
-            const params = new URLSearchParams({
-                page: pageParam,
-                limit: 24,
-            });
+            const params = new URLSearchParams({ page: pageParam, limit: 30 });
 
-            // 1. Category & Search
             if (selectedCatId) params.append('category', selectedCatId);
             if (globalSearchQuery) params.append('search', globalSearchQuery);
-
-            // 2. Pricing & Sorting
             if (sort !== 'default') params.append('sort', sort);
-            if (minPrice) params.append('minBasePrice', minPrice); // Note: Assuming you add this to backend later, backend currently only has maxBasePrice
+            if (minPrice) params.append('minBasePrice', minPrice);
             if (maxPrice) params.append('maxBasePrice', maxPrice);
 
-            // 3. Margin Filter Mapping
-            if (b2bFilters.margin === 'high-margin') {
-                params.append('minMargin', '40');
-            }
+            // NEW: B2B Sidebar Filters mapping
+            if (selectedGst.length > 0) params.append('gstSlab', selectedGst.join(','));
+            if (maxDispatchDays) params.append('maxShippingDays', maxDispatchDays);
+            if (verifiedOnly) params.append('isVerifiedSupplier', 'true');
 
-            // 4. MOQ Mapping (Dropship vs Bulk)
-            if (b2bFilters.moq === 'under-50') {
-                params.append('maxMoq', '50');
-            } else if (b2bFilters.moq === '50-500') {
+            // Quick Filters mapping
+            if (b2bFilters.margin && b2bFilters.margin > 0)
+                params.append('minMargin', b2bFilters.margin.toString());
+            if (b2bFilters.moq === 'under-50') params.append('maxMoq', '50');
+            else if (b2bFilters.moq === '50-500') {
                 params.append('minMoq', '50');
                 params.append('maxMoq', '500');
-            } else if (b2bFilters.moq === 'bulk') {
-                params.append('minMoq', '500');
-            }
+            } else if (b2bFilters.moq === 'bulk') params.append('minMoq', '500');
 
-            // 5. Inventory
-            if (b2bFilters.readyToShip) {
-                params.append('inStock', 'true');
-            }
-
-            if (b2bFilters.lowRtoRisk) {
-                params.append('lowRtoRisk', 'true');
-            }
+            if (b2bFilters.readyToShip) params.append('inStock', 'true');
+            if (b2bFilters.lowRtoRisk) params.append('lowRtoRisk', 'true');
 
             const res = await api.get(`/products?${params.toString()}`);
             return res.data.data;
@@ -187,155 +169,142 @@ function DropshipProducts({
                     price: wholesalePrice,
                     originalPrice: retailMrp,
                     margin: estMargin,
-                    rating: p.averageRating || 4.5,
                     image:
                         p.images?.[0]?.url ||
-                        'https://images.unsplash.com/photo-1596547609652-9cf5d8d76921?w=500&q=80',
+                        'https://images.unsplash.com/photo-1596547609652-9cf5d8d76921?w=200&q=80',
                     moq: p.moq || 10,
                     gst: p.gstSlab || 18,
-                    isVerified: p.isVerifiedSupplier || true,
+                    isVerified: p.isVerifiedSupplier !== false,
+                    rtoRate: p.historicalRtoRate || 0,
                     dispatchDays: p.shippingDays || 2,
-                    rtoRate: p.historicalRtoRate,
                 };
             });
     }, [data]);
 
-    const resetFilters = () => {
-        setCategory('All Categories');
-        setSort('default');
+    const resetAdvancedFilters = () => {
         setMinPrice('');
         setMaxPrice('');
-        setMinRating(0);
-
-        if (globalSearchQuery) {
-            window.history.pushState({}, '', window.location.pathname);
-        }
+        setSelectedGst([]);
+        setMaxDispatchDays('');
+        setVerifiedOnly(false);
     };
 
-    // FIXED: Properly uses the new cartStore signature
+    const resetAll = () => {
+        setCategory('All Categories');
+        setSort('default');
+        resetAdvancedFilters();
+    };
+
     const handleAdd = async (product, e) => {
         e.preventDefault();
         e.stopPropagation();
         setAddedIds((prev) => [...prev, product.id]);
-
-        // addToCart(productId, qty, orderType, resellerSellingPrice)
         await addToCart(product.id, product.moq, 'WHOLESALE', 0);
-
         setTimeout(() => setAddedIds((prev) => prev.filter((x) => x !== product.id)), 1800);
     };
 
+    const toggleGst = (slab) => {
+        setSelectedGst((prev) =>
+            prev.includes(slab) ? prev.filter((g) => g !== slab) : [...prev, slab]
+        );
+    };
+
     return (
-        <section className="relative z-10 w-full">
-            {!hideTitle && (
-                <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
-                    <div>
-                        <h2 className="flex items-center gap-2 text-xl font-extrabold tracking-tight text-slate-900 md:text-2xl">
-                            {customTitle}
-                        </h2>
-                        {globalSearchQuery ? (
-                            <p className="mt-1 text-sm font-medium text-slate-500">
-                                Search results for:{' '}
-                                <span className="text-primary font-bold">
-                                    "{globalSearchQuery}"
-                                </span>
-                            </p>
-                        ) : (
-                            <p className="mt-1 text-sm font-medium text-slate-500">
-                                {customSubtitle}
-                            </p>
-                        )}
+        <section className="relative z-10 w-full pt-4">
+            {/* Utility Bar */}
+            <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
+                <button
+                    className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm md:hidden"
+                    onClick={() => setIsMobileFilterOpen(true)}
+                >
+                    Filters
+                </button>
+
+                <div className="flex w-full items-center justify-between md:w-auto md:justify-end md:gap-4">
+                    <div className="flex items-center gap-1 rounded-lg border border-slate-300 bg-white p-1 shadow-sm">
+                        <button
+                            onClick={() => setViewMode('list')}
+                            className={`rounded px-2 py-1.5 transition-colors ${viewMode === 'list' ? 'bg-slate-100 text-slate-900' : 'text-slate-400 hover:text-slate-700'}`}
+                            title="List View"
+                        >
+                            <ListIcon size={18} />
+                        </button>
+                        <button
+                            onClick={() => setViewMode('grid')}
+                            className={`rounded px-2 py-1.5 transition-colors ${viewMode === 'grid' ? 'bg-slate-100 text-slate-900' : 'text-slate-400 hover:text-slate-700'}`}
+                            title="Grid View"
+                        >
+                            <LayoutGrid size={18} />
+                        </button>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        <button
-                            className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 md:hidden"
-                            onClick={() => setIsMobileFilterOpen(true)}
-                        >
-                            <SlidersHorizontal size={16} /> Filters
-                        </button>
-
-                        <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-1.5 shadow-sm transition-all focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-200">
-                            <span className="text-xs font-bold tracking-wider text-slate-400 uppercase">
-                                Sort:
-                            </span>
-                            <div className="relative">
-                                <select
-                                    value={sort}
-                                    onChange={(e) => setSort(e.target.value)}
-                                    className="cursor-pointer appearance-none bg-transparent py-1 pr-6 text-sm font-bold text-slate-700 outline-none"
-                                >
-                                    {SORT_OPTIONS.map((o) => (
-                                        <option key={o.value} value={o.value}>
-                                            {o.label}
-                                        </option>
-                                    ))}
-                                </select>
-                                <ChevronDown
-                                    size={14}
-                                    className="pointer-events-none absolute top-1/2 right-0 -translate-y-1/2 text-slate-400"
-                                />
-                            </div>
+                    <div className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus-within:ring-1 focus-within:ring-slate-400">
+                        <span className="text-xs font-bold text-slate-400 uppercase">Sort:</span>
+                        <div className="relative">
+                            <select
+                                value={sort}
+                                onChange={(e) => setSort(e.target.value)}
+                                className="cursor-pointer appearance-none bg-transparent py-1 pr-6 text-sm font-bold text-slate-700 outline-none"
+                            >
+                                {SORT_OPTIONS.map((o) => (
+                                    <option key={o.value} value={o.value}>
+                                        {o.label}
+                                    </option>
+                                ))}
+                            </select>
+                            <ChevronDown
+                                size={14}
+                                className="pointer-events-none absolute top-1/2 right-0 -translate-y-1/2 text-slate-400"
+                            />
                         </div>
                     </div>
                 </div>
-            )}
+            </div>
 
-            <div className="flex flex-col items-start gap-8 md:flex-row">
-                {isMobileFilterOpen && (
-                    <div
-                        className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-sm md:hidden"
-                        onClick={() => setIsMobileFilterOpen(false)}
-                    />
-                )}
-
+            <div className="flex flex-col items-start gap-6 md:flex-row">
+                {/* ADVANCED FILTERS SIDEBAR */}
                 <aside
-                    className={`fixed inset-y-0 left-0 z-50 w-72 transform overflow-y-auto bg-white p-6 shadow-2xl transition-transform duration-300 md:relative md:sticky md:top-32 md:z-0 md:h-fit md:w-64 md:translate-x-0 md:rounded-2xl md:border md:border-slate-200 md:bg-white md:p-6 md:shadow-sm ${isMobileFilterOpen ? 'translate-x-0' : '-translate-x-full'}`}
+                    className={`fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto bg-white p-6 shadow-2xl transition-transform duration-300 md:sticky md:top-40 md:z-0 md:h-fit md:w-64 md:translate-x-0 md:rounded-xl md:border md:border-slate-200 md:p-5 md:shadow-none ${isMobileFilterOpen ? 'translate-x-0' : '-translate-x-full'}`}
                 >
-                    <div className="mb-6 flex items-center justify-between border-b border-slate-100 pb-4">
-                        <h3 className="text-lg font-extrabold text-slate-900">Advanced Filters</h3>
-                        <div className="flex items-center gap-3">
+                    <div className="mb-5 flex items-center justify-between border-b border-slate-100 pb-3">
+                        <h3 className="text-sm font-extrabold text-slate-900 uppercase">Refine</h3>
+                        <div className="flex items-center gap-2">
                             <button
-                                className="text-xs font-bold text-slate-500 transition-colors hover:text-slate-900"
-                                onClick={resetFilters}
+                                className="text-[10px] font-bold text-slate-500 hover:text-slate-900"
+                                onClick={resetAll}
                             >
-                                Clear
+                                CLEAR
                             </button>
                             <button
-                                className="p-1 text-slate-400 hover:text-slate-900 md:hidden"
+                                className="p-1 text-slate-400 md:hidden"
                                 onClick={() => setIsMobileFilterOpen(false)}
                             >
-                                <X size={20} />
+                                <X size={16} />
                             </button>
                         </div>
                     </div>
 
-                    <div className="space-y-8">
-                        <div className="space-y-3">
-                            <h4 className="flex items-center gap-2 text-xs font-bold tracking-wider text-slate-400 uppercase">
-                                <Box size={14} /> Categories
+                    <div className="space-y-6">
+                        {/* Categories */}
+                        <div className="space-y-2">
+                            <h4 className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase">
+                                <Box size={14} /> Category
                             </h4>
-                            <div className="custom-scrollbar max-h-48 space-y-2 overflow-y-auto pr-2">
+                            <div className="custom-scrollbar max-h-40 space-y-1 overflow-y-auto pr-1">
                                 {[{ _id: 'All', name: 'All Categories' }, ...dbCategories].map(
                                     (cat) => (
                                         <label
                                             key={cat._id || cat.name}
-                                            className="group flex cursor-pointer items-center gap-3"
+                                            className="flex cursor-pointer items-center gap-2 py-1"
                                         >
-                                            <div
-                                                className={`flex h-4 w-4 items-center justify-center rounded-full border transition-colors ${category === cat.name ? 'border-slate-900 bg-slate-900' : 'border-slate-300 group-hover:border-slate-900'}`}
-                                            >
-                                                {category === cat.name && (
-                                                    <div className="h-1.5 w-1.5 rounded-full bg-white" />
-                                                )}
-                                            </div>
                                             <input
                                                 type="radio"
-                                                className="hidden"
+                                                className="h-3 w-3 accent-slate-900"
                                                 checked={category === cat.name}
                                                 onChange={() => setCategory(cat.name)}
                                             />
                                             <span
-                                                className={`text-sm font-semibold transition-colors ${category === cat.name ? 'text-slate-900' : 'text-slate-600 group-hover:text-slate-900'}`}
+                                                className={`text-xs font-semibold ${category === cat.name ? 'text-slate-900' : 'text-slate-600'}`}
                                             >
                                                 {cat.name}
                                             </span>
@@ -345,264 +314,299 @@ function DropshipProducts({
                             </div>
                         </div>
 
-                        <div className="space-y-3">
-                            <h4 className="text-xs font-bold tracking-wider text-slate-400 uppercase">
+                        {/* Price */}
+                        <div className="space-y-2 border-t border-slate-100 pt-4">
+                            <h4 className="text-xs font-bold text-slate-400 uppercase">
                                 Unit Price (₹)
                             </h4>
                             <div className="flex items-center gap-2">
-                                <div className="relative flex-1">
-                                    <input
-                                        type="number"
-                                        placeholder="Min"
-                                        value={minPrice}
-                                        onChange={(e) => setMinPrice(e.target.value)}
-                                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-900 transition-all outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-200"
-                                    />
-                                </div>
-                                <span className="font-bold text-slate-300">-</span>
-                                <div className="relative flex-1">
-                                    <input
-                                        type="number"
-                                        placeholder="Max"
-                                        value={maxPrice}
-                                        onChange={(e) => setMaxPrice(e.target.value)}
-                                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-900 transition-all outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-200"
-                                    />
-                                </div>
+                                <input
+                                    type="number"
+                                    placeholder="Min"
+                                    value={minPrice}
+                                    onChange={(e) => setMinPrice(e.target.value)}
+                                    className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs font-semibold outline-none focus:border-slate-500"
+                                />
+                                <span className="text-slate-300">-</span>
+                                <input
+                                    type="number"
+                                    placeholder="Max"
+                                    value={maxPrice}
+                                    onChange={(e) => setMaxPrice(e.target.value)}
+                                    className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs font-semibold outline-none focus:border-slate-500"
+                                />
                             </div>
                         </div>
 
-                        <div className="space-y-3">
-                            <h4 className="text-xs font-bold tracking-wider text-slate-400 uppercase">
-                                Supplier Rating
+                        {/* NEW: GST Slab */}
+                        <div className="space-y-2 border-t border-slate-100 pt-4">
+                            <h4 className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase">
+                                <Receipt size={14} /> GST Slab
+                            </h4>
+                            <div className="grid grid-cols-2 gap-2">
+                                {[5, 12, 18, 28].map((slab) => (
+                                    <label
+                                        key={slab}
+                                        className="flex cursor-pointer items-center gap-2"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            className="h-3 w-3 rounded border-slate-300 accent-slate-900"
+                                            checked={selectedGst.includes(slab)}
+                                            onChange={() => toggleGst(slab)}
+                                        />
+                                        <span className="text-xs font-semibold text-slate-700">
+                                            {slab}%
+                                        </span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* NEW: Dispatch Time */}
+                        <div className="space-y-2 border-t border-slate-100 pt-4">
+                            <h4 className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase">
+                                <Truck size={14} /> Dispatch Time
                             </h4>
                             <div className="flex flex-wrap gap-2">
-                                {[4.5, 4.0, 3.5, 0].map((r) => (
+                                {[
+                                    { val: '1', label: '< 24 Hrs' },
+                                    { val: '3', label: '< 3 Days' },
+                                    { val: '7', label: '< 7 Days' },
+                                ].map((time) => (
                                     <button
-                                        key={r}
-                                        className={`flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${minRating === r ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}
-                                        onClick={() => setMinRating(r)}
+                                        key={time.val}
+                                        onClick={() =>
+                                            setMaxDispatchDays(
+                                                maxDispatchDays === time.val ? '' : time.val
+                                            )
+                                        }
+                                        className={`rounded border px-2 py-1 text-[10px] font-bold transition-colors ${maxDispatchDays === time.val ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'}`}
                                     >
-                                        {r === 0 ? (
-                                            'Any'
-                                        ) : (
-                                            <>
-                                                {r}+ <Star size={12} fill="currentColor" />
-                                            </>
-                                        )}
+                                        {time.label}
                                     </button>
                                 ))}
                             </div>
                         </div>
+
+                        {/* NEW: Verified Supplier Toggle */}
+                        <div className="border-t border-slate-100 pt-4">
+                            <label className="flex cursor-pointer items-center justify-between">
+                                <span className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                                    <ShieldCheck size={14} className="text-blue-600" /> Verified
+                                    Only
+                                </span>
+                                <div
+                                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${verifiedOnly ? 'bg-blue-600' : 'bg-slate-200'}`}
+                                >
+                                    <input
+                                        type="checkbox"
+                                        className="sr-only"
+                                        checked={verifiedOnly}
+                                        onChange={() => setVerifiedOnly(!verifiedOnly)}
+                                    />
+                                    <span
+                                        className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${verifiedOnly ? 'translate-x-5' : 'translate-x-1'}`}
+                                    />
+                                </div>
+                            </label>
+                        </div>
                     </div>
                 </aside>
 
+                {/* MAIN PRODUCT AREA */}
                 <div className="w-full flex-1">
                     {isLoading ? (
-                        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                            {Array.from({ length: 6 }).map((_, i) => (
-                                <div
-                                    key={i}
-                                    className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm"
-                                >
-                                    <div className="mb-4 aspect-[4/5] animate-pulse rounded-xl bg-slate-100"></div>
-                                    <div className="mb-2 h-4 w-3/4 animate-pulse rounded bg-slate-100"></div>
-                                    <div className="mb-4 h-4 w-1/2 animate-pulse rounded bg-slate-100"></div>
-                                    <div className="h-10 w-full animate-pulse rounded-xl bg-slate-100"></div>
-                                </div>
-                            ))}
+                        <div className="flex items-center justify-center p-20 font-bold text-slate-400">
+                            Loading Inventory...
                         </div>
                     ) : displayProducts.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-24 text-center">
-                            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-                                <Box size={32} />
-                            </div>
-                            <h3 className="mb-2 text-xl font-extrabold text-slate-900">
-                                No matching inventory
-                            </h3>
-                            <p className="mb-6 font-medium text-slate-500">
-                                Try adjusting your filters, MOQ requirements, or categories.
+                        <div className="rounded-xl border border-dashed border-slate-300 p-12 text-center">
+                            <p className="font-medium text-slate-500">
+                                No inventory matches your current filters.
                             </p>
                             <button
-                                className="rounded-xl border border-slate-300 bg-white px-6 py-3 font-bold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
-                                onClick={resetFilters}
+                                onClick={resetAll}
+                                className="mt-4 text-sm font-bold text-emerald-600 hover:underline"
                             >
-                                Reset All Filters
+                                Clear all filters
                             </button>
                         </div>
                     ) : (
-                        <>
-                            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
-                                {displayProducts.map((product) => {
-                                    const isAdded = addedIds.includes(product.id);
+                        <div
+                            className={
+                                viewMode === 'grid'
+                                    ? 'grid grid-cols-2 gap-4 xl:grid-cols-4'
+                                    : 'flex flex-col gap-3'
+                            }
+                        >
+                            {displayProducts.map((product) => {
+                                const isAdded = addedIds.includes(product.id);
 
+                                // LIST VIEW
+                                if (viewMode === 'list') {
                                     return (
-                                        <div
-                                            className="group relative flex flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-300 hover:border-slate-300 hover:shadow-xl"
+                                        <Link
+                                            to={`/product/${product.id}`}
                                             key={product.id}
+                                            className="group flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-all hover:border-slate-300 hover:shadow-md"
                                         >
-                                            <Link to={`/product/${product.id}`} className="block">
-                                                <div className="relative mb-4 aspect-[4/3] overflow-hidden rounded-xl border border-slate-100 bg-slate-50">
-                                                    <img
-                                                        src={product.image}
-                                                        alt={product.name}
-                                                        loading="lazy"
-                                                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                                    />
+                                            <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border border-slate-100">
+                                                <img
+                                                    src={product.image}
+                                                    alt={product.name}
+                                                    className="h-full w-full object-cover"
+                                                />
+                                            </div>
 
-                                                    <div className="absolute top-2 left-2 flex flex-col gap-1.5">
-                                                        {product.isVerified && (
-                                                            <span className="flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50/95 px-2 py-1 text-[10px] font-bold text-emerald-800 shadow-sm backdrop-blur">
-                                                                <ShieldCheck size={12} /> Verified
-                                                                Supplier
-                                                            </span>
-                                                        )}
-                                                        {product.margin >= 40 && (
-                                                            <span className="flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50/95 px-2 py-1 text-[10px] font-bold text-amber-800 shadow-sm backdrop-blur">
-                                                                <TrendingUp size={12} /> High Margin
-                                                            </span>
-                                                        )}
-                                                        {product.rtoRate !== undefined &&
-                                                            product.rtoRate <= 10 && (
-                                                                <span className="flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50/95 px-2 py-1 text-[10px] font-bold text-blue-800 shadow-sm backdrop-blur">
-                                                                    <ShieldCheck
-                                                                        size={12}
-                                                                        className="text-blue-600"
-                                                                    />{' '}
-                                                                    Safe for COD
-                                                                </span>
-                                                            )}
-                                                        {product.rtoRate > 25 && (
-                                                            <span className="flex items-center gap-1 rounded-md border border-red-200 bg-red-50/95 px-2 py-1 text-[10px] font-bold text-red-800 shadow-sm backdrop-blur">
-                                                                <AlertTriangle
-                                                                    size={12}
-                                                                    className="text-red-600"
-                                                                />{' '}
-                                                                High RTO Risk
-                                                            </span>
-                                                        )}
-                                                    </div>
+                                            <div className="flex flex-1 flex-col justify-center overflow-hidden">
+                                                <h3 className="truncate text-sm font-extrabold text-slate-900">
+                                                    {product.name}
+                                                </h3>
+                                                <div className="mt-1 flex items-center gap-3 text-[10px] font-bold text-slate-500">
+                                                    <span className="font-mono text-slate-700">
+                                                        SKU: {product.skuId}
+                                                    </span>
+                                                    <span>By: {product.vendor}</span>
+                                                    <span className="flex items-center gap-0.5 text-slate-400">
+                                                        <Clock size={10} /> {product.dispatchDays}d
+                                                        dispatch
+                                                    </span>
                                                 </div>
+                                            </div>
 
-                                                <div className="flex flex-1 flex-col">
-                                                    <div className="mb-1 flex items-start justify-between">
-                                                        <span className="text-[10px] font-bold tracking-widest text-slate-500 uppercase">
-                                                            {product.category}
-                                                        </span>
-                                                        <span className="flex items-center gap-1 text-[10px] font-bold text-slate-500">
-                                                            <Clock size={10} /> Dispatches in{' '}
-                                                            {product.dispatchDays}d
-                                                        </span>
-                                                    </div>
+                                            <div className="hidden flex-col items-center justify-center border-l border-slate-100 px-4 md:flex">
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase">
+                                                    Margin
+                                                </span>
+                                                <span className="text-sm font-extrabold text-emerald-600">
+                                                    {product.margin}%
+                                                </span>
+                                            </div>
 
-                                                    <h3 className="mb-1 line-clamp-2 text-sm leading-snug font-bold text-slate-900 transition-colors group-hover:text-slate-600">
-                                                        {product.name}
-                                                    </h3>
+                                            <div className="hidden flex-col items-center justify-center border-l border-slate-100 px-4 md:flex">
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase">
+                                                    GST
+                                                </span>
+                                                <span className="text-sm font-extrabold text-slate-600">
+                                                    {product.gst}%
+                                                </span>
+                                            </div>
 
-                                                    <div className="mb-3 flex items-center justify-between text-[10px] text-slate-500">
-                                                        <div className="flex items-center gap-1.5">
-                                                            <span className="rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 font-mono text-slate-600 uppercase">
-                                                                SKU: {product.skuId}
-                                                            </span>
-                                                            {product.stock > 0 &&
-                                                                product.stock <= 50 && (
-                                                                    <span className="font-bold text-red-500">
-                                                                        Low Stock: {product.stock}
-                                                                    </span>
-                                                                )}
-                                                        </div>
-                                                        <span className="max-w-[45%] truncate font-medium">
-                                                            By {product.vendor}
-                                                        </span>
-                                                    </div>
+                                            <div className="hidden flex-col items-center justify-center border-l border-slate-100 px-4 md:flex">
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase">
+                                                    MOQ
+                                                </span>
+                                                <span className="text-sm font-extrabold text-slate-900">
+                                                    {product.moq}
+                                                </span>
+                                            </div>
 
-                                                    <div className="mb-3 grid grid-cols-3 gap-2 divide-x divide-slate-200 rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs">
-                                                        <div className="pl-1">
-                                                            <span className="mb-0.5 block text-[10px] font-bold tracking-wider text-slate-400 uppercase">
-                                                                MOQ
-                                                            </span>
-                                                            <span className="font-bold text-slate-900">
-                                                                {product.moq} Units
-                                                            </span>
-                                                        </div>
-                                                        <div className="pl-3">
-                                                            <span className="mb-0.5 block text-[10px] font-bold tracking-wider text-slate-400 uppercase">
-                                                                GST
-                                                            </span>
-                                                            <span className="font-bold text-slate-900">
-                                                                {product.gst}%
-                                                            </span>
-                                                        </div>
-                                                        <div className="pl-3">
-                                                            <span className="mb-0.5 block flex items-center gap-0.5 text-[10px] font-bold tracking-wider text-slate-400 uppercase">
-                                                                <Percent size={10} /> Margin
-                                                            </span>
-                                                            <span className="font-bold text-emerald-600">
-                                                                ~{product.margin}%
-                                                            </span>
-                                                        </div>
-                                                    </div>
+                                            <div className="flex flex-col items-end justify-center border-l border-slate-100 pr-2 pl-4">
+                                                <span className="text-[10px] font-bold text-slate-400 line-through">
+                                                    MRP: ₹{product.originalPrice}
+                                                </span>
+                                                <span className="text-lg font-extrabold text-slate-900">
+                                                    ₹{product.price.toLocaleString('en-IN')}
+                                                </span>
+                                            </div>
 
-                                                    <div className="mt-auto border-t border-slate-100 pt-4">
-                                                        <div className="mb-4 flex items-end justify-between">
-                                                            <div className="flex flex-col">
-                                                                <span className="text-[10px] font-bold text-slate-400 line-through">
-                                                                    Retail MRP: ₹
-                                                                    {product.originalPrice.toLocaleString(
-                                                                        'en-IN'
-                                                                    )}
-                                                                </span>
-                                                                <div className="flex items-baseline gap-1">
-                                                                    <span className="text-xl font-extrabold tracking-tight text-slate-900">
-                                                                        ₹
-                                                                        {product.price.toLocaleString(
-                                                                            'en-IN'
-                                                                        )}
-                                                                    </span>
-                                                                    <span className="text-xs font-medium text-slate-500">
-                                                                        /unit
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
-                                                        <button
-                                                            className={`flex h-11 w-full items-center justify-center gap-2 rounded-xl border text-sm font-bold shadow-sm transition-all duration-300 ${isAdded ? 'border-emerald-500 bg-emerald-500 text-white shadow-emerald-500/20' : 'border-slate-900 bg-slate-900 text-white hover:bg-slate-800'}`}
-                                                            onClick={(e) => handleAdd(product, e)}
-                                                        >
-                                                            {isAdded ? (
-                                                                <>
-                                                                    <Check size={16} /> Added Bulk
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <ShoppingCart size={16} /> Quick
-                                                                    Add (MOQ)
-                                                                </>
-                                                            )}
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </Link>
-                                        </div>
+                                            <button
+                                                onClick={(e) => handleAdd(product, e)}
+                                                className={`ml-2 flex h-10 w-24 flex-shrink-0 items-center justify-center gap-1 rounded-lg text-xs font-bold transition-all ${isAdded ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-900 hover:text-white'}`}
+                                            >
+                                                {isAdded ? (
+                                                    <>
+                                                        <Check size={14} /> Added
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <ShoppingCart size={14} /> Add
+                                                    </>
+                                                )}
+                                            </button>
+                                        </Link>
                                     );
-                                })}
-                            </div>
+                                }
 
-                            {hasNextPage && (
-                                <div className="mt-12 flex justify-center">
-                                    <button
-                                        className="rounded-full border border-slate-200 bg-white px-8 py-3 font-bold text-slate-700 transition-all hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm disabled:opacity-50"
-                                        onClick={() => fetchNextPage()}
-                                        disabled={isFetchingNextPage}
+                                // GRID VIEW
+                                return (
+                                    <Link
+                                        to={`/product/${product.id}`}
+                                        key={product.id}
+                                        className="group relative flex flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-all hover:border-slate-300 hover:shadow-lg"
                                     >
-                                        {isFetchingNextPage
-                                            ? 'Loading Inventory...'
-                                            : 'Load More Products'}
-                                    </button>
-                                </div>
-                            )}
-                        </>
+                                        <div className="relative mb-3 aspect-square overflow-hidden rounded-lg bg-slate-50">
+                                            <img
+                                                src={product.image}
+                                                alt={product.name}
+                                                loading="lazy"
+                                                className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                                            />
+                                            <div className="absolute top-2 left-2 flex flex-col gap-1">
+                                                {product.margin >= 40 && (
+                                                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-800">
+                                                        High Margin
+                                                    </span>
+                                                )}
+                                                {product.stock > 0 && product.stock <= 50 && (
+                                                    <span className="rounded bg-red-100 px-1.5 py-0.5 text-[9px] font-bold text-red-800">
+                                                        Low Stock
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-1 flex-col">
+                                            <span className="mb-0.5 text-[9px] font-bold text-slate-400">
+                                                SKU: {product.skuId}
+                                            </span>
+                                            <h3 className="mb-2 line-clamp-2 text-xs leading-tight font-extrabold text-slate-900">
+                                                {product.name}
+                                            </h3>
+
+                                            <div className="mt-auto flex items-end justify-between border-t border-slate-100 pt-2">
+                                                <div>
+                                                    <span className="block text-[9px] font-bold text-slate-400 line-through">
+                                                        MRP: ₹{product.originalPrice}
+                                                    </span>
+                                                    <span className="text-sm font-extrabold text-slate-900">
+                                                        ₹{product.price.toLocaleString('en-IN')}
+                                                    </span>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className="block text-[9px] font-bold text-emerald-600">
+                                                        {product.margin}% Mgn | {product.gst}% GST
+                                                    </span>
+                                                    <span className="text-[9px] font-bold text-slate-500">
+                                                        MOQ: {product.moq}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <button
+                                                onClick={(e) => handleAdd(product, e)}
+                                                className={`mt-3 flex w-full items-center justify-center gap-1 rounded-lg py-2 text-xs font-bold transition-all ${isAdded ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-900 hover:text-white'}`}
+                                            >
+                                                {isAdded ? 'Added to Cart' : 'Quick Add'}
+                                            </button>
+                                        </div>
+                                    </Link>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    {hasNextPage && (
+                        <div className="mt-8 flex justify-center">
+                            <button
+                                className="rounded-lg border border-slate-300 bg-white px-6 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                                onClick={() => fetchNextPage()}
+                                disabled={isFetchingNextPage}
+                            >
+                                {isFetchingNextPage ? 'Loading...' : 'Load More Products'}
+                            </button>
+                        </div>
                     )}
                 </div>
             </div>

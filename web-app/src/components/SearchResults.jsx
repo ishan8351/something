@@ -1,7 +1,8 @@
-import React, { useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo } from 'react';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import DropshipProducts from './DropshipProducts';
 import { Search, ArrowLeft } from 'lucide-react';
+import { ROUTES } from '../utils/routes';
 
 function SearchResults() {
     const [searchParams] = useSearchParams();
@@ -10,10 +11,15 @@ function SearchResults() {
 
     const navigate = useNavigate();
 
+    // Scroll to top when the search query changes
     useEffect(() => {
         window.scrollTo(0, 0);
     }, [query, categoryParam]);
 
+    // FIX: Provide a stable reference for empty filters to prevent the infinite loop in DropshipProducts
+    const emptyFilters = useMemo(() => ({}), []);
+
+    // Empty State (No query or category)
     if (!query && categoryParam === 'All Categories') {
         return (
             <div className="mx-auto w-full max-w-7xl px-4 py-24 text-center sm:px-6 lg:px-8">
@@ -27,8 +33,8 @@ function SearchResults() {
                     Use the search bar above to find specific wholesale products, brands, or SKUs.
                 </p>
                 <button
-                    onClick={() => navigate('/')}
-                    className="bg-primary hover:bg-primary-light inline-flex items-center gap-2 rounded-full px-6 py-3 font-bold text-white transition-colors"
+                    onClick={() => navigate(ROUTES.CATALOG)}
+                    className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-6 py-3 font-bold text-white transition-colors hover:bg-slate-800"
                 >
                     <ArrowLeft size={18} /> Return to Catalog
                 </button>
@@ -36,25 +42,36 @@ function SearchResults() {
         );
     }
 
+    // Results State
     return (
         <div className="animate-in fade-in z-10 mx-auto w-full max-w-7xl px-4 py-8 duration-300 sm:px-6 lg:px-8 lg:py-12">
+            {/* NEW: Back Navigation */}
+            <button
+                onClick={() => navigate(ROUTES.CATALOG)}
+                className="mb-6 flex items-center gap-1 text-sm font-bold text-slate-500 hover:text-slate-900"
+            >
+                <ArrowLeft size={16} /> Back to Catalog
+            </button>
+
+            {/* Results Header */}
             <div className="mb-8 border-b border-slate-200 pb-6">
-                <p className="text-primary mb-2 text-sm font-bold tracking-wider uppercase">
+                <p className="mb-2 text-sm font-bold tracking-wider text-emerald-600 uppercase">
                     {query ? 'Search Results' : 'Category View'}
                 </p>
                 <h1 className="text-3xl font-extrabold text-slate-900">
                     {query ? `Matches for "${query}"` : `${categoryParam} Products`}
                 </h1>
-                <p className="mt-2 text-slate-500">
+                <p className="mt-2 text-sm font-medium text-slate-500">
                     Showing wholesale availability and bulk pricing.
                 </p>
             </div>
 
-            {}
+            {/* The Product Grid/List */}
             <DropshipProducts
                 initialCategory={categoryParam}
                 globalSearchQuery={query}
                 hideTitle={true}
+                filters={emptyFilters} // Passes the stable object to kill the infinite loop
             />
         </div>
     );
