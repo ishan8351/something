@@ -70,10 +70,10 @@ const userSchema = new mongoose.Schema(
     { timestamps: true }
 );
 // --- Security Hooks ---
-userSchema.pre('save', async function (next) {
-    if (!this.isModified('passwordHash')) return next();
+userSchema.pre('save', async function () {
+    if (!this.isModified('passwordHash')) return;
+    
     this.passwordHash = await bcrypt.hash(this.passwordHash, 10);
-    next(); // Added explicit next() for safer middleware execution
 });
 
 userSchema.methods.isPasswordCorrect = async function (password) {
