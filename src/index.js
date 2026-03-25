@@ -1,6 +1,7 @@
 import connectDB from './db/index.js';
 import { app } from './app.js';
 import cron from 'node-cron';
+import { syncProductRtoRates } from './services/some.service.js';
 
 connectDB()
     .then(() => {

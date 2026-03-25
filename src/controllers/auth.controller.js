@@ -20,20 +20,13 @@ const cookieOptions = {
 const generateAccessAndRefreshTokens = async (userId) => {
     const user = await User.findById(userId);
     const accessToken = user.generateAccessToken();
-
-    // Generate Refresh Token
-    const refreshToken = jwt.sign(
-        { _id: user._id },
-        process.env.REFRESH_TOKEN_SECRET || 'fallback_refresh_secret',
-        { expiresIn: process.env.REFRESH_TOKEN_EXPIRY || '7d' }
-    );
+    const refreshToken = user.generateRefreshToken();
 
     user.refreshToken = refreshToken;
     await user.save({ validateBeforeSave: false });
 
     return { accessToken, refreshToken };
 };
-
 /**
  * @desc    Generate and send OTP
  * @route   POST /api/auth/send-otp
