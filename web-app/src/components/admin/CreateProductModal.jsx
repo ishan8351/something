@@ -6,7 +6,6 @@ const CreateProductModal = ({ isOpen, onClose, onSuccess }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [images, setImages] = useState([]);
 
-    
     const [formData, setFormData] = useState({
         title: '',
         sku: '',
@@ -19,10 +18,9 @@ const CreateProductModal = ({ isOpen, onClose, onSuccess }) => {
         gstSlab: '18',
         status: 'active',
         descriptionHTML: '',
-        categoryId: '60d5ecb54ab24c001f3e3a4b', 
+        categoryId: '60d5ecb54ab24c001f3e3a4b',
     });
 
-    
     const [tiers, setTiers] = useState([]);
 
     if (!isOpen) return null;
@@ -67,9 +65,7 @@ const CreateProductModal = ({ isOpen, onClose, onSuccess }) => {
             JSON.stringify({ stock: Number(formData.stock), alertThreshold: 10 })
         );
 
-        
         if (tiers.length > 0) {
-            
             const cleanedTiers = tiers.map((t) => ({
                 minQty: Number(t.minQty),
                 maxQty: t.maxQty ? Number(t.maxQty) : undefined,
@@ -83,7 +79,6 @@ const CreateProductModal = ({ isOpen, onClose, onSuccess }) => {
         });
 
         try {
-            
             await api.post('/products', data, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });

@@ -14,14 +14,11 @@ import { authValidation } from '../validations/auth.validation.js';
 
 const router = Router();
 
-
-
 router.post('/login', loginUser);
 router.post('/refresh-token', refreshAccessToken);
-router.post('/send-otp', sendOtp); 
+router.post('/send-otp', sendOtp);
 router.post('/login-otp', loginWithOtp);
 router.post('/register', registerUser);
-
 
 router.post('/logout', verifyJWT, logoutUser);
 router.get('/me', verifyJWT, getCurrentUser);

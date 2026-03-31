@@ -4,7 +4,7 @@ import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import jwt from 'jsonwebtoken';
-import bcrypt from 'bcrypt'; 
+import bcrypt from 'bcrypt';
 
 const cookieOptions = {
     httpOnly: true,
@@ -99,10 +99,6 @@ export const loginWithOtp = asyncHandler(async (req, res) => {
         );
 });
 
-
-
-
-
 export const getAllUsers = asyncHandler(async (req, res) => {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
@@ -158,13 +154,13 @@ export const updateKycStatus = asyncHandler(async (req, res) => {
 
     const updateData = { kycStatus };
     if (kycStatus === 'APPROVED') {
-        updateData.isActive = true; 
-        updateData.kycRejectionReason = null; 
-        updateData.role = 'RESELLER'; 
-        updateData.isVerifiedB2B = true; 
+        updateData.isActive = true;
+        updateData.kycRejectionReason = null;
+        updateData.role = 'RESELLER';
+        updateData.isVerifiedB2B = true;
     } else if (kycStatus === 'REJECTED') {
         updateData.kycRejectionReason = kycRejectionReason || 'Details do not match our records.';
-        updateData.isVerifiedB2B = false; 
+        updateData.isVerifiedB2B = false;
     }
 
     const user = await User.findByIdAndUpdate(req.params.id, updateData, { new: true }).select(
@@ -203,10 +199,6 @@ export const toggleUserStatus = asyncHandler(async (req, res) => {
         );
 });
 
-
-
-
-
 export const updateMyProfile = asyncHandler(async (req, res) => {
     const {
         name,
@@ -226,7 +218,6 @@ export const updateMyProfile = asyncHandler(async (req, res) => {
     if (gstin) updateData.gstin = gstin;
     if (billingAddress) updateData.billingAddress = billingAddress;
 
-    
     if (emailNotifications !== undefined) updateData.emailNotifications = emailNotifications;
     if (orderSms !== undefined) updateData.orderSms = orderSms;
     if (promotionalEmails !== undefined) updateData.promotionalEmails = promotionalEmails;
@@ -240,13 +231,11 @@ export const updateMyProfile = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, user, 'Profile updated successfully'));
 });
 
-
 export const updateAvatar = asyncHandler(async (req, res) => {
     if (!req.file) {
         throw new ApiError(400, 'Please select a valid image file (JPEG, PNG, or WEBP)');
     }
 
-    
     const avatarUrl = `/avatars/${req.file.filename}`;
 
     const user = await User.findByIdAndUpdate(
@@ -261,7 +250,6 @@ export const updateAvatar = asyncHandler(async (req, res) => {
 
     return res.status(200).json(new ApiResponse(200, user, 'Profile photo updated successfully'));
 });
-
 
 export const updatePassword = asyncHandler(async (req, res) => {
     const { oldPassword, newPassword } = req.body;
@@ -278,18 +266,12 @@ export const updatePassword = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, null, 'Password updated successfully'));
 });
 
-
-
-
-
 export const updateKycDetails = asyncHandler(async (req, res) => {
     const { gstin, panNumber, billingAddress, bankDetails } = req.body;
 
     const user = await User.findById(req.user._id);
     if (!user) throw new ApiError(404, 'User not found');
 
-    
-    
     if (user.kycStatus === 'APPROVED') {
         throw new ApiError(
             403,
@@ -297,25 +279,21 @@ export const updateKycDetails = asyncHandler(async (req, res) => {
         );
     }
 
-    
     if (gstin) user.gstin = gstin;
-    if (panNumber) user.panNumber = panNumber; 
+    if (panNumber) user.panNumber = panNumber;
     if (billingAddress) user.billingAddress = billingAddress;
     if (bankDetails) user.bankDetails = bankDetails;
 
-    
     user.kycStatus = 'PENDING';
 
     await user.save({ validateBeforeSave: false });
 
-    
     const updatedUser = await User.findById(user._id).select('-passwordHash -refreshToken');
 
     return res
         .status(200)
         .json(new ApiResponse(200, updatedUser, 'KYC details submitted for review'));
 });
-
 
 export const updateUserRole = asyncHandler(async (req, res) => {
     const { id } = req.params;
@@ -330,7 +308,6 @@ export const updateUserRole = asyncHandler(async (req, res) => {
         throw new ApiError(404, 'User not found in system.');
     }
 
-    
     if (userToUpdate._id.toString() === req.user._id.toString() && role === 'CUSTOMER') {
         throw new ApiError(403, 'You cannot demote yourself to a Customer.');
     }

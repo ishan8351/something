@@ -9,7 +9,7 @@ import {
     Wallet,
     Package,
     ArrowLeft,
-    ArrowRight, 
+    ArrowRight,
     Building2,
     FileText,
     AlertCircle,

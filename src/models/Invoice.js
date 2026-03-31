@@ -36,7 +36,6 @@ const invoiceSchema = new mongoose.Schema(
         orderId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Order',
-            
         },
         resellerId: {
             type: mongoose.Schema.Types.ObjectId,
@@ -46,7 +45,7 @@ const invoiceSchema = new mongoose.Schema(
 
         invoiceType: {
             type: String,
-            
+
             enum: [
                 'B2B_WHOLESALE',
                 'DROPSHIP_PLATFORM_FEE',
@@ -57,7 +56,6 @@ const invoiceSchema = new mongoose.Schema(
             required: true,
         },
 
-        
         isInterState: {
             type: Boolean,
             required: function () {
@@ -94,7 +92,6 @@ const invoiceSchema = new mongoose.Schema(
 
         items: [invoiceItemSchema],
 
-        
         totalTaxableValue: {
             type: Number,
             required: function () {
@@ -106,7 +103,6 @@ const invoiceSchema = new mongoose.Schema(
         totalIgst: { type: Number, default: 0 },
         grandTotal: { type: Number, required: true },
 
-        
         paymentStatus: {
             type: String,
             enum: ['UNPAID', 'PARTIAL', 'PAID'],
@@ -118,7 +114,7 @@ const invoiceSchema = new mongoose.Schema(
             default: 'DUE_ON_RECEIPT',
         },
         dueDate: { type: Date },
-        razorpayOrderId: { type: String }, 
+        razorpayOrderId: { type: String },
 
         status: {
             type: String,
@@ -130,7 +126,6 @@ const invoiceSchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
-
 
 invoiceSchema.index({ resellerId: 1 });
 invoiceSchema.index({ orderId: 1 });

@@ -6,7 +6,6 @@ import { ChevronDown, Filter, AlignJustify, LayoutGrid, Box } from 'lucide-react
 import api from '../utils/api.js';
 import { useDebounce } from '../hooks/useDebounce';
 
-
 import ProductFilterSidebar from '../components/ProductFilterSidebar';
 import ProductCard from '../components/ProductCard';
 import ProductTableRow from '../components/ProductTableRow';
@@ -27,7 +26,6 @@ export default function DropshipProducts({
     const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
     const [viewMode, setViewMode] = useState('grid');
 
-    
     const [category, setCategory] = useState(initialCategory);
     const [sort, setSort] = useState('default');
     const [minPrice, setMinPrice] = useState('');
@@ -43,11 +41,9 @@ export default function DropshipProducts({
         vendor: 'all',
     });
 
-    
     const debouncedMinPrice = useDebounce(minPrice, 500);
     const debouncedMaxPrice = useDebounce(maxPrice, 500);
 
-    
     const stringifiedFilters = JSON.stringify(filters);
     useEffect(() => {
         const parsedFilters = JSON.parse(stringifiedFilters);
@@ -92,7 +88,6 @@ export default function DropshipProducts({
         return found ? found._id : null;
     }, [category, dbCategories]);
 
-    
     const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useInfiniteQuery({
         queryKey: [
             'products',
@@ -118,8 +113,6 @@ export default function DropshipProducts({
 
             if (maxDispatchDays) params.append('maxShippingDays', maxDispatchDays);
             if (verifiedOnly) params.append('isVerifiedSupplier', 'true');
-
-            
 
             if (b2bFilters.moq === 'under-50') params.append('maxMoq', '50');
             else if (b2bFilters.moq === '50-500') {
@@ -172,7 +165,6 @@ export default function DropshipProducts({
                 };
             });
 
-        
         if (b2bFilters.margin > 0) {
             mappedProducts = mappedProducts.filter((p) => p.margin >= b2bFilters.margin);
         }
@@ -262,7 +254,6 @@ export default function DropshipProducts({
                     setMinPrice={setMinPrice}
                     maxPrice={maxPrice}
                     setMaxPrice={setMaxPrice}
-
                     maxDispatchDays={maxDispatchDays}
                     setMaxDispatchDays={setMaxDispatchDays}
                     verifiedOnly={verifiedOnly}
@@ -300,7 +291,6 @@ export default function DropshipProducts({
                             </button>
                         </div>
                     ) : (
-                        
                         <AnimatePresence mode="wait">
                             <motion.div
                                 key={viewMode}

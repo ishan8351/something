@@ -3,9 +3,8 @@ import { API_BASE_URL } from './apiBaseUrl.js';
 
 const api = axios.create({
     baseURL: API_BASE_URL,
-    withCredentials: true, 
+    withCredentials: true,
 });
-
 
 let isRefreshing = false;
 let failedQueue = [];
@@ -33,25 +32,20 @@ api.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
 
-        
         if (error.response?.status === 401 && !originalRequest._retry) {
-            
-            
             if (
                 originalRequest.url.includes('/auth/login') ||
                 originalRequest.url.includes('/auth/register') ||
                 originalRequest.url.includes('/auth/refresh-token') ||
-                originalRequest.url.includes('/auth/me') 
+                originalRequest.url.includes('/auth/me')
             ) {
                 return Promise.reject(error);
             }
 
-            
             if (originalRequest.url.includes('/auth/refresh-token')) {
                 return Promise.reject(error);
             }
 
-            
             if (isRefreshing) {
                 return new Promise(function (resolve, reject) {
                     failedQueue.push({ resolve, reject });
@@ -68,19 +62,16 @@ api.interceptors.response.use(
             isRefreshing = true;
 
             try {
-                
                 await api.post('/auth/refresh-token');
 
                 isRefreshing = false;
                 processQueue(null);
 
-                
                 return api(originalRequest);
             } catch (refreshError) {
                 isRefreshing = false;
                 processQueue(refreshError);
 
-                
                 window.dispatchEvent(new Event('auth:unauthorized'));
                 return Promise.reject(refreshError);
             }

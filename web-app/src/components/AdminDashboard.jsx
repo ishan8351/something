@@ -14,7 +14,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Navbar from './Navbar';
 import BulkUpload from './BulkUpload';
 
-
 import AdminOverview from './admin/AdminOverview';
 import AdminOrders from './admin/AdminOrders';
 import AdminProducts from './admin/AdminProducts';
@@ -37,7 +36,7 @@ const AdminDashboard = () => {
     useEffect(() => {
         if (location.state?.tab) {
             setActiveTab(location.state.tab);
-            
+
             window.history.replaceState({}, document.title);
         }
     }, [location.state]);

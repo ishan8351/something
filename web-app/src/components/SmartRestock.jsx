@@ -2,23 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, TrendingDown, PackagePlus, Loader2 } from 'lucide-react';
 import api from '../utils/api';
-import { useCartStore } from '../store/cartStore'; 
+import { useCartStore } from '../store/cartStore';
 
 const SmartRestock = () => {
     const [recommendations, setRecommendations] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [addingItemId, setAddingItemId] = useState(null); 
+    const [addingItemId, setAddingItemId] = useState(null);
 
-    
     const addToCart = useCartStore((state) => state.addToCart);
 
     useEffect(() => {
         const fetchPredictions = async () => {
             try {
-                
-                
-                
-
                 setTimeout(() => {
                     setRecommendations([
                         {
@@ -53,10 +48,9 @@ const SmartRestock = () => {
         fetchPredictions();
     }, []);
 
-    
     const handleQuickAdd = async (productId, qty) => {
         setAddingItemId(productId);
-        
+
         await addToCart(productId, qty, 'WHOLESALE');
         setAddingItemId(null);
     };
@@ -99,7 +93,6 @@ const SmartRestock = () => {
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ delay: index * 0.1 }}
-                            
                             className="group flex flex-col justify-between rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition-all hover:-translate-y-1 hover:border-amber-400 hover:shadow-lg"
                         >
                             <div>
@@ -130,7 +123,6 @@ const SmartRestock = () => {
                                         handleQuickAdd(item.productId, item.suggestedQty)
                                     }
                                     disabled={addingItemId === item.productId}
-                                    
                                     className="flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-bold text-white transition-all hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                     {addingItemId === item.productId ? (

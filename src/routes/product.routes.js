@@ -14,7 +14,6 @@ import { verifyJWT, authorizeRoles } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import { productValidation } from '../validations/product.validation.js';
 
-
 const csvUpload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 50 * 1024 * 1024 },
@@ -22,16 +21,12 @@ const csvUpload = multer({
 
 const router = Router();
 
-
 router.get('/health', (req, res) => res.json({ status: 'ok', route: '/products/health' }));
-
 
 router.get('/', getProducts);
 router.post('/validate-bulk', verifyJWT, validateBulkOrder);
 
-
 router.get('/admin/all', verifyJWT, authorizeRoles('ADMIN'), getAllAdminProducts);
-
 
 router.post(
     '/import-csv',
@@ -48,7 +43,6 @@ router.post(
     validate(productValidation.createProduct),
     createProduct
 );
-
 
 router.get('/:id', getProductById);
 router.put('/:id', verifyJWT, authorizeRoles('ADMIN'), updateProduct);

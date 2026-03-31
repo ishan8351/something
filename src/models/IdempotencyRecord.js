@@ -6,8 +6,7 @@ const idempotencySchema = new mongoose.Schema({
         required: true,
         unique: true,
     },
-    
-    
+
     response: {
         type: mongoose.Schema.Types.Mixed,
         required: true,
@@ -15,7 +14,7 @@ const idempotencySchema = new mongoose.Schema({
     createdAt: {
         type: Date,
         default: Date.now,
-        expires: 86400, 
+        expires: 86400,
     },
 });
 

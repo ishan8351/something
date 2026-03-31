@@ -135,7 +135,6 @@ const Orders = () => {
 
     return (
         <div className="mx-auto mb-20 w-full max-w-7xl flex-1 px-4 py-8 font-sans text-slate-900 sm:px-6 md:mb-0 lg:px-8 lg:py-12">
-            
             {}
             <div className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
                 <div>
@@ -163,7 +162,10 @@ const Orders = () => {
                                 Incoming Margins
                             </span>
                             <div className="text-2xl font-black text-emerald-900">
-                                ₹{pendingProfit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                ₹
+                                {pendingProfit.toLocaleString('en-IN', {
+                                    minimumFractionDigits: 2,
+                                })}
                             </div>
                         </div>
                     </div>
@@ -237,7 +239,7 @@ const Orders = () => {
                     <select
                         value={filter}
                         onChange={(e) => setFilter(e.target.value)}
-                        className="cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-extrabold text-slate-700 outline-none transition-all focus:border-indigo-400 focus:bg-white focus:ring-4 focus:ring-indigo-50"
+                        className="cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-extrabold text-slate-700 transition-all outline-none focus:border-indigo-400 focus:bg-white focus:ring-4 focus:ring-indigo-50"
                     >
                         <option value="ALL">All Statuses</option>
                         <option value="PENDING">Pending / Processing</option>
@@ -331,7 +333,10 @@ const Orders = () => {
                                                 <Wallet size={12} /> Platform Cost
                                             </p>
                                             <p className="text-lg font-black text-slate-900">
-                                                ₹{ord.totalPlatformCost?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                ₹
+                                                {ord.totalPlatformCost?.toLocaleString('en-IN', {
+                                                    minimumFractionDigits: 2,
+                                                })}
                                             </p>
                                         </div>
 
@@ -343,7 +348,12 @@ const Orders = () => {
                                                         <TrendingUp size={12} /> Net Margin
                                                     </p>
                                                     <p className="text-lg font-black text-emerald-600">
-                                                        +₹{(ord.resellerProfitMargin || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                        +₹
+                                                        {(
+                                                            ord.resellerProfitMargin || 0
+                                                        ).toLocaleString('en-IN', {
+                                                            minimumFractionDigits: 2,
+                                                        })}
                                                     </p>
                                                 </div>
                                             </>
@@ -390,7 +400,6 @@ const Orders = () => {
                                 {}
                                 {isExpanded && (
                                     <div className="grid grid-cols-1 gap-8 border-t border-slate-200 bg-white p-6 lg:grid-cols-12">
-                                        
                                         {}
                                         <div className="space-y-4 lg:col-span-7 xl:col-span-8">
                                             <h4 className="flex items-center gap-2 text-xs font-extrabold tracking-widest text-slate-400 uppercase">
@@ -412,7 +421,7 @@ const Orders = () => {
                                                             )}
                                                         </div>
                                                         <div className="min-w-0 flex-1">
-                                                            <p className="line-clamp-2 text-sm font-bold text-slate-900 leading-tight">
+                                                            <p className="line-clamp-2 text-sm leading-tight font-bold text-slate-900">
                                                                 {item.title}
                                                             </p>
                                                             <div className="mt-2 flex items-center gap-2 text-xs font-bold text-slate-500">
@@ -427,10 +436,17 @@ const Orders = () => {
                                                                 Base Rate
                                                             </p>
                                                             <p className="text-sm font-black text-slate-900">
-                                                                ₹{item.platformBasePrice?.toLocaleString('en-IN')}
+                                                                ₹
+                                                                {item.platformBasePrice?.toLocaleString(
+                                                                    'en-IN'
+                                                                )}
                                                             </p>
                                                             <p className="mt-0.5 text-[10px] font-bold text-slate-500">
-                                                                + ₹{item.taxAmountPerUnit?.toLocaleString('en-IN')} Tax
+                                                                + ₹
+                                                                {item.taxAmountPerUnit?.toLocaleString(
+                                                                    'en-IN'
+                                                                )}{' '}
+                                                                Tax
                                                             </p>
                                                         </div>
                                                     </div>
@@ -444,41 +460,87 @@ const Orders = () => {
                                                 </h4>
                                                 <div className="flex flex-col space-y-2.5 text-sm text-slate-600">
                                                     <div className="flex justify-between">
-                                                        <span className="font-medium">Platform Subtotal</span>
-                                                        <span className="font-bold text-slate-900">₹{ord.subTotal?.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
-                                                    </div>
-                                                    <div className="flex justify-between">
-                                                        <span className="font-medium">Tax (GST)</span>
-                                                        <span className="font-bold text-slate-900">+ ₹{ord.taxTotal?.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
-                                                    </div>
-                                                    
-                                                    {}
-                                                    <div className="flex justify-between">
-                                                        <span className="font-medium">Delivery Charge</span>
+                                                        <span className="font-medium">
+                                                            Platform Subtotal
+                                                        </span>
                                                         <span className="font-bold text-slate-900">
-                                                            + ₹{(ord.deliveryCharge || ord.shippingTotal || 0).toLocaleString('en-IN', {minimumFractionDigits: 2})}
+                                                            ₹
+                                                            {ord.subTotal?.toLocaleString('en-IN', {
+                                                                minimumFractionDigits: 2,
+                                                            })}
                                                         </span>
                                                     </div>
-                                                    {(ord.packingCharge !== undefined) && (
+                                                    <div className="flex justify-between">
+                                                        <span className="font-medium">
+                                                            Tax (GST)
+                                                        </span>
+                                                        <span className="font-bold text-slate-900">
+                                                            + ₹
+                                                            {ord.taxTotal?.toLocaleString('en-IN', {
+                                                                minimumFractionDigits: 2,
+                                                            })}
+                                                        </span>
+                                                    </div>
+
+                                                    {}
+                                                    <div className="flex justify-between">
+                                                        <span className="font-medium">
+                                                            Delivery Charge
+                                                        </span>
+                                                        <span className="font-bold text-slate-900">
+                                                            + ₹
+                                                            {(
+                                                                ord.deliveryCharge ||
+                                                                ord.shippingTotal ||
+                                                                0
+                                                            ).toLocaleString('en-IN', {
+                                                                minimumFractionDigits: 2,
+                                                            })}
+                                                        </span>
+                                                    </div>
+                                                    {ord.packingCharge !== undefined && (
                                                         <div className="flex justify-between">
-                                                            <span className="font-medium">Packing & Handling</span>
+                                                            <span className="font-medium">
+                                                                Packing & Handling
+                                                            </span>
                                                             <span className="font-bold text-slate-900">
-                                                                + ₹{(ord.packingCharge || 0).toLocaleString('en-IN', {minimumFractionDigits: 2})}
+                                                                + ₹
+                                                                {(
+                                                                    ord.packingCharge || 0
+                                                                ).toLocaleString('en-IN', {
+                                                                    minimumFractionDigits: 2,
+                                                                })}
                                                             </span>
                                                         </div>
                                                     )}
-                                                    
+
                                                     {}
                                                     {ord.codCharge > 0 && (
                                                         <div className="flex justify-between text-amber-700">
-                                                            <span className="font-medium">COD Fee</span>
-                                                            <span className="font-bold">+ ₹{ord.codCharge?.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                                                            <span className="font-medium">
+                                                                COD Fee
+                                                            </span>
+                                                            <span className="font-bold">
+                                                                + ₹
+                                                                {ord.codCharge?.toLocaleString(
+                                                                    'en-IN',
+                                                                    { minimumFractionDigits: 2 }
+                                                                )}
+                                                            </span>
                                                         </div>
                                                     )}
-                                                    
+
                                                     <div className="mt-2 flex justify-between border-t border-dashed border-slate-300 pt-3 text-base">
-                                                        <span className="font-extrabold text-slate-900">Total Deducted</span>
-                                                        <span className="font-black text-slate-900">₹{ord.totalPlatformCost?.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                                                        <span className="font-extrabold text-slate-900">
+                                                            Total Deducted
+                                                        </span>
+                                                        <span className="font-black text-slate-900">
+                                                            ₹
+                                                            {ord.totalPlatformCost?.toLocaleString(
+                                                                'en-IN',
+                                                                { minimumFractionDigits: 2 }
+                                                            )}
+                                                        </span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -499,9 +561,26 @@ const Orders = () => {
                                                             {ord.endCustomerDetails.phone}
                                                         </p>
                                                         <div className="mt-3 border-t border-amber-200/50 pt-3 font-medium">
-                                                            <p>{ord.endCustomerDetails.address.street}</p>
-                                                            <p>{ord.endCustomerDetails.address.city}, {ord.endCustomerDetails.address.state}</p>
-                                                            <p className="mt-1 font-bold text-slate-900">{ord.endCustomerDetails.address.zip}</p>
+                                                            <p>
+                                                                {
+                                                                    ord.endCustomerDetails.address
+                                                                        .street
+                                                                }
+                                                            </p>
+                                                            <p>
+                                                                {
+                                                                    ord.endCustomerDetails.address
+                                                                        .city
+                                                                }
+                                                                ,{' '}
+                                                                {
+                                                                    ord.endCustomerDetails.address
+                                                                        .state
+                                                                }
+                                                            </p>
+                                                            <p className="mt-1 font-bold text-slate-900">
+                                                                {ord.endCustomerDetails.address.zip}
+                                                            </p>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -511,9 +590,12 @@ const Orders = () => {
                                                         <Box size={16} /> Delivery Destination
                                                     </h4>
                                                     <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-5 text-sm font-medium text-slate-700">
-                                                        <p className="font-black text-slate-900">Standard B2B Delivery</p>
+                                                        <p className="font-black text-slate-900">
+                                                            Standard B2B Delivery
+                                                        </p>
                                                         <p className="mt-1 text-slate-600">
-                                                            Items dispatched to your registered HQ address based on KYC.
+                                                            Items dispatched to your registered HQ
+                                                            address based on KYC.
                                                         </p>
                                                     </div>
                                                 </div>
@@ -525,11 +607,16 @@ const Orders = () => {
                                                 </h4>
                                                 <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                                                     <span className="text-sm font-black text-slate-900">
-                                                        {ord.paymentMethod === 'COD' ? 'Cash on Delivery' : 'Prepaid (Wallet)'}
+                                                        {ord.paymentMethod === 'COD'
+                                                            ? 'Cash on Delivery'
+                                                            : 'Prepaid (Wallet)'}
                                                     </span>
                                                     {ord.paymentMethod === 'COD' && (
                                                         <span className="rounded-lg bg-amber-100 px-2.5 py-1 text-[10px] font-extrabold tracking-widest text-amber-800 uppercase">
-                                                            To Collect: ₹{ord.amountToCollect?.toLocaleString('en-IN')}
+                                                            To Collect: ₹
+                                                            {ord.amountToCollect?.toLocaleString(
+                                                                'en-IN'
+                                                            )}
                                                         </span>
                                                     )}
                                                 </div>

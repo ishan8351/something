@@ -12,22 +12,12 @@ import { verifyJWT, authorizeRoles } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
-
 router.use(verifyJWT);
-
-
-
 
 router.get('/admin/all', authorizeRoles('ADMIN'), getAllInvoices);
 
-
-
-
 router.get('/', listMyInvoices);
 router.route('/me').get(verifyJWT, getMyInvoices);
-
-
-
 
 router.get('/:id', getInvoice);
 router.get('/:id/pdf', generateInvoicePDF);

@@ -33,9 +33,6 @@ createRoot(document.getElementById('root')).render(
     </StrictMode>
 );
 
-
-
-
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker
         .getRegistrations()
@@ -43,7 +40,7 @@ if ('serviceWorker' in navigator) {
             for (let registration of registrations) {
                 registration.unregister();
                 console.log('💀 Zombie Service Worker Killed successfully!');
-                
+
                 setTimeout(() => window.location.reload(), 500);
             }
         })

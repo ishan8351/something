@@ -12,7 +12,6 @@ const orderItemSnapshotSchema = new mongoose.Schema(
         platformBasePrice: { type: Number, required: true },
         resellerSellingPrice: { type: Number, required: true },
 
-        
         taxAmountPerUnit: { type: Number, required: true },
         gstSlab: { type: Number, required: true },
         shippingCost: { type: Number, required: true },
@@ -94,7 +93,6 @@ const orderSchema = new mongoose.Schema(
             default: 'COD',
         },
 
-        
         subTotal: { type: Number, required: true, default: 0 },
         taxTotal: { type: Number, required: true, default: 0 },
         shippingTotal: { type: Number, required: true, default: 0 },

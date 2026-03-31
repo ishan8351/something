@@ -16,12 +16,12 @@ const walletTransactionSchema = new mongoose.Schema(
         purpose: {
             type: String,
             enum: [
-                'WALLET_RECHARGE', 
-                'ORDER_DEDUCTION', 
-                'PROFIT_CREDIT', 
-                'RTO_PENALTY', 
-                'REFUND', 
-                'BANK_WITHDRAWAL', 
+                'WALLET_RECHARGE',
+                'ORDER_DEDUCTION',
+                'PROFIT_CREDIT',
+                'RTO_PENALTY',
+                'REFUND',
+                'BANK_WITHDRAWAL',
             ],
             required: true,
         },
@@ -30,17 +30,17 @@ const walletTransactionSchema = new mongoose.Schema(
             required: true,
             min: 1,
         },
-        
+
         closingBalance: {
             type: Number,
             required: true,
         },
         referenceId: {
-            type: String, 
+            type: String,
             required: true,
         },
         description: {
-            type: String, 
+            type: String,
         },
         status: {
             type: String,

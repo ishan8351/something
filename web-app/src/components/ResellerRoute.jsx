@@ -7,10 +7,8 @@ const ResellerRoute = () => {
     const { user, loading } = useContext(AuthContext);
     const location = useLocation();
 
-    
     if (loading) return null;
 
-    
     if (!user) {
         return <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />;
     }
@@ -18,11 +16,9 @@ const ResellerRoute = () => {
     const hasAccess = user.role === 'ADMIN' || user.role === 'RESELLER' || user.role === 'CUSTOMER';
 
     if (!hasAccess) {
-        
         return <Navigate to={ROUTES.HOME} replace />;
     }
 
-    
     return <Outlet />;
 };
 

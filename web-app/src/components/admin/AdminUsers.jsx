@@ -34,7 +34,6 @@ const AdminUsers = () => {
     const [editForm, setEditForm] = useState({});
     const [isSaving, setIsSaving] = useState(false);
 
-    
     const [viewKycUser, setViewKycUser] = useState(null);
 
     useEffect(() => {
@@ -93,7 +92,7 @@ const AdminUsers = () => {
                 'Please enter a rejection reason for the reseller (e.g. "GSTIN Mismatch" or "Address document blurred"):',
                 'Invalid documents'
             );
-            if (!reason) return; 
+            if (!reason) return;
         } else if (
             !window.confirm(`Are you sure you want to mark this Reseller as ${newStatus}?`)
         ) {

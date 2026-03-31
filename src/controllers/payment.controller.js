@@ -64,7 +64,6 @@ export const verifyPaymentSignature = asyncHandler(async (req, res) => {
     session.startTransaction();
 
     try {
-        
         const existingPayment = await Payment.findOne({
             gatewayPaymentId: razorpay_payment_id,
         }).session(session);
@@ -114,7 +113,7 @@ export const verifyPaymentSignature = asyncHandler(async (req, res) => {
                     gatewayPaymentId: razorpay_payment_id,
                     gatewaySignature: razorpay_signature,
                     amount: invoice.grandTotal,
-                    paymentMethod: 'UNKNOWN', 
+                    paymentMethod: 'UNKNOWN',
                     purpose:
                         invoice.invoiceType === 'WALLET_TOPUP'
                             ? 'WALLET_RECHARGE'
@@ -136,7 +135,6 @@ export const verifyPaymentSignature = asyncHandler(async (req, res) => {
                 await order.save({ session });
             }
         } else if (invoice.invoiceType === 'WALLET_TOPUP') {
-            
             const updatedUser = await User.findByIdAndUpdate(
                 resellerId,
                 { $inc: { walletBalance: invoice.grandTotal } },
@@ -145,7 +143,6 @@ export const verifyPaymentSignature = asyncHandler(async (req, res) => {
 
             if (!updatedUser) throw new ApiError(404, 'User not found during wallet update');
 
-            
             await WalletTransaction.create(
                 [
                     {
@@ -181,13 +178,11 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
 
     if (!invoiceId) throw new ApiError(400, 'invoiceId is required');
 
-    
     const invoice = await Invoice.findOne({ _id: invoiceId, resellerId });
 
     if (!invoice) throw new ApiError(404, 'Invoice not found or does not belong to user');
     if (invoice.paymentStatus === 'PAID') throw new ApiError(400, 'Invoice is already paid');
 
-    
     const amountInINR = invoice.grandTotal;
 
     const options = {

@@ -61,4 +61,6 @@
 }
 
 .no-scrollbar {
-    -ms-overflow-style: none;     scrollbar-width: none; }
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}

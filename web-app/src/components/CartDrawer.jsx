@@ -17,7 +17,6 @@ import {
 import { useCartStore } from '../store/cartStore';
 import { AuthContext } from '../AuthContext';
 
-
 const drawerVariants = {
     hidden: { x: '100%', transition: { type: 'tween', duration: 0.3, ease: 'easeInOut' } },
     visible: { x: 0, transition: { type: 'tween', duration: 0.3, ease: 'easeInOut' } },
@@ -59,12 +58,10 @@ const CartDrawer = ({ isOpen, onClose }) => {
         useCartStore();
     const { user, isKycApproved } = useContext(AuthContext);
 
-    
     useEffect(() => {
         if (isOpen) fetchCart();
     }, [isOpen, fetchCart]);
 
-    
     useEffect(() => {
         if (isOpen) {
             document.body.style.overflow = 'hidden';
@@ -166,7 +163,6 @@ const CartDrawer = ({ isOpen, onClose }) => {
                                                 <motion.div
                                                     layout
                                                     variants={itemVariants}
-                                                    
                                                     key={`${item.productId?._id}-${item.orderType}`}
                                                     className="group relative flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md"
                                                 >

@@ -4,7 +4,6 @@ import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 
-
 import healthRouter from './routes/health.routes.js';
 import authRouter from './routes/auth.routes.js';
 import userRouter from './routes/user.routes.js';
@@ -22,9 +21,6 @@ import webhookRouter from './routes/webhook.routes.js';
 
 const app = express();
 app.set('trust proxy', 1);
-
-
-
 
 app.use(helmet());
 
@@ -47,12 +43,11 @@ app.use(
                 callback(new Error('Not allowed by CORS'));
             }
         },
-        credentials: true, 
+        credentials: true,
         exposedHeaders: ['Content-Disposition'],
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     })
 );
-
 
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -61,14 +56,10 @@ const limiter = rateLimit({
 });
 app.use('/api', limiter);
 
-
 app.use((req, res, next) => {
     console.log(`📡 [${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
     next();
 });
-
-
-
 
 app.use(express.json({ limit: '20kb' }));
 app.use(express.urlencoded({ extended: true, limit: '16kb' }));
@@ -76,37 +67,24 @@ app.use(cookieParser());
 app.use(express.static('public'));
 app.use('/api/webhooks', webhookRouter);
 
-
-
-
 const apiVersion = '/api/v1';
 app.use(`${apiVersion}/products`, productRouter);
-
 
 app.use(`${apiVersion}/health`, healthRouter);
 app.use(`${apiVersion}/auth`, authRouter);
 app.use(`${apiVersion}/users`, userRouter);
 
-
 app.use(`${apiVersion}/categories`, categoryRouter);
 app.use(`${apiVersion}/wishlist`, wishlistRouter);
 
-
 app.use(`${apiVersion}/cart`, cartRouter);
 app.use(`${apiVersion}/orders`, orderRouter);
-
 
 app.use(`${apiVersion}/invoices`, invoiceRouter);
 app.use(`${apiVersion}/payments`, paymentRouter);
 app.use(`${apiVersion}/wallet`, walletRouter);
 
-
 app.use(`${apiVersion}/analytics`, analyticsRouter);
-
-
-
-
-
 
 app.use((req, res, next) => {
     console.log(`❌ 404 Not Found: ${req.method} ${req.originalUrl}`);
@@ -124,7 +102,6 @@ app.use((err, req, res, next) => {
     const statusCode = err.statusCode || 500;
     const message = err.message || 'Internal Server Error';
 
-    
     if (statusCode !== 401) {
         console.error('🔥 Global Error Caught:', err);
     }

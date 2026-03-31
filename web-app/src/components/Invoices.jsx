@@ -33,22 +33,18 @@ const Invoices = () => {
             inv.orderId.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    
     const handleDownload = async (invoiceId, invoiceNumber) => {
         try {
             setDownloadingId(invoiceId);
 
-            
             const res = await api.get(`/invoices/${invoiceId}/pdf`, {
                 responseType: 'blob',
             });
 
-            
             const url = window.URL.createObjectURL(
                 new Blob([res.data], { type: 'application/pdf' })
             );
 
-            
             const link = document.createElement('a');
             link.href = url;
             link.setAttribute('download', `Tax_Invoice_${invoiceNumber}.pdf`);
@@ -56,7 +52,6 @@ const Invoices = () => {
             link.click();
             link.remove();
 
-            
             window.URL.revokeObjectURL(url);
 
             toast.success('Invoice downloaded successfully', { position: 'bottom-right' });

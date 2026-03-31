@@ -44,7 +44,7 @@ const OrderTracking = () => {
             }
         };
         fetchOrder();
-        
+
         const interval = setInterval(() => fetchOrder(true), 15000);
         return () => clearInterval(interval);
     }, [id]);
@@ -149,7 +149,6 @@ const OrderTracking = () => {
                         </h2>
                         <div className="relative space-y-8 border-l-2 border-slate-100 pl-4">
                             {(() => {
-                                
                                 const history =
                                     order.statusHistory && order.statusHistory.length > 0
                                         ? [...order.statusHistory].reverse()

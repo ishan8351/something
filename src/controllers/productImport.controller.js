@@ -8,7 +8,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 
 const toNum = (val) => {
     if (!val) return 0;
-    
+
     const str = String(val).replace(/[^\d.-]/g, '');
     const n = parseFloat(str);
     return isNaN(n) ? 0 : n;
@@ -47,7 +47,7 @@ export const importProductsFromCSV = asyncHandler(async (req, res) => {
     console.log(
         `📦 File received: ${req.file.originalname} (${(req.file.size / 1024 / 1024).toFixed(2)} MB)`
     );
-    
+
     const productMap = new Map();
     await new Promise((resolve, reject) => {
         const readable = Readable.from(req.file.buffer.toString('utf8'));
@@ -97,7 +97,6 @@ export const importProductsFromCSV = asyncHandler(async (req, res) => {
         );
     }
 
-    
     const categoryNames = [...new Set([...productMap.values()].map((p) => p.type || 'General'))];
     const categoryIdMap = new Map();
     for (const name of categoryNames) {
@@ -106,7 +105,6 @@ export const importProductsFromCSV = asyncHandler(async (req, res) => {
         categoryIdMap.set(name, cat._id);
     }
 
-    
     let inserted = 0;
     let updated = 0;
     let skipped = 0;

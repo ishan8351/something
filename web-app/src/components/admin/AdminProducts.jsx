@@ -34,7 +34,6 @@ const AdminProducts = () => {
         const fetchProducts = async () => {
             setLoading(true);
             try {
-                
                 const res = await api.get('/products/admin/all', {
                     params: {
                         page,
@@ -49,7 +48,6 @@ const AdminProducts = () => {
 
                 let fetchedProducts = res.data?.data?.products || res.data?.data?.data || [];
 
-                
                 fetchedProducts.sort((a, b) => {
                     const stockA = a.inventory?.stock || 0;
                     const stockB = b.inventory?.stock || 0;
@@ -72,7 +70,6 @@ const AdminProducts = () => {
     const submitProductUpdate = async (id) => {
         setIsSaving(true);
         try {
-            
             const res = await api.put(`/products/${id}`, {
                 dropshipBasePrice: Number(editForm.dropshipBasePrice),
                 suggestedRetailPrice: Number(editForm.suggestedRetailPrice),
@@ -81,7 +78,6 @@ const AdminProducts = () => {
                 'inventory.stock': Number(editForm.stock),
             });
 
-            
             setProducts((prev) => {
                 const updatedList = prev.map((p) => (p._id === id ? res.data.data : p));
                 return updatedList.sort(

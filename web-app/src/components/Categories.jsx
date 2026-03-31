@@ -7,7 +7,6 @@ import { getCategoryIcon } from '../utils/categoryIcons';
 function Categories({ onSelectCategory }) {
     const scrollContainerRef = useRef(null);
 
-    
     const { data: dbCategories = [] } = useQuery({
         queryKey: ['categories'],
         queryFn: async () => {

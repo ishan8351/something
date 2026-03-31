@@ -36,7 +36,6 @@ const AdminOrders = () => {
     const [editForm, setEditForm] = useState({});
     const [isSaving, setIsSaving] = useState(false);
 
-    // Export State
     const [isExportModalOpen, setIsExportModalOpen] = useState(false);
     const [exportStartDate, setExportStartDate] = useState('');
     const [exportEndDate, setExportEndDate] = useState('');
@@ -55,11 +54,10 @@ const AdminOrders = () => {
         const fetchOrders = async () => {
             setLoading(true);
             try {
-                
                 const res = await api.get('/orders/all', {
                     params: {
                         page,
-                        limit: 20, 
+                        limit: 20,
                         search: debouncedSearch,
                         status: filterOption === 'ALL' ? '' : filterOption,
                     },
@@ -137,11 +135,14 @@ const AdminOrders = () => {
             const url = window.URL.createObjectURL(new Blob([res.data]));
             const link = document.createElement('a');
             link.href = url;
-            link.setAttribute('download', `orders_export_${exportStartDate}_to_${exportEndDate}.csv`);
+            link.setAttribute(
+                'download',
+                `orders_export_${exportStartDate}_to_${exportEndDate}.csv`
+            );
             document.body.appendChild(link);
             link.click();
             link.remove();
-            
+
             toast.success('Export downloaded successfully!');
             setIsExportModalOpen(false);
         } catch (err) {
@@ -161,7 +162,7 @@ const AdminOrders = () => {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                     <button
                         onClick={() => setIsExportModalOpen(true)}
-                        className="flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700 border border-indigo-200 shadow-sm transition-colors hover:bg-indigo-100"
+                        className="flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700 shadow-sm transition-colors hover:bg-indigo-100"
                     >
                         <Download size={16} /> Export CSV
                     </button>
@@ -754,7 +755,7 @@ const AdminOrders = () => {
                         </>
                     )}
 
-                    {/* Export Modal */}
+                    {}
                     {isExportModalOpen && (
                         <>
                             <motion.div
@@ -768,11 +769,12 @@ const AdminOrders = () => {
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.95 }}
-                                className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl bg-white shadow-2xl"
+                                className="fixed top-1/2 left-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl bg-white shadow-2xl"
                             >
-                                <div className="border-b border-slate-100 bg-slate-50 px-6 py-4 flex items-center justify-between">
-                                    <h3 className="flex items-center gap-2 text-sm font-black text-slate-800 uppercase tracking-wider">
-                                        <Calendar size={16} className="text-indigo-600" /> Export Orders
+                                <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-6 py-4">
+                                    <h3 className="flex items-center gap-2 text-sm font-black tracking-wider text-slate-800 uppercase">
+                                        <Calendar size={16} className="text-indigo-600" /> Export
+                                        Orders
                                     </h3>
                                     <button
                                         onClick={() => setIsExportModalOpen(false)}
@@ -781,8 +783,8 @@ const AdminOrders = () => {
                                         <X size={16} />
                                     </button>
                                 </div>
-                                
-                                <div className="p-6 flex flex-col gap-4">
+
+                                <div className="flex flex-col gap-4 p-6">
                                     <div>
                                         <label className="mb-1.5 block text-[10px] font-extrabold tracking-wider text-slate-500 uppercase">
                                             Start Date
@@ -807,7 +809,7 @@ const AdminOrders = () => {
                                     </div>
                                 </div>
 
-                                <div className="border-t border-slate-100 bg-slate-50 px-6 py-4 flex gap-3">
+                                <div className="flex gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4">
                                     <button
                                         onClick={() => setIsExportModalOpen(false)}
                                         className="flex-1 rounded-lg border border-slate-300 bg-white py-2 text-xs font-extrabold text-slate-600 hover:bg-slate-50"
@@ -817,7 +819,7 @@ const AdminOrders = () => {
                                     <button
                                         onClick={handleExportOrders}
                                         disabled={isExporting}
-                                        className="flex-1 rounded-lg bg-indigo-600 py-2 text-xs font-extrabold text-white hover:bg-indigo-700 flex items-center justify-center gap-2 disabled:opacity-50"
+                                        className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-indigo-600 py-2 text-xs font-extrabold text-white hover:bg-indigo-700 disabled:opacity-50"
                                     >
                                         {isExporting ? 'Downloading...' : 'Download CSV'}
                                     </button>

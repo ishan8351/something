@@ -5,7 +5,6 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 
 export const verifyJWT = asyncHandler(async (req, res, next) => {
     try {
-        
         const token =
             req.cookies?.accessToken || req.header('Authorization')?.replace('Bearer ', '');
 
@@ -18,7 +17,6 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
             process.env.ACCESS_TOKEN_SECRET || 'fallback_secret'
         );
 
-        
         const user = await User.findOne({
             _id: decodedToken._id,
             isActive: true,
@@ -29,7 +27,6 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
             throw new ApiError(401, 'Invalid Access Token or Account Suspended');
         }
 
-        
         req.user = user;
         next();
     } catch (error) {
@@ -51,7 +48,7 @@ export const authorizeRoles = (...allowedRoles) => {
 
 export const requireKycApproved = asyncHandler(async (req, res, next) => {
     if (req.user.role === 'ADMIN') {
-        return next(); 
+        return next();
     }
 
     if (req.user.kycStatus !== 'APPROVED') {

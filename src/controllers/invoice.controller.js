@@ -13,7 +13,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export const getInvoice = asyncHandler(async (req, res) => {
-    
     const invoice = await Invoice.findOne({
         _id: req.params.id,
         resellerId: req.user._id,
@@ -25,7 +24,6 @@ export const getInvoice = asyncHandler(async (req, res) => {
 });
 
 export const listMyInvoices = asyncHandler(async (req, res) => {
-    
     const invoices = await Invoice.find({ resellerId: req.user._id })
         .populate('orderId')
         .sort({ createdAt: -1 });
@@ -45,17 +43,17 @@ export const getAllInvoices = asyncHandler(async (req, res) => {
 
     if (status !== 'ALL') {
         if (status === 'OVERDUE') {
-            query.paymentStatus = 'UNPAID'; 
+            query.paymentStatus = 'UNPAID';
             query.dueDate = { $lt: new Date() };
         } else {
-            query.paymentStatus = status; 
+            query.paymentStatus = status;
         }
     }
 
     if (search) {
         query['$or'] = [
             { invoiceNumber: { $regex: search, $options: 'i' } },
-            
+
             { 'billedTo.companyName': { $regex: search, $options: 'i' } },
             { 'billedTo.gstin': { $regex: search, $options: 'i' } },
         ];
@@ -81,27 +79,24 @@ export const getAllInvoices = asyncHandler(async (req, res) => {
 });
 
 export const getMyInvoices = asyncHandler(async (req, res) => {
-    
     const invoices = await Invoice.find({ resellerId: req.user._id })
         .sort({ createdAt: -1 })
         .populate('orderId', 'orderId');
 
-    
     const formattedInvoices = invoices.map((inv) => {
-        
         const totalGst = (inv.totalCgst || 0) + (inv.totalSgst || 0) + (inv.totalIgst || 0);
 
         return {
             _id: inv._id,
             invoiceNumber: inv.invoiceNumber,
-            orderId: inv.orderId?.orderId || 'WALLET-TOPUP', 
+            orderId: inv.orderId?.orderId || 'WALLET-TOPUP',
             date: inv.createdAt,
             taxableAmount: inv.totalTaxableValue || 0,
             gstAmount: totalGst,
             totalAmount: inv.grandTotal || 0,
             status: inv.paymentStatus || 'PAID',
             invoiceType: inv.invoiceType,
-            
+
             isItcEligible:
                 req.user.kycStatus === 'APPROVED' &&
                 !!req.user.gstin &&
@@ -118,7 +113,6 @@ export const markAsPaidManual = asyncHandler(async (req, res) => {
     const invoice = await Invoice.findById(req.params.id);
     if (!invoice) throw new ApiError(404, 'Invoice not found');
 
-    
     if (invoice.paymentStatus === 'PAID') {
         throw new ApiError(400, 'Invoice is already paid');
     }
@@ -134,7 +128,6 @@ export const markAsPaidManual = asyncHandler(async (req, res) => {
 });
 
 const amountToWords = (amount) => {
-    
     return `Rupees ${Math.floor(amount).toLocaleString('en-IN')} Only`;
 };
 
@@ -152,7 +145,6 @@ const generateTableRow = (doc, y, c1, c2, c3, c4, c5, c6, c7, c8) => {
 
 export const generateInvoicePDF = async (req, res, next) => {
     try {
-        
         const query = {};
         if (req.params.orderId) {
             query.orderId = req.params.orderId;
@@ -193,7 +185,6 @@ export const generateInvoicePDF = async (req, res, next) => {
             doc.fontSize(24).font('Helvetica-Bold').fillColor('#0f172a').text('SOVELY', 40, 35);
         }
 
-        
         const docTitle = invoice.invoiceType === 'WALLET_TOPUP' ? 'RECEIPT' : 'TAX INVOICE';
 
         doc.fillColor('#0f172a')
@@ -228,7 +219,7 @@ export const generateInvoicePDF = async (req, res, next) => {
             .text('ABCDE1234F');
 
         doc.fontSize(10).font('Helvetica-Bold').text('Billed To:', 300, topY);
-        
+
         doc.font('Helvetica-Bold')
             .fontSize(11)
             .text(invoice.billedTo?.companyName || req.user.name, 300, topY + 15);
@@ -279,7 +270,6 @@ export const generateInvoicePDF = async (req, res, next) => {
 
         let y = metaY + 60;
 
-        
         if (invoice.invoiceType !== 'WALLET_TOPUP' && invoice.items && invoice.items.length > 0) {
             doc.rect(40, y, 515, 20).fillAndStroke('#0f172a', '#0f172a');
             doc.fillColor('#ffffff').font('Helvetica-Bold');
@@ -300,7 +290,6 @@ export const generateInvoicePDF = async (req, res, next) => {
             let index = 1;
             doc.fillColor('#0f172a').font('Helvetica');
 
-            
             for (const item of invoice.items) {
                 if (y > 700) {
                     doc.addPage();
@@ -351,14 +340,12 @@ export const generateInvoicePDF = async (req, res, next) => {
             doc.moveTo(40, y).lineTo(555, y).stroke('#cbd5e1');
             y += 15;
         } else if (invoice.invoiceType === 'WALLET_TOPUP') {
-            
             doc.rect(40, y, 515, 20).fillAndStroke('#f8fafc', '#cbd5e1');
             doc.fillColor('#0f172a').font('Helvetica-Bold').fontSize(10);
             doc.text('Description: Wallet Top-Up (Prepaid Balance)', 50, y + 6);
             y += 35;
         }
 
-        
         doc.font('Helvetica-Bold').fontSize(9);
 
         if (invoice.invoiceType !== 'WALLET_TOPUP') {
@@ -371,7 +358,6 @@ export const generateInvoicePDF = async (req, res, next) => {
             );
             y += 15;
 
-            
             if (invoice.isInterState) {
                 doc.text('IGST Amount:', 360, y);
                 doc.text(
@@ -417,7 +403,6 @@ export const generateInvoicePDF = async (req, res, next) => {
         doc.fontSize(9).font('Helvetica-Bold').text('Amount in Words:');
         doc.font('Helvetica').text(amountToWords(invoice.grandTotal));
 
-        
         if (doc.y > 650) doc.addPage();
         const footerY = doc.y + 40;
 
@@ -475,15 +460,11 @@ export const generateInvoicePDF = async (req, res, next) => {
 };
 
 export const createInvoiceFromOrder = async (orderDoc, resellerDoc, session) => {
-    
-    
     const hqStateCode = '29';
-    const resellerStateCode = resellerDoc.stateCode || '29'; 
+    const resellerStateCode = resellerDoc.stateCode || '29';
     const isInterState = hqStateCode !== resellerStateCode;
 
-    
     const invoiceItems = orderDoc.items.map((item) => {
-        
         const baseAmount = item.platformBasePrice * item.qty;
         const taxAmount = item.taxAmountPerUnit * item.qty;
 
@@ -495,7 +476,7 @@ export const createInvoiceFromOrder = async (orderDoc, resellerDoc, session) => 
             qty: item.qty,
             unitBasePrice: item.platformBasePrice,
             totalBaseAmount: baseAmount,
-            gstSlab: item.gstSlab, 
+            gstSlab: item.gstSlab,
             cgstAmount: isInterState ? 0 : taxAmount / 2,
             sgstAmount: isInterState ? 0 : taxAmount / 2,
             igstAmount: isInterState ? taxAmount : 0,
@@ -503,9 +484,7 @@ export const createInvoiceFromOrder = async (orderDoc, resellerDoc, session) => 
         };
     });
 
-    
     if (orderDoc.shippingTotal > 0) {
-        
         const freightTitle = orderDoc.totalBillableWeight
             ? `Freight & Packaging Services (Billable Weight: ${orderDoc.totalBillableWeight}kg)`
             : 'Freight & Packaging Services';
@@ -513,11 +492,11 @@ export const createInvoiceFromOrder = async (orderDoc, resellerDoc, session) => 
         invoiceItems.push({
             sku: 'FRGT-PKG-001',
             title: freightTitle,
-            hsnCode: '996813', 
+            hsnCode: '996813',
             qty: 1,
             unitBasePrice: orderDoc.shippingTotal,
             totalBaseAmount: orderDoc.shippingTotal,
-            gstSlab: 0, 
+            gstSlab: 0,
             cgstAmount: 0,
             sgstAmount: 0,
             igstAmount: 0,
@@ -529,7 +508,7 @@ export const createInvoiceFromOrder = async (orderDoc, resellerDoc, session) => 
         invoiceItems.push({
             sku: 'FEE-COD-001',
             title: 'Courier Cash on Delivery (COD) Fee',
-            hsnCode: '999799', 
+            hsnCode: '999799',
             qty: 1,
             unitBasePrice: orderDoc.codCharge,
             totalBaseAmount: orderDoc.codCharge,
@@ -541,14 +520,12 @@ export const createInvoiceFromOrder = async (orderDoc, resellerDoc, session) => 
         });
     }
 
-    
     const totalTaxableValue = invoiceItems.reduce((acc, item) => acc + item.totalBaseAmount, 0);
     const totalCgst = invoiceItems.reduce((acc, item) => acc + item.cgstAmount, 0);
     const totalSgst = invoiceItems.reduce((acc, item) => acc + item.sgstAmount, 0);
     const totalIgst = invoiceItems.reduce((acc, item) => acc + item.igstAmount, 0);
     const grandTotal = totalTaxableValue + totalCgst + totalSgst + totalIgst;
 
-    
     const invoiceType = orderDoc.orderId.includes('WH') ? 'B2B_WHOLESALE' : 'DROPSHIP_PLATFORM_FEE';
 
     const invoice = new Invoice({
@@ -585,7 +562,7 @@ export const createInvoiceFromOrder = async (orderDoc, resellerDoc, session) => 
         totalIgst: Number(totalIgst.toFixed(2)),
         grandTotal: Number(grandTotal.toFixed(2)),
 
-        paymentStatus: 'PAID', 
+        paymentStatus: 'PAID',
         paymentTerms: 'PREPAID',
         status: 'GENERATED',
     });

@@ -10,14 +10,14 @@ export const getDashboardAnalytics = asyncHandler(async (req, res) => {
     const now = new Date();
     let startDate = new Date();
     let groupingFormat = '%Y-%m-%d';
-    let intervals = 30; // Default days
+    let intervals = 30;
     let labelFormat = { month: 'short', day: '2-digit' };
     let isHourly = false;
 
     switch (range) {
         case 'today':
             startDate.setHours(0, 0, 0, 0);
-            groupingFormat = '%H'; // Group by hour
+            groupingFormat = '%H';
             intervals = 24;
             isHourly = true;
             break;
@@ -48,7 +48,6 @@ export const getDashboardAnalytics = asyncHandler(async (req, res) => {
             intervals = 30;
     }
 
-    // 1. Revenue & Order Trends
     const revenueTrend = await Order.aggregate([
         { $match: { createdAt: { $gte: startDate }, status: { $ne: 'CANCELLED' } } },
         {
@@ -75,11 +74,10 @@ export const getDashboardAnalytics = asyncHandler(async (req, res) => {
             });
         }
     } else if (groupingFormat === '%Y-%m') {
-        // Group by Month
         for (let i = intervals - 1; i >= 0; i--) {
             const d = new Date();
             d.setMonth(now.getMonth() - i);
-            const monthStr = d.toISOString().slice(0, 7); // YYYY-MM
+            const monthStr = d.toISOString().slice(0, 7);
             const monthData = trendMap.get(monthStr);
             completeRevenueTrend.push({
                 date: d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
@@ -88,7 +86,6 @@ export const getDashboardAnalytics = asyncHandler(async (req, res) => {
             });
         }
     } else {
-        // Group by Day
         for (let i = intervals - 1; i >= 0; i--) {
             const d = new Date();
             d.setDate(now.getDate() - i);
@@ -102,13 +99,11 @@ export const getDashboardAnalytics = asyncHandler(async (req, res) => {
         }
     }
 
-    // 2. Order Status Distribution (Filtered by startDate)
     const orderStatus = await Order.aggregate([
         { $match: { createdAt: { $gte: startDate } } },
         { $group: { _id: '$status', count: { $sum: 1 } } },
     ]);
 
-    // 3. Inventory Health (Global snapshot, not affected by range)
     const inventoryHealth = await Product.aggregate([
         { $match: { deletedAt: null } },
         {
@@ -131,14 +126,12 @@ export const getDashboardAnalytics = asyncHandler(async (req, res) => {
         { $group: { _id: '$stockStatus', count: { $sum: 1 } } },
     ]);
 
-    // 4. Period Revenue
     const periodRevenueAgg = await Order.aggregate([
         { $match: { createdAt: { $gte: startDate }, status: { $ne: 'CANCELLED' } } },
         { $group: { _id: null, total: { $sum: '$totalPlatformCost' } } },
     ]);
     const periodRevenue = periodRevenueAgg[0]?.total || 0;
 
-    // Fixed Comparisons (Always show 30d/7d for secondary metrics if needed, but here we just return period total)
     const totalCustomers = await User.countDocuments({ role: 'RESELLER', deletedAt: null });
     const processingOrders = await Order.countDocuments({ status: 'PROCESSING' });
     const pendingKycCount = await User.countDocuments({
@@ -166,20 +159,18 @@ export const getDashboardAnalytics = asyncHandler(async (req, res) => {
     );
 });
 
-
 export const getResellerAnalytics = asyncHandler(async (req, res) => {
     const resellerId = req.user._id;
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    
     const kpiAggregation = await Order.aggregate([
         { $match: { resellerId: resellerId } },
         {
             $group: {
                 _id: null,
                 totalOrders: { $sum: 1 },
-                
+
                 realizedProfit: {
                     $sum: {
                         $cond: [
@@ -189,7 +180,7 @@ export const getResellerAnalytics = asyncHandler(async (req, res) => {
                         ],
                     },
                 },
-                
+
                 pendingProfit: {
                     $sum: {
                         $cond: [
@@ -231,7 +222,6 @@ export const getResellerAnalytics = asyncHandler(async (req, res) => {
     const rtoRate =
         kpis.totalOrders > 0 ? Math.round((kpis.rtoOrders / kpis.totalOrders) * 100) : 0;
 
-    
     const trendAggregation = await Order.aggregate([
         {
             $match: {
@@ -249,11 +239,9 @@ export const getResellerAnalytics = asyncHandler(async (req, res) => {
         { $sort: { _id: 1 } },
     ]);
 
-    
     const trendMap = new Map(trendAggregation.map((item) => [item._id, item.dailyProfit]));
     const profitTrend = [];
     for (let i = 14; i >= 0; i--) {
-        
         const d = new Date();
         d.setDate(d.getDate() - i);
         const dateString = d.toISOString().split('T')[0];

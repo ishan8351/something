@@ -9,7 +9,6 @@ const KycSubmit = () => {
     const { user } = useContext(AuthContext);
     const navigate = useNavigate();
 
-    
     const [gstin, setGstin] = useState(user?.gstin || '');
     const [panNumber, setPanNumber] = useState('');
 
@@ -35,7 +34,6 @@ const KycSubmit = () => {
         setIsLoading(true);
 
         try {
-            
             const response = await api.put('/users/kyc-update', {
                 gstin: gstin.toUpperCase(),
                 panNumber: panNumber.toUpperCase(),
@@ -50,7 +48,7 @@ const KycSubmit = () => {
 
             if (response.data.success) {
                 toast.success('KYC Details submitted successfully! Awaiting Admin approval.');
-                
+
                 window.location.href = '/my-account';
             }
         } catch (error) {

@@ -7,13 +7,11 @@ import { OtpToken } from '../models/OtpToken.js';
 import { AuthService } from '../services/auth.service.js';
 import crypto from 'crypto';
 
-
 const cookieOptions = {
     httpOnly: true,
-    
+
     secure: process.env.NODE_ENV === 'production',
-    
-    
+
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
 };
 
@@ -34,7 +32,6 @@ export const sendOtp = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'Phone number is required');
     }
 
-    
     if (isLogin) {
         const userExists = await User.findOne({ phoneNumber, isActive: true, deletedAt: null });
         if (!userExists) {
@@ -42,20 +39,16 @@ export const sendOtp = asyncHandler(async (req, res) => {
         }
     }
 
-    
     const otpCode = crypto.randomInt(1000, 10000).toString();
 
-    
     await OtpToken.deleteMany({ identifier: phoneNumber, isUsed: false });
 
-    
     await OtpToken.create({
         identifier: phoneNumber,
         otpCode,
         expiresAt: new Date(Date.now() + 10 * 60 * 1000),
     });
 
-    
     console.log(`[SMS MOCK] Sent OTP ${otpCode} to ${phoneNumber}`);
 
     return res.status(200).json(new ApiResponse(200, {}, 'OTP sent successfully'));
@@ -68,23 +61,20 @@ export const loginWithOtp = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'Phone number and OTP are required');
     }
 
-    
     const validOtp = await OtpToken.findOne({
         identifier: phoneNumber,
         otpCode,
         isUsed: false,
-        expiresAt: { $gt: new Date() }, 
+        expiresAt: { $gt: new Date() },
     });
 
     if (!validOtp) {
         throw new ApiError(400, 'Invalid or expired OTP');
     }
 
-    
     validOtp.isUsed = true;
     await validOtp.save();
 
-    
     const user = await User.findOne({ phoneNumber, isActive: true, deletedAt: null });
 
     if (!user) {
@@ -112,10 +102,8 @@ export const loginWithOtp = asyncHandler(async (req, res) => {
 });
 
 export const registerUser = asyncHandler(async (req, res) => {
-    
     const createdUser = await AuthService.registerUser(req.body);
 
-    
     const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(createdUser._id);
 
     return res
@@ -142,11 +130,9 @@ export const loginUser = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'Email or phone number is required');
     }
 
-    
     const cleanEmail = email ? email.trim().toLowerCase() : undefined;
     const cleanPhone = phoneNumber ? phoneNumber.trim() : undefined;
 
-    
     const query = { isActive: true };
     if (cleanEmail) {
         query.email = cleanEmail;
@@ -154,11 +140,8 @@ export const loginUser = asyncHandler(async (req, res) => {
         query.phoneNumber = cleanPhone;
     }
 
-    
     const user = await User.findOne(query);
 
-    
-    
     if (!user || user.deletedAt) {
         throw new ApiError(
             404,
@@ -210,7 +193,6 @@ export const getCurrentUser = asyncHandler(async (req, res) => {
 });
 
 export const refreshAccessToken = asyncHandler(async (req, res) => {
-    
     const incomingRefreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
 
     if (!incomingRefreshToken) {

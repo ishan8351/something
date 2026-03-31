@@ -9,7 +9,6 @@ import PublicLayout from './layouts/PublicLayout';
 import ErrorBoundary from './ErrorBoundary';
 import ScrollToTop from './components/ScrollToTop';
 
-
 const MarketingLandingPage = lazy(() => import('./components/MarketingLandingPage'));
 const LandingPage = lazy(() => import('./components/LandingPage'));
 const ProductPage = lazy(() => import('./components/ProductPage'));
@@ -29,7 +28,6 @@ const SearchResults = lazy(() => import('./components/SearchResults'));
 const Terms = lazy(() => import('./components/Terms'));
 const KycSubmit = lazy(() => import('./components/KycSubmit'));
 
-
 const NotFound = () => (
     <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
         <h1 className="text-6xl font-black text-slate-200">404</h1>
@@ -37,9 +35,6 @@ const NotFound = () => (
         <p className="mt-2 text-slate-500">The page you're looking for doesn't exist.</p>
     </div>
 );
-
-
-
 
 const HomeRouter = () => {
     const { user, loading, isAdmin } = useContext(AuthContext);
@@ -49,7 +44,6 @@ const HomeRouter = () => {
     return <MarketingLandingPage />;
 };
 
-
 const ProtectedRoute = ({ children }) => {
     const location = useLocation();
     const { user, loading } = useContext(AuthContext);
@@ -57,10 +51,8 @@ const ProtectedRoute = ({ children }) => {
     if (loading) return <LoadingScreen />;
     if (!user) return <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />;
 
-    
     return children ? children : <Outlet />;
 };
-
 
 const AdminRoute = ({ children }) => {
     const { user, loading, isAdmin } = useContext(AuthContext);
@@ -71,14 +63,12 @@ const AdminRoute = ({ children }) => {
     return children ? children : <Outlet />;
 };
 
-
 const ResellerRoute = ({ children }) => {
     const { user, loading, isKycApproved } = useContext(AuthContext);
 
     if (loading) return <LoadingScreen />;
     if (!user) return <Navigate to={ROUTES.LOGIN} replace />;
 
-    
     if (user.accountType === 'B2B' && !isKycApproved) {
         return <Navigate to="/kyc" replace />;
     }

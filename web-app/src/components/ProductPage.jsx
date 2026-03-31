@@ -24,7 +24,6 @@ import api from '../utils/api';
 import { useCartStore } from '../store/cartStore';
 import LoadingScreen from './LoadingScreen';
 
-
 const fadeUp = {
     hidden: { opacity: 0, y: 15 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' } },
@@ -48,7 +47,6 @@ const ProductPage = () => {
     const [error, setError] = useState(null);
     const [addToCartSuccess, setAddToCartSuccess] = useState(false);
 
-    
     const [orderType, setOrderType] = useState('WHOLESALE');
     const [quantity, setQuantity] = useState(1);
     const [customSellingPrice, setCustomSellingPrice] = useState(0);
@@ -79,7 +77,6 @@ const ProductPage = () => {
             <div className="p-10 text-center font-medium text-slate-500">Product not found.</div>
         );
 
-    
     let currentUnitCost = product.dropshipBasePrice;
 
     if (orderType === 'WHOLESALE' && product.tieredPricing?.length > 0) {
@@ -95,7 +92,6 @@ const ProductPage = () => {
             ? (customSellingPrice - (currentUnitCost + estimatedTax)) * quantity
             : 0;
 
-    
     const updateQuantity = (newQty) => {
         setAddToCartSuccess(false);
         if (newQty === '') {

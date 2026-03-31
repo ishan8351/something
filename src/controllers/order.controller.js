@@ -65,7 +65,7 @@ export const createOrder = asyncHandler(async (req, res) => {
                 qty: item.qty,
                 platformBasePrice: item.platformUnitCost,
                 resellerSellingPrice: item.resellerSellingPrice,
-                
+
                 taxAmountPerUnit: item.taxAmountPerUnit,
                 gstSlab: item.gstSlab,
                 shippingCost: item.shippingCost || 0,
@@ -84,7 +84,6 @@ export const createOrder = asyncHandler(async (req, res) => {
         const ordersToCreate = [];
         const generatedOrderIds = [];
 
-        
         if (wholesaleItems.length > 0) {
             const whSubTotal = wholesaleItems.reduce(
                 (acc, item) => acc + item.platformBasePrice * item.qty,
@@ -123,7 +122,6 @@ export const createOrder = asyncHandler(async (req, res) => {
                 packingCharge: cart.totalPackingCharge,
                 totalPlatformCost: whTotalCost,
 
-                
                 totalActualWeight: whActualWeight,
                 totalVolumetricWeight: whVolWeight,
                 totalBillableWeight: whBillableWeight,
@@ -138,7 +136,6 @@ export const createOrder = asyncHandler(async (req, res) => {
             });
         }
 
-        
         if (dropshipItems.length > 0) {
             const dsSubTotal = dropshipItems.reduce(
                 (acc, item) => acc + item.platformBasePrice * item.qty,
@@ -150,7 +147,6 @@ export const createOrder = asyncHandler(async (req, res) => {
             );
             const dsShippingTotal = dropshipItems.reduce((acc, item) => acc + item.shippingCost, 0);
 
-            
             const codCharge = paymentMethod === 'COD' ? 35 : 0;
             const dsTotalCost = dsSubTotal + dsTaxTotal + dsShippingTotal + codCharge;
 
@@ -167,15 +163,11 @@ export const createOrder = asyncHandler(async (req, res) => {
                     0
                 );
 
-                
                 resellerProfitMargin = amountToCollect - dsTotalCost;
 
-                
-                
                 resellerPayoutOnDelivery =
                     dsSubTotal + dsTaxTotal + dsShippingTotal + resellerProfitMargin;
 
-                
                 if (resellerProfitMargin < 0) {
                     throw new ApiError(
                         400,
@@ -203,7 +195,6 @@ export const createOrder = asyncHandler(async (req, res) => {
                 codCharge,
                 totalPlatformCost: dsTotalCost,
 
-                
                 totalActualWeight: dsActualWeight,
                 totalVolumetricWeight: dsVolWeight,
                 totalBillableWeight: dsBillableWeight,
@@ -300,7 +291,6 @@ export const createOrder = asyncHandler(async (req, res) => {
 });
 
 export const getOrderById = asyncHandler(async (req, res) => {
-    
     const order = await Order.findOne({ _id: req.params.id, resellerId: req.user._id });
 
     if (!order) {
@@ -352,7 +342,6 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
         };
     }
 
-    
     if (['CANCELLED', 'RTO'].includes(status) && !['CANCELLED', 'RTO'].includes(order.status)) {
         const session = await mongoose.startSession();
         session.startTransaction();
@@ -362,11 +351,9 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
             let description = '';
 
             if (status === 'CANCELLED') {
-                
                 refundAmount = order.totalPlatformCost;
                 description = `Full refund for cancelled order ${order.orderId}`;
             } else if (status === 'RTO') {
-                
                 refundAmount = order.subTotal + order.taxTotal + order.codCharge;
                 description = `RTO Refund (Principal + Tax + COD Fee) for order ${order.orderId}. Freight forfeited.`;
             }
@@ -395,7 +382,6 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
                 );
             }
 
-            
             for (const item of order.items) {
                 await Product.findByIdAndUpdate(
                     item.productId,
@@ -418,21 +404,18 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
         }
     }
 
-    
     if (status === 'DELIVERED' && order.status !== 'DELIVERED') {
         if (order.payoutOnDelivery > 0 && order.paymentMethod === 'COD') {
             const session = await mongoose.startSession();
             session.startTransaction();
 
             try {
-                
                 const updatedReseller = await User.findByIdAndUpdate(
                     order.resellerId,
                     { $inc: { walletBalance: order.payoutOnDelivery } },
                     { new: true, session }
                 );
 
-                
                 await WalletTransaction.create(
                     [
                         {
@@ -496,22 +479,19 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
 });
 
 export const resellerActionOnNDR = asyncHandler(async (req, res) => {
-    const { action, updatedPhone } = req.body; 
+    const { action, updatedPhone } = req.body;
     const { id } = req.params;
     const resellerId = req.user._id;
 
-    
     if (!['REATTEMPT', 'RTO_REQUESTED'].includes(action)) {
         throw new ApiError(400, 'Invalid NDR action. Must be REATTEMPT or RTO_REQUESTED.');
     }
 
-    
     const order = await Order.findOne({ _id: id, resellerId });
     if (!order) {
         throw new ApiError(404, 'Order not found');
     }
 
-    
     if (order.status !== 'NDR') {
         throw new ApiError(
             400,
@@ -519,15 +499,13 @@ export const resellerActionOnNDR = asyncHandler(async (req, res) => {
         );
     }
 
-    
     order.ndrDetails.resellerAction = action;
     if (updatedPhone) {
         order.ndrDetails.updatedCustomerPhone = updatedPhone;
-        
+
         order.endCustomerDetails.phone = updatedPhone;
     }
 
-    
     order.statusHistory.push({
         status: 'NDR_ACTION_SUBMITTED',
         comment: `Reseller requested: ${action}${updatedPhone ? ` with new phone: ${updatedPhone}` : ''}`,
@@ -544,12 +522,10 @@ export const getAllAdminOrders = asyncHandler(async (req, res) => {
 
     const query = {};
 
-    
     if (status) {
         query.status = status;
     }
 
-    
     if (search) {
         query.$or = [{ orderId: { $regex: search, $options: 'i' } }];
     }
@@ -560,7 +536,7 @@ export const getAllAdminOrders = asyncHandler(async (req, res) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(Number(limit))
-        .populate('resellerId', 'name companyName email'); 
+        .populate('resellerId', 'name companyName email');
 
     const total = await Order.countDocuments(query);
 
@@ -580,7 +556,6 @@ export const getAllAdminOrders = asyncHandler(async (req, res) => {
     );
 });
 
-
 const calculateItemWeights = (product, qty) => {
     const actualWeightKg = (product.weightGrams || 0) / 1000;
     const l = product.dimensions?.length || 0;
@@ -590,7 +565,6 @@ const calculateItemWeights = (product, qty) => {
 
     const chargeableWeightPerUnit = Math.max(actualWeightKg, volWeightKg);
 
-    
     const finalBillable = chargeableWeightPerUnit > 0 ? chargeableWeightPerUnit * qty : 0.5 * qty;
     const finalActual = actualWeightKg > 0 ? actualWeightKg * qty : 0.5 * qty;
 
@@ -660,7 +634,6 @@ export const createBulkDropshipOrders = asyncHandler(async (req, res) => {
         throw new ApiError(403, 'Forbidden: Business KYC must be approved to place orders.');
     }
 
-    
     const productIds = [...new Set(orders.map((o) => o.productId))];
     const products = await Product.find({ _id: { $in: productIds } });
     const productMap = products.reduce((acc, p) => {
@@ -682,7 +655,6 @@ export const createBulkDropshipOrders = asyncHandler(async (req, res) => {
             if (product.inventory.stock < inputOrder.qty)
                 throw new ApiError(400, `Insufficient stock for ${product.sku}`);
 
-            
             const platformBasePrice = product.dropshipBasePrice;
             const subTotal = platformBasePrice * inputOrder.qty;
             const taxAmountPerUnit = Number(
@@ -690,17 +662,14 @@ export const createBulkDropshipOrders = asyncHandler(async (req, res) => {
             );
             const taxTotal = taxAmountPerUnit * inputOrder.qty;
 
-            
             const weights = calculateItemWeights(product, inputOrder.qty);
             const freight = calculateSlabCharge(weights.billableWeight);
 
             const codCharge = inputOrder.paymentMethod === 'COD' ? 35 : 0;
             const totalPlatformCost = subTotal + taxTotal + freight.totalShippingCost + codCharge;
 
-            
             grandTotalWalletDeduction += totalPlatformCost;
 
-            
             let amountToCollect = 0;
             let resellerProfitMargin = 0;
             let payoutOnDelivery = 0;
@@ -770,7 +739,6 @@ export const createBulkDropshipOrders = asyncHandler(async (req, res) => {
             });
         }
 
-        
         const resellerCheck = await User.findById(resellerId).session(session);
         if (!resellerCheck || resellerCheck.walletBalance < grandTotalWalletDeduction) {
             throw new ApiError(
@@ -779,7 +747,6 @@ export const createBulkDropshipOrders = asyncHandler(async (req, res) => {
             );
         }
 
-        
         const createdOrders = await Order.insertMany(ordersToCreate, { session });
 
         for (const orderDoc of createdOrders) {
@@ -811,7 +778,6 @@ export const createBulkDropshipOrders = asyncHandler(async (req, res) => {
             { session }
         );
 
-        
         for (const inputOrder of orders) {
             await Product.findByIdAndUpdate(
                 inputOrder.productId,
@@ -842,10 +808,6 @@ export const createBulkDropshipOrders = asyncHandler(async (req, res) => {
     }
 });
 
-/**
- * @desc    Export Admin Orders to CSV
- * @route   GET /api/orders/export
- */
 export const exportAdminOrdersToCsv = asyncHandler(async (req, res) => {
     const { startDate, endDate } = req.query;
 
@@ -861,7 +823,6 @@ export const exportAdminOrdersToCsv = asyncHandler(async (req, res) => {
         .sort({ createdAt: -1 })
         .populate('resellerId', 'name companyName email phone');
 
-    // Helper to safely format CSV values
     const escapeCsv = (val) => {
         if (val === null || val === undefined) return '';
         // Prefix long numeric sequences with a tab to force string type in Excel

@@ -100,7 +100,6 @@ export const getProducts = asyncHandler(async (req, res) => {
 
     if (category) query.categoryId = category;
 
-    
     if (minMargin) query.estimatedMarginPercent = { $gte: Number(minMargin) };
     if (req.query.margin) {
         const marginVal = Number(req.query.margin);
@@ -310,7 +309,6 @@ export const validateBulkOrder = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'Maximum 500 SKUs allowed per bulk validation request.');
     }
 
-    
     const cleanSkus = skus.map((sku) => sku.replace(/["'\r\n]/g, '').trim());
 
     // Create case-insensitive regex for every SKU to prevent exact-match failures
@@ -319,12 +317,12 @@ export const validateBulkOrder = asyncHandler(async (req, res) => {
     );
 
     const products = await Product.find({
-        sku: { $in: regexSkus }, 
+        sku: { $in: regexSkus },
         status: 'active',
         deletedAt: null,
     }).select(
         'sku title inventory.stock moq dropshipBasePrice platformSellPrice gstSlab weightGrams dimensions hsnCode'
-    ); 
+    );
 
     return res
         .status(200)

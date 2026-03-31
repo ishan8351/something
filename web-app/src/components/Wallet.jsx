@@ -18,7 +18,6 @@ import api from '../utils/api.js';
 import { AuthContext } from '../AuthContext';
 import LoadingScreen from './LoadingScreen';
 
-
 const loadRazorpayScript = () => {
     return new Promise((resolve) => {
         const script = document.createElement('script');
@@ -37,7 +36,6 @@ const Wallet = () => {
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    
     const [rechargeAmount, setRechargeAmount] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState('');
@@ -79,13 +77,10 @@ const Wallet = () => {
         setIsProcessing(true);
 
         try {
-            
             const orderRes = await api.post('/wallet/add-money', { amount });
 
-            
             const { razorpayOrderId, amount: rzpAmount, keyId, invoiceId } = orderRes.data.data;
 
-            
             const isLoaded = await loadRazorpayScript();
             if (!isLoaded) {
                 setError('Payment gateway failed to load. Please check your connection.');
@@ -93,17 +88,15 @@ const Wallet = () => {
                 return;
             }
 
-            
             const options = {
                 key: keyId || import.meta.env.VITE_RAZORPAY_KEY_ID,
-                amount: rzpAmount, 
+                amount: rzpAmount,
                 currency: 'INR',
                 name: 'Sovely B2B Network',
                 description: 'Working Capital Recharge',
-                order_id: razorpayOrderId, 
+                order_id: razorpayOrderId,
                 handler: async function (response) {
                     try {
-                        
                         await api.post('/payments/verify', {
                             razorpay_order_id: response.razorpay_order_id,
                             razorpay_payment_id: response.razorpay_payment_id,
@@ -141,12 +134,10 @@ const Wallet = () => {
         }
     };
 
-    
     const totalMarginsEarned = transactions
         .filter((t) => t.type === 'CREDIT' && t.purpose.includes('MARGIN'))
         .reduce((sum, t) => sum + t.amount, 0);
 
-    
     const getTransactionStyling = (purpose, type) => {
         const p = purpose.toUpperCase();
         if (p.includes('RECHARGE') || p.includes('ADD'))

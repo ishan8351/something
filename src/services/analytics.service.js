@@ -5,12 +5,9 @@ export const syncProductRtoRates = async () => {
     try {
         console.log('Starting nightly RTO rate calculation...');
 
-        
         const rtoStats = await Order.aggregate([
-            
             { $unwind: '$items' },
 
-            
             {
                 $group: {
                     _id: '$items.productId',
@@ -23,13 +20,12 @@ export const syncProductRtoRates = async () => {
                 },
             },
 
-            
             {
                 $project: {
                     rtoRate: {
                         $round: [
                             { $multiply: [{ $divide: ['$rtoTimes', '$totalTimesOrdered'] }, 100] },
-                            2, 
+                            2,
                         ],
                     },
                 },
@@ -41,7 +37,6 @@ export const syncProductRtoRates = async () => {
             return;
         }
 
-        
         const bulkOps = rtoStats.map((stat) => ({
             updateOne: {
                 filter: { _id: stat._id },
@@ -49,7 +44,6 @@ export const syncProductRtoRates = async () => {
             },
         }));
 
-        
         const result = await Product.bulkWrite(bulkOps);
 
         console.log(`RTO Sync Complete. Updated ${result.modifiedCount} products.`);

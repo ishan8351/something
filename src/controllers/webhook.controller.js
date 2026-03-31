@@ -3,8 +3,8 @@ import crypto from 'crypto';
 import { Order } from '../models/Order.js';
 import { User } from '../models/User.js';
 import { WalletTransaction } from '../models/WalletTransaction.js';
-import { Invoice } from '../models/Invoice.js'; 
-import { Payment } from '../models/Payment.js'; 
+import { Invoice } from '../models/Invoice.js';
+import { Payment } from '../models/Payment.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -61,7 +61,6 @@ export const handleLogisticsWebhook = asyncHandler(async (req, res) => {
         return res.status(200).json({ received: true });
     }
 
-    
     if (['CANCELLED', 'RTO'].includes(newInternalStatus)) {
         const session = await mongoose.startSession();
         session.startTransaction();
@@ -70,7 +69,7 @@ export const handleLogisticsWebhook = asyncHandler(async (req, res) => {
             let refundAmount =
                 newInternalStatus === 'CANCELLED'
                     ? order.totalPlatformCost
-                    : order.subTotal + order.taxTotal + order.codCharge; 
+                    : order.subTotal + order.taxTotal + order.codCharge;
 
             const description =
                 newInternalStatus === 'CANCELLED'
@@ -126,7 +125,6 @@ export const handleLogisticsWebhook = asyncHandler(async (req, res) => {
         }
     }
 
-    
     if (newInternalStatus === 'DELIVERED') {
         if (order.payoutOnDelivery > 0 && order.paymentMethod === 'COD') {
             const session = await mongoose.startSession();
@@ -183,10 +181,8 @@ export const handleLogisticsWebhook = asyncHandler(async (req, res) => {
 });
 
 export const razorpayWebhook = async (req, res) => {
-    
     const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
 
-    
     if (!secret) {
         console.error('⚠️ Missing RAZORPAY_WEBHOOK_SECRET in .env');
         return res.status(500).json({ status: 'error', message: 'Server configuration error' });
@@ -203,7 +199,6 @@ export const razorpayWebhook = async (req, res) => {
 
     const event = req.body.event;
 
-    
     if (event === 'payment.captured') {
         const paymentEntity = req.body.payload.payment.entity;
         const razorpayOrderId = paymentEntity.order_id;
@@ -213,7 +208,6 @@ export const razorpayWebhook = async (req, res) => {
         session.startTransaction();
 
         try {
-            
             const existingPayment = await Payment.findOne({
                 referenceId: razorpayPaymentId,
             }).session(session);
@@ -225,7 +219,6 @@ export const razorpayWebhook = async (req, res) => {
                     .json({ status: 'ok', message: 'Already processed by frontend' });
             }
 
-            
             const invoice = await Invoice.findOne({ razorpayOrderId }).session(session);
             if (!invoice || invoice.paymentStatus === 'PAID') {
                 await session.abortTransaction();
@@ -235,7 +228,6 @@ export const razorpayWebhook = async (req, res) => {
                     .json({ status: 'ok', message: 'Invoice not found or already paid' });
             }
 
-            
             await Payment.create(
                 [
                     {

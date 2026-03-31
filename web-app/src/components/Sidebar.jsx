@@ -18,7 +18,6 @@ import {
     LogOut,
 } from 'lucide-react';
 
-
 const sidebarVariants = {
     hidden: { x: '-100%', transition: { type: 'tween', duration: 0.3, ease: 'easeInOut' } },
     visible: { x: 0, transition: { type: 'tween', duration: 0.3, ease: 'easeInOut' } },

@@ -85,7 +85,6 @@ const Checkout = () => {
         }
     };
 
-    
     const hasDropship = cart?.items?.some((item) => item.orderType === 'DROPSHIP') || false;
     const hasWholesale = cart?.items?.some((item) => item.orderType === 'WHOLESALE') || false;
     const codFee = hasDropship && paymentMethod === 'COD' ? 35 : 0;
@@ -222,7 +221,6 @@ const Checkout = () => {
         }
     };
 
-    
     if (!cart) return <LoadingScreen />;
 
     if (user?.accountType === 'B2B' && !isKycApproved) {
@@ -270,7 +268,6 @@ const Checkout = () => {
         );
     }
 
-    
     return (
         <main className="mx-auto w-full max-w-7xl px-4 py-8 pb-24 font-sans text-slate-900 sm:px-6 lg:px-8">
             {}

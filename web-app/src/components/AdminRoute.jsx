@@ -8,7 +8,6 @@ const AdminRoute = ({ children }) => {
 
     if (loading) return <LoadingScreen />;
 
-    
     if (!user || !isAdmin) {
         return <Navigate to="/catalog" replace />;
     }

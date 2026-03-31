@@ -20,7 +20,7 @@ export const productValidation = {
 
     getProductById: z.object({
         params: z.object({
-            id: objectId, 
+            id: objectId,
         }),
     }),
 
@@ -30,7 +30,6 @@ export const productValidation = {
             sku: z.string().min(3),
             categoryId: objectId,
 
-            
             dropshipBasePrice: z.number().positive(),
             suggestedRetailPrice: z.number().positive(),
             tieredPricing: z
@@ -42,7 +41,6 @@ export const productValidation = {
                 )
                 .optional(),
 
-            
             weightGrams: z.number().positive(),
             hsnCode: z.string().min(4, 'HSN Code must be at least 4 digits'),
             gstSlab: z.union([
@@ -99,6 +97,6 @@ export const productValidation = {
                     .optional(),
                 status: z.enum(['active', 'draft', 'archived']).optional(),
             })
-            .strict(), 
+            .strict(),
     }),
 };

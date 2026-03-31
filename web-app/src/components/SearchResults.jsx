@@ -11,15 +11,12 @@ function SearchResults() {
 
     const navigate = useNavigate();
 
-    
     useEffect(() => {
         window.scrollTo(0, 0);
     }, [query, categoryParam]);
 
-    
     const emptyFilters = useMemo(() => ({}), []);
 
-    
     if (!query && categoryParam === 'All Categories') {
         return (
             <div className="mx-auto w-full max-w-7xl px-4 py-24 text-center sm:px-6 lg:px-8">
@@ -42,7 +39,6 @@ function SearchResults() {
         );
     }
 
-    
     return (
         <div className="animate-in fade-in z-10 mx-auto w-full max-w-7xl px-4 py-8 duration-300 sm:px-6 lg:px-8 lg:py-12">
             {}
@@ -71,7 +67,7 @@ function SearchResults() {
                 initialCategory={categoryParam}
                 globalSearchQuery={query}
                 hideTitle={true}
-                filters={emptyFilters} 
+                filters={emptyFilters}
             />
         </div>
     );

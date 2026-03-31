@@ -10,12 +10,10 @@ function BestDeals() {
     useEffect(() => {
         const fetchDeals = async () => {
             try {
-                
                 const res = await api.get('/products', {
                     params: { limit: 4, sort: '-estimatedMarginPercent' },
                 });
 
-                
                 const data = res.data?.data?.products || res.data?.data || res.data || [];
                 setDeals(Array.isArray(data) ? data.slice(0, 4) : []);
             } catch (error) {

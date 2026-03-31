@@ -23,7 +23,6 @@ import {
 } from 'lucide-react';
 import { useCartStore } from '../store/cartStore';
 
-
 const HighlightText = ({ text = '', highlight = '' }) => {
     if (!highlight.trim()) return <span>{text}</span>;
     const regex = new RegExp(`(${highlight})`, 'gi');

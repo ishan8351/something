@@ -22,7 +22,7 @@ const BulkUpload = () => {
     const { addToCart, isLoading } = useCartStore();
     const { isAdmin } = useContext(AuthContext);
 
-    const [activeTab, setActiveTab] = useState('UPLOAD'); 
+    const [activeTab, setActiveTab] = useState('UPLOAD');
     const [parsedData, setParsedData] = useState([]);
     const [isDragging, setIsDragging] = useState(false);
     const [manualInput, setManualInput] = useState('');
@@ -56,7 +56,6 @@ const BulkUpload = () => {
         }
     };
 
-    
     const handleFileUpload = (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -73,9 +72,8 @@ const BulkUpload = () => {
         if (isAdmin) {
             // Admin mode: hold file object for the API upload
             setUploadedFile(file);
-            setParsedData([{ sku: file.name, qty: '—', status: 'pending' }]); 
+            setParsedData([{ sku: file.name, qty: '—', status: 'pending' }]);
         } else {
-            
             setUploadedFile(null);
             const reader = new FileReader();
             reader.onload = (event) => processCSVText(event.target.result);
@@ -102,7 +100,6 @@ const BulkUpload = () => {
         processCSVText(manualInput);
     };
 
-    
     const runAdminImport = async () => {
         if (!uploadedFile) return;
         setIsImporting(true);
@@ -114,9 +111,8 @@ const BulkUpload = () => {
             const formData = new FormData();
             formData.append('csvFile', uploadedFile);
 
-            
             const res = await api.post('products/import-csv', formData, {
-                timeout: 300000, 
+                timeout: 300000,
             });
 
             const data = res.data?.data;
@@ -136,7 +132,6 @@ const BulkUpload = () => {
         }
     };
 
-    
     const processBulkOrder = async () => {
         setError('');
         setSuccessMsg('');

@@ -46,13 +46,11 @@ const productSchema = new mongoose.Schema(
             },
         ],
 
-        
         dropshipBasePrice: { type: Number, required: true },
         suggestedRetailPrice: { type: Number, required: true },
         estimatedMarginPercent: { type: Number, default: 0 },
         tieredPricing: [tieredPriceSchema],
 
-        
         weightGrams: { type: Number, required: true },
         dimensions: dimensionsSchema,
         hsnCode: { type: String, required: true },
@@ -65,16 +63,14 @@ const productSchema = new mongoose.Schema(
             default: 'NO_RETURNS',
         },
 
-        
         historicalRtoRate: {
             type: Number,
             default: 0,
             index: true,
         },
 
-        
         status: { type: String, enum: ['active', 'draft', 'archived'], default: 'active' },
-        deletedAt: { type: Date, default: null }, 
+        deletedAt: { type: Date, default: null },
 
         moq: { type: Number, default: 1 },
         inventory: inventorySchema,
@@ -82,11 +78,9 @@ const productSchema = new mongoose.Schema(
         averageRating: { type: Number, default: 0, min: 0, max: 5 },
         reviewCount: { type: Number, default: 0 },
     },
-    
+
     { timestamps: true, optimisticConcurrency: true }
 );
-
-
 
 productSchema.index({ title: 1 });
 productSchema.index({ tags: 1 });
@@ -94,7 +88,6 @@ productSchema.index({ vendor: 1 });
 productSchema.index({ categoryId: 1 });
 productSchema.index({ status: 1 });
 productSchema.index({ 'inventory.stock': 1 });
-
 
 productSchema.pre('save', function () {
     if (this.suggestedRetailPrice > this.dropshipBasePrice && this.dropshipBasePrice > 0) {

@@ -18,7 +18,6 @@ const ResellerAnalytics = () => {
     useEffect(() => {
         const fetchAnalytics = async () => {
             try {
-                
                 const res = await api.get('/analytics/reseller');
                 setData(res.data.data);
                 setIsLoading(false);

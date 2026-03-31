@@ -7,7 +7,7 @@ const paymentSchema = new mongoose.Schema(
             ref: 'User',
             required: true,
         },
-        
+
         gatewayOrderId: {
             type: String,
             required: true,
@@ -15,14 +15,14 @@ const paymentSchema = new mongoose.Schema(
         },
         gatewayPaymentId: {
             type: String,
-            sparse: true, 
+            sparse: true,
         },
         gatewaySignature: {
             type: String,
         },
         amount: {
             type: Number,
-            required: true, 
+            required: true,
         },
         currency: {
             type: String,
@@ -44,7 +44,7 @@ const paymentSchema = new mongoose.Schema(
             default: 'CREATED',
         },
         errorMessage: {
-            type: String, 
+            type: String,
         },
     },
     { timestamps: true }

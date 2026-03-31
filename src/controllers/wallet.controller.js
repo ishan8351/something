@@ -12,7 +12,6 @@ export const getBalance = asyncHandler(async (req, res) => {
 });
 
 export const getTransactionHistory = asyncHandler(async (req, res) => {
-    
     const transactions = await WalletTransaction.find({ resellerId: req.user._id })
         .sort({ createdAt: -1 })
         .limit(50);
@@ -30,16 +29,15 @@ export const addMoney = asyncHandler(async (req, res) => {
     const invoiceNumSeq = await Counter.getNextSequenceValue('invoiceNumber');
     const invoiceNumStr = `INV-${invoiceNumSeq.toString().padStart(6, '0')}`;
 
-    
     const invoice = await Invoice.create({
         invoiceNumber: invoiceNumStr,
-        resellerId, 
+        resellerId,
         invoiceType: 'WALLET_TOPUP',
         totalTaxableValue: amount,
         grandTotal: amount,
         paymentTerms: 'DUE_ON_RECEIPT',
         dueDate: new Date(),
-        paymentStatus: 'UNPAID', 
+        paymentStatus: 'UNPAID',
     });
 
     const options = {

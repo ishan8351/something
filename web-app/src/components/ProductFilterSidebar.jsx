@@ -19,8 +19,6 @@ export default function ProductFilterSidebar({
     setB2bFilters,
     resetAll,
 }) {
-
-
     return (
         <aside
             className={`no-scrollbar fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto bg-white p-6 shadow-2xl transition-transform duration-300 lg:sticky lg:top-24 lg:z-0 lg:h-[calc(100vh-theme(spacing.24)-2rem)] lg:w-64 lg:translate-x-0 lg:rounded-xl lg:border lg:border-slate-200 lg:p-5 lg:shadow-sm ${isMobileFilterOpen ? 'translate-x-0' : '-translate-x-full'}`}
@@ -95,8 +93,6 @@ export default function ProductFilterSidebar({
                         />
                     </div>
                 </div>
-
-
 
                 {}
                 <div className="space-y-3 border-t border-slate-100 pt-5">

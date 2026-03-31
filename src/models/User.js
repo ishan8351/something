@@ -23,18 +23,15 @@ const userSchema = new mongoose.Schema(
         accountType: { type: String, enum: ['B2C', 'B2B'], default: 'B2C' },
         isVerifiedB2B: { type: Boolean, default: false },
 
-        
         role: { type: String, enum: ['ADMIN', 'RESELLER', 'CUSTOMER'], default: 'CUSTOMER' },
         refreshToken: { type: String },
 
-        
         companyName: { type: String, trim: true },
         gstin: {
             type: String,
             trim: true,
             uppercase: true,
             match: [
-                
                 /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}[A-Z0-9]{1}[0-9A-Z]{1}$/,
                 'Invalid GSTIN format',
             ],
@@ -52,7 +49,6 @@ const userSchema = new mongoose.Schema(
         },
         kycRejectionReason: { type: String, default: null },
 
-        
         walletBalance: { type: Number, default: 0 },
         bankDetails: {
             accountName: { type: String },
@@ -61,7 +57,6 @@ const userSchema = new mongoose.Schema(
             bankName: { type: String },
         },
 
-        
         storeIntegrations: [storeIntegrationSchema],
         billingAddress: {
             street: { type: String },
@@ -70,12 +65,10 @@ const userSchema = new mongoose.Schema(
             zip: { type: String },
         },
 
-        
         emailNotifications: { type: Boolean, default: true },
         orderSms: { type: Boolean, default: true },
         promotionalEmails: { type: Boolean, default: false },
 
-        
         isActive: { type: Boolean, default: true },
         deletedAt: { type: Date, default: null },
     },
@@ -92,9 +85,7 @@ userSchema.methods.isPasswordCorrect = async function (password) {
     return await bcrypt.compare(password, this.passwordHash);
 };
 
-
 userSchema.methods.generateAccessToken = function () {
-    
     const expiry = process.env.ACCESS_TOKEN_EXPIRY?.trim() || '1d';
 
     return jwt.sign(
@@ -108,7 +99,6 @@ userSchema.methods.generateAccessToken = function () {
         { expiresIn: expiry }
     );
 };
-
 
 userSchema.methods.generateRefreshToken = function () {
     const expiry = process.env.REFRESH_TOKEN_EXPIRY?.trim() || '10d';

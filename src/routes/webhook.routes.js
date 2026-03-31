@@ -3,9 +3,7 @@ import { handleLogisticsWebhook, razorpayWebhook } from '../controllers/webhook.
 
 const router = Router();
 
-
 router.post('/logistics', handleLogisticsWebhook);
-
 
 router.post('/razorpay', razorpayWebhook);
 

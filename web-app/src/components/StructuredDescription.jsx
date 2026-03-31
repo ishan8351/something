@@ -2,11 +2,9 @@ import React, { useMemo } from 'react';
 import { CheckCircle2, Package, Tag, Layers, Ruler } from 'lucide-react';
 
 const StructuredDescription = ({ htmlContent }) => {
-    
     const parsedData = useMemo(() => {
         if (!htmlContent) return null;
 
-        
         const temp = document.createElement('div');
         temp.innerHTML = htmlContent;
         const rawText = temp.innerText || temp.textContent;
@@ -30,7 +28,6 @@ const StructuredDescription = ({ htmlContent }) => {
         for (let line of lines) {
             const lowerLine = line.toLowerCase();
 
-            
             if (lowerLine.includes('description :-') || lowerLine === 'description:') {
                 currentSection = 'description';
                 continue;
@@ -56,7 +53,6 @@ const StructuredDescription = ({ htmlContent }) => {
                 continue;
             }
 
-            
             if (currentSection === 'description') {
                 data.description += line + ' ';
                 data.isStructured = true;
@@ -66,7 +62,7 @@ const StructuredDescription = ({ htmlContent }) => {
             } else if (currentSection === 'idealFor') {
                 data.idealFor.push(line.replace(/^[-•*]\s*/, ''));
             } else if (currentSection === 'specs') {
-                const parts = line.split(/[:-]/); 
+                const parts = line.split(/[:-]/);
                 if (parts.length >= 2) {
                     data.specs.push({
                         key: parts[0].trim(),
@@ -86,7 +82,6 @@ const StructuredDescription = ({ htmlContent }) => {
         return data;
     }, [htmlContent]);
 
-    
     if (!parsedData?.isStructured) {
         return (
             <div
@@ -96,7 +91,6 @@ const StructuredDescription = ({ htmlContent }) => {
         );
     }
 
-    
     return (
         <div className="space-y-8 text-sm text-slate-700">
             {}

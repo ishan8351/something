@@ -20,7 +20,7 @@ import api from '../../utils/api.js';
 const AdminOverview = ({ setActiveTab }) => {
     const [analytics, setAnalytics] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [range, setRange] = useState('month'); // Default to month
+    const [range, setRange] = useState('month');
 
     useEffect(() => {
         const fetchAnalytics = async () => {
@@ -80,18 +80,9 @@ const AdminOverview = ({ setActiveTab }) => {
         yearly: 'Yearly',
     };
 
-    const rangeLabels = {
-        today: 'Today',
-        week: 'Weekly',
-        month: 'Monthly',
-        '3months': 'Past 3 Months',
-        '6months': 'Past 6 Months',
-        yearly: 'Yearly',
-    };
-
     return (
         <div className="flex flex-col gap-6">
-            {/* Header with Range Picker */}
+            {}
             <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
                 <h2 className="text-xl font-black text-slate-900">Dashboard Metrics</h2>
                 <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm focus-within:border-indigo-500">
@@ -111,9 +102,9 @@ const AdminOverview = ({ setActiveTab }) => {
                 </div>
             </div>
 
-            {/* KPI GRID */}
+            {}
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {/* Dynamic Revenue Card */}
+                {}
                 <div className="flex min-w-0 cursor-default items-center gap-4 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm transition-all hover:border-green-500 hover:shadow-md md:p-6">
                     <div className="shrink-0 rounded-2xl bg-green-50 p-4">
                         <DollarSign size={24} className="text-green-600" />
@@ -122,8 +113,11 @@ const AdminOverview = ({ setActiveTab }) => {
                         <p className="mb-1 truncate text-[10px] font-bold tracking-wider text-slate-400 uppercase">
                             Revenue ({rangeLabels[range]})
                         </p>
-                        <h3 className="break-all text-xl font-black text-slate-900 lg:text-2xl">
-                            ₹{kpis.periodRevenue?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || 0}
+                        <h3 className="text-xl font-black break-all text-slate-900 lg:text-2xl">
+                            ₹
+                            {kpis.periodRevenue?.toLocaleString('en-IN', {
+                                maximumFractionDigits: 0,
+                            }) || 0}
                         </h3>
                     </div>
                 </div>
@@ -140,7 +134,7 @@ const AdminOverview = ({ setActiveTab }) => {
                         <p className="mb-1 truncate text-[10px] font-bold tracking-wider text-slate-400 uppercase">
                             Total Customers
                         </p>
-                        <h3 className="break-all text-xl font-black text-slate-900 lg:text-2xl">
+                        <h3 className="text-xl font-black break-all text-slate-900 lg:text-2xl">
                             {kpis.totalCustomers?.toLocaleString('en-IN') || 0}
                         </h3>
                     </div>
@@ -158,7 +152,7 @@ const AdminOverview = ({ setActiveTab }) => {
                         <p className="mb-1 truncate text-[10px] font-bold tracking-wider text-slate-400 uppercase">
                             Orders Processing
                         </p>
-                        <h3 className="break-all text-xl font-black text-slate-900 lg:text-2xl">
+                        <h3 className="text-xl font-black break-all text-slate-900 lg:text-2xl">
                             {kpis.processingOrders || 0}
                         </h3>
                     </div>
@@ -176,13 +170,13 @@ const AdminOverview = ({ setActiveTab }) => {
                         <p className="mb-1 truncate text-[10px] font-bold tracking-wider text-slate-400 uppercase">
                             Stock Alerts
                         </p>
-                        <h3 className="break-all text-xl font-black text-slate-900 lg:text-2xl">
+                        <h3 className="text-xl font-black break-all text-slate-900 lg:text-2xl">
                             {totalAlerts} Items
                         </h3>
                     </div>
                 </div>
 
-                {/* Pending KYC Card */}
+                {}
                 <div
                     onClick={() => setActiveTab('users')}
                     className="group flex min-w-0 cursor-pointer items-center gap-4 rounded-3xl border border-amber-200 bg-amber-50 p-5 shadow-sm transition-all hover:bg-amber-100 hover:shadow-md md:p-6"
@@ -194,7 +188,7 @@ const AdminOverview = ({ setActiveTab }) => {
                         <p className="mb-1 truncate text-[10px] font-bold tracking-wider text-amber-700 uppercase">
                             Pending KYC
                         </p>
-                        <h3 className="break-all text-xl font-black text-amber-900 lg:text-2xl">
+                        <h3 className="text-xl font-black break-all text-amber-900 lg:text-2xl">
                             {kpis.pendingKycCount || 0} Req
                         </h3>
                     </div>
@@ -259,7 +253,7 @@ const AdminOverview = ({ setActiveTab }) => {
                     </div>
                 </div>
 
-                {/* Order Status Distribution */}
+                {}
                 <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
                     <h3 className="mb-6 text-sm font-bold tracking-wider text-slate-900 uppercase">
                         Order Status ({rangeLabels[range]})

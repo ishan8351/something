@@ -4,7 +4,6 @@ import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
-
 const calculateItemWeights = (product, qty) => {
     const actualWeightKg = (product.weightGrams || 0) / 1000;
     const l = product.dimensions?.length || 0;
@@ -21,10 +20,7 @@ const calculateItemWeights = (product, qty) => {
     };
 };
 
-
-
 const calculateSlabCharge = (totalWt) => {
-    
     if (totalWt <= 0) totalWt = 0.5;
 
     let slab = 0;
@@ -52,7 +48,7 @@ const calculateSlabCharge = (totalWt) => {
             break;
         case 4:
             deliveryCharge = 145;
-            break; 
+            break;
         case 5:
             deliveryCharge = 160;
             break;
@@ -76,7 +72,7 @@ const calculateSlabCharge = (totalWt) => {
             break;
         case 4:
             packingCharge = 28;
-            break; 
+            break;
         case 5:
             packingCharge = 30;
             break;
@@ -96,13 +92,11 @@ const recalculateCart = async (cart) => {
     let totalVolumetricWeight = 0;
     let totalBillableWeight = 0;
 
-    
     const weightGroups = {
         WHOLESALE: { billableWeight: 0, shippingCost: 0 },
         DROPSHIP: { billableWeight: 0, shippingCost: 0 },
     };
 
-    
     for (let i = 0; i < cart.items.length; i++) {
         let item = cart.items[i];
         if (!item.productId) continue;
@@ -115,7 +109,6 @@ const recalculateCart = async (cart) => {
             continue;
         }
 
-        
         let unitCost = product.dropshipBasePrice;
         if (item.orderType === 'WHOLESALE' && product.tieredPricing?.length > 0) {
             const applicableTier = [...product.tieredPricing]
@@ -128,24 +121,20 @@ const recalculateCart = async (cart) => {
         item.gstSlab = product.gstSlab;
         item.taxAmountPerUnit = Number(((unitCost * product.gstSlab) / 100).toFixed(2));
 
-        
         const weights = calculateItemWeights(product, item.qty);
         item.actualWeight = weights.actualWeight;
         item.volumetricWeight = weights.volumetricWeight;
         item.billableWeight = weights.billableWeight;
 
-        
         totalActualWeight += item.actualWeight;
         totalVolumetricWeight += item.volumetricWeight;
         totalBillableWeight += item.billableWeight;
 
-        
         weightGroups[item.orderType].billableWeight += item.billableWeight;
     }
 
     cart.items = cart.items.filter((item) => !item.toBeRemoved);
 
-    
     let dropshipCharges = { deliveryCharge: 0, packingCharge: 0, totalShippingCost: 0 };
     if (weightGroups.DROPSHIP.billableWeight > 0) {
         dropshipCharges = calculateSlabCharge(weightGroups.DROPSHIP.billableWeight);
@@ -162,15 +151,12 @@ const recalculateCart = async (cart) => {
     const totalShippingCost =
         weightGroups.WHOLESALE.shippingCost + weightGroups.DROPSHIP.shippingCost;
 
-    
     cart.totalDeliveryCharge = dropshipCharges.deliveryCharge + wholesaleCharges.deliveryCharge;
     cart.totalPackingCharge = dropshipCharges.packingCharge + wholesaleCharges.packingCharge;
 
-    
     for (let i = 0; i < cart.items.length; i++) {
         let item = cart.items[i];
 
-        
         const groupTotalWeight = weightGroups[item.orderType].billableWeight;
         if (groupTotalWeight > 0) {
             const weightRatio = item.billableWeight / groupTotalWeight;
@@ -186,7 +172,6 @@ const recalculateCart = async (cart) => {
         );
 
         if (item.orderType === 'DROPSHIP') {
-            
             const minimumSellingPrice =
                 item.platformUnitCost + item.taxAmountPerUnit + item.shippingCost / item.qty;
 
@@ -223,7 +208,7 @@ const recalculateCart = async (cart) => {
 export const getCart = asyncHandler(async (req, res) => {
     let cart = await Cart.findOne({ resellerId: req.user._id }).populate(
         'items.productId',
-        'title images sku inventory moq weightGrams dimensions dropshipBasePrice suggestedRetailPrice' 
+        'title images sku inventory moq weightGrams dimensions dropshipBasePrice suggestedRetailPrice'
     );
 
     if (!cart) {
@@ -344,7 +329,6 @@ export const removeFromCart = asyncHandler(async (req, res) => {
 });
 
 export const clearCart = asyncHandler(async (req, res) => {
-    
     const emptyCart = await Cart.findOneAndUpdate(
         { resellerId: req.user._id },
         {
@@ -357,7 +341,7 @@ export const clearCart = asyncHandler(async (req, res) => {
                 totalExpectedProfit: 0,
             },
         },
-        { new: true } 
+        { new: true }
     );
 
     if (!emptyCart) {
