@@ -156,12 +156,19 @@ export const updateKycStatus = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'Invalid KYC Status. Must be PENDING, APPROVED, or REJECTED.');
     }
 
+    const userToUpdate = await User.findById(req.params.id);
+    if (!userToUpdate) throw new ApiError(404, 'User not found');
+
     const updateData = { kycStatus };
     if (kycStatus === 'APPROVED') {
         updateData.isActive = true; // Auto-activate on approval
         updateData.kycRejectionReason = null; // Clear any old rejection reason
-        updateData.role = 'RESELLER'; // Upgrade to full reseller
         updateData.isVerifiedB2B = true; // Mark as verified B2B
+
+        // SECURITY: Never demote an ADMIN to RESELLER during KYC Approval
+        if (userToUpdate.role !== 'ADMIN') {
+            updateData.role = 'RESELLER'; // Upgrade Customers to Resellers
+        }
     } else if (kycStatus === 'REJECTED') {
         updateData.kycRejectionReason = kycRejectionReason || 'Details do not match our records.';
         updateData.isVerifiedB2B = false; // Revoke if rejected

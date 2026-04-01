@@ -454,8 +454,8 @@ function Navbar({ onToggleSidebar, onSelectCategory }) {
                                     >
                                         {user?.avatar ? (
                                             <img
-                                                src={`http://localhost:8014${user.avatar}`}
-                                                alt=""
+                                                src={user.avatar}
+                                                alt={user.name}
                                                 className="h-full w-full object-cover"
                                             />
                                         ) : (

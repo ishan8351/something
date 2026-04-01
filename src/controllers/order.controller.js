@@ -537,15 +537,21 @@ export const exportAdminOrdersToCsv = asyncHandler(async (req, res) => {
 
     const query = {};
     if (startDate && endDate) {
+        // Ensure we cover the full range of the selected start and end dates
+        const start = new Date(startDate);
+        start.setUTCHours(0, 0, 0, 0);
+        const end = new Date(endDate);
+        end.setUTCHours(23, 59, 59, 999);
+
         query.createdAt = {
-            $gte: new Date(startDate),
-            $lte: new Date(new Date(endDate).setHours(23, 59, 59, 999)),
+            $gte: start,
+            $lte: end,
         };
     }
 
     const orders = await Order.find(query)
         .sort({ createdAt: -1 })
-        .populate('resellerId', 'name companyName email phone');
+        .populate('resellerId', 'name companyName email phoneNumber billingAddress');
 
     // Helper to safely format CSV values
     const escapeCsv = (val) => {
@@ -559,93 +565,66 @@ export const exportAdminOrdersToCsv = asyncHandler(async (req, res) => {
     };
 
     const headers = [
-        'Order ID',
-        'Order Date',
+        'Platform order number',
+        'First Name',
+        'Last Name',
+        'Mobile',
+        'Shipping Address 1',
+        'City',
+        'State',
+        'Pincode',
+        'Company',
+        'SKU',
+        'Quantity',
+        'Selling Price',
         'Status',
-        'Order Type',
-        'Payment Method',
-        'Reseller Name',
-        'Reseller Email',
-        'Reseller Company',
-        'Reseller Phone',
-        'Customer Name',
-        'Customer Phone',
-        'Customer Street',
-        'Customer City',
-        'Customer State',
-        'Customer ZIP',
-        'Items (SKU | Title | HSN | Qty | GST)',
-        'Total Actual Weight (kg)',
-        'Total Volumetric Weight (kg)',
-        'Total Billable Weight (kg)',
-        'Weight Type',
-        'Base Product Cost',
-        'Tax Amount',
-        'Shipping Charge',
-        'COD Charge',
-        'Total Platform Cost',
-        'Reseller Profit Margin',
-        'COD to Collect',
-        'AWB Number',
-        'Courier',
-        'Tracking Number',
-        'Tracking URL',
-        'NDR Attempt Count',
-        'NDR Reason',
-        'NDR Reseller Action',
     ];
 
-    let csvContent = headers.map((h) => `"${h}"`).join(',') + '\n';
+    // Add UTF-8 BOM for Excel compatibility
+    let csvContent = '\uFEFF' + headers.map(escapeCsv).join(',') + '\n';
 
     orders.forEach((order) => {
         const isDropship = !!order.endCustomerDetails?.name;
+        const reseller = order.resellerId || {};
 
-        // Create a more descriptive items breakdown
-        const itemsStr = order.items
-            .map((i) => `${i.sku} | ${i.title} (x${i.qty}) | HSN:${i.hsnCode} | GST:${i.gstSlab}%`)
-            .join(' || ');
+        // Fallback to Reseller Details if it's not a Dropship order
+        const fullName = (isDropship ? order.endCustomerDetails?.name : reseller.name) || '';
+        const nameParts = fullName.trim().split(/\s+/);
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
 
-        const row = [
-            order.orderId,
-            new Date(order.createdAt).toISOString().split('T')[0],
-            order.status,
-            isDropship ? 'DROPSHIP' : 'WHOLESALE',
-            order.paymentMethod,
-            order.resellerId?.name || '',
-            order.resellerId?.email || '',
-            order.resellerId?.companyName || '',
-            order.resellerId?.phone || '',
-            isDropship ? order.endCustomerDetails?.name || '' : '',
-            isDropship ? order.endCustomerDetails?.phone || '' : '',
-            isDropship ? order.endCustomerDetails?.address?.street || '' : '',
-            isDropship ? order.endCustomerDetails?.address?.city || '' : '',
-            isDropship ? order.endCustomerDetails?.address?.state || '' : '',
-            isDropship ? order.endCustomerDetails?.address?.zip || '' : '',
-            itemsStr,
-            order.totalActualWeight || 0,
-            order.totalVolumetricWeight || 0,
-            order.totalBillableWeight || 0,
-            order.weightType || 'N/A',
-            order.subTotal || 0,
-            order.taxTotal || 0,
-            order.shippingTotal || 0,
-            order.codCharge || 0,
-            order.totalPlatformCost || 0,
-            order.resellerProfitMargin || 0,
-            order.amountToCollect || 0,
-            order.tracking?.awbNumber || '',
-            order.tracking?.courierName || '',
-            order.tracking?.trackingNumber || '',
-            order.tracking?.trackingUrl || '',
-            order.ndrDetails?.attemptCount || 0,
-            order.ndrDetails?.reason || '',
-            order.ndrDetails?.resellerAction || '',
-        ];
+        const company = reseller.companyName || '';
+        const phone = (isDropship ? order.endCustomerDetails?.phone : reseller.phoneNumber) || '';
+        const shippingAddress1 = (isDropship ? order.endCustomerDetails?.address?.street : reseller.billingAddress?.street) || '';
+        const city = (isDropship ? order.endCustomerDetails?.address?.city : reseller.billingAddress?.city) || '';
+        const state = (isDropship ? order.endCustomerDetails?.address?.state : reseller.billingAddress?.state) || '';
+        const pincode = (isDropship ? order.endCustomerDetails?.address?.zip : reseller.billingAddress?.zip) || '';
 
-        csvContent += row.map(escapeCsv).join(',') + '\n';
+        // Generate one row per item
+        order.items.forEach((item) => {
+            const row = [
+                order.orderId,
+                firstName,
+                lastName,
+                phone,
+                shippingAddress1,
+                city,
+                state,
+                pincode,
+                company,
+                item.sku,
+                item.qty,
+                item.resellerSellingPrice,
+                order.status,
+            ];
+            csvContent += row.map(escapeCsv).join(',') + '\n';
+        });
     });
 
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename="orders_export.csv"');
+    const filename = (startDate && endDate)
+        ? `orders_export_${startDate}_to_${endDate}.csv`
+        : 'orders_export.csv';
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     return res.status(200).send(csvContent);
 });

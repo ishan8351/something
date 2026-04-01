@@ -1,3 +1,6 @@
+import { Link } from 'react-router-dom';
+import { ROUTES } from '../utils/routes';
+
 function Footer() {
     return (
         <footer
@@ -9,7 +12,7 @@ function Footer() {
                 <div className="mb-16 grid grid-cols-1 gap-12 md:grid-cols-2 lg:grid-cols-6 lg:gap-8">
                     {}
                     <div className="space-y-6 lg:col-span-2">
-                        <a href="#" className="group flex inline-flex items-center gap-3">
+                        <Link to={ROUTES.HOME} className="group flex inline-flex items-center gap-3">
                             <div className="rounded-lg bg-white p-1.5 transition-transform group-hover:scale-105">
                                 <img
                                     src="https://m.media-amazon.com/images/X/bxt1/M/Bbxt1BI1cNpD5ln._SL160_QL95_FMwebp_.png"
@@ -20,7 +23,7 @@ function Footer() {
                             <span className="text-2xl font-extrabold tracking-tight text-white">
                                 Sovely
                             </span>
-                        </a>
+                        </Link>
                         <p className="max-w-sm text-sm leading-relaxed font-medium">
                             Amet minim mollit non deserunt ullamco est sit aliqua dolor do amet
                             sint. Velit officia consequat duis enim velit mollit.
@@ -64,36 +67,36 @@ function Footer() {
                         </h4>
                         <ul className="space-y-3 text-sm font-medium">
                             <li>
-                                <a
-                                    href="#"
+                                <Link
+                                    to="/search?category=Home%20%26%20Kitchen"
                                     className="inline-block transition-all hover:translate-x-1 hover:text-white"
                                 >
                                     Home & Kitchen
-                                </a>
+                                </Link>
                             </li>
                             <li>
-                                <a
-                                    href="#"
+                                <Link
+                                    to="/search?category=Home%20Improvement"
                                     className="inline-block transition-all hover:translate-x-1 hover:text-white"
                                 >
                                     Home Improvement
-                                </a>
+                                </Link>
                             </li>
                             <li>
-                                <a
-                                    href="#"
+                                <Link
+                                    to="/search?category=Health%20%26%20Care"
                                     className="inline-block transition-all hover:translate-x-1 hover:text-white"
                                 >
                                     Health & Care
-                                </a>
+                                </Link>
                             </li>
                             <li>
-                                <a
-                                    href="#"
+                                <Link
+                                    to="/search?category=Industrial"
                                     className="inline-block transition-all hover:translate-x-1 hover:text-white"
                                 >
                                     Industrial
-                                </a>
+                                </Link>
                             </li>
                         </ul>
                     </div>
@@ -200,12 +203,12 @@ function Footer() {
                                 </a>
                             </li>
                             <li>
-                                <a
-                                    href="#"
+                                <Link
+                                    to={ROUTES.ORDERS}
                                     className="inline-block transition-all hover:translate-x-1 hover:text-white"
                                 >
                                     Track Orders
-                                </a>
+                                </Link>
                             </li>
                             <li>
                                 <a

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Navbar from './Navbar';
+import Sidebar from './Sidebar';
 import BulkUpload from './BulkUpload';
 
 // Sub-components
@@ -33,6 +34,7 @@ const ADMIN_TABS = [
 const AdminDashboard = () => {
     const location = useLocation();
     const [activeTab, setActiveTab] = useState(location.state?.tab || 'overview');
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     useEffect(() => {
         if (location.state?.tab) {
@@ -63,7 +65,8 @@ const AdminDashboard = () => {
 
     return (
         <div className="relative flex min-h-screen flex-col bg-slate-50/50 font-sans selection:bg-slate-900/30">
-            <Navbar />
+            <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+            <Navbar onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
 
             <div className="relative flex flex-1 overflow-hidden">
                 {/* Sidebar Navigation */}

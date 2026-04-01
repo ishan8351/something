@@ -365,7 +365,10 @@ const CartDrawer = ({ isOpen, onClose }) => {
                                         started.
                                     </p>
                                     <button
-                                        onClick={onClose}
+                                        onClick={() => {
+                                            onClose();
+                                            navigate('/');
+                                        }}
                                         className="mt-6 rounded-lg border border-slate-300 bg-white px-6 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
                                     >
                                         Browse Catalog

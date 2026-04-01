@@ -61,6 +61,13 @@ export default function DropshipProducts({
         }));
     }, [stringifiedFilters]);
 
+    // FIX: Sync local category state with initialCategory when the prop changes (e.g. from the Navbar)
+    useEffect(() => {
+        if (initialCategory) {
+            setCategory(initialCategory);
+        }
+    }, [initialCategory]);
+
     useEffect(() => {
         if (globalSearchQuery) {
             setCategory('All Categories');

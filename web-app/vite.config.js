@@ -13,6 +13,16 @@ export default defineConfig({
         target: 'http://localhost:8014',
         changeOrigin: true,
         secure: false,
+      },
+      '/avatars': {
+        target: 'http://localhost:8014',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/images': {
+        target: 'http://localhost:8014',
+        changeOrigin: true,
+        secure: false,
       }
     }
   }

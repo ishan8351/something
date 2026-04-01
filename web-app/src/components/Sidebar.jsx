@@ -1,7 +1,10 @@
 import React, { useEffect, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AuthContext } from '../AuthContext';
+import api from '../utils/api';
+import { getCategoryIcon } from '../utils/categoryIcons';
 import {
     Home,
     UploadCloud,
@@ -32,6 +35,14 @@ const overlayVariants = {
 function Sidebar({ isOpen, onClose }) {
     const navigate = useNavigate();
     const { user, logout } = useContext(AuthContext);
+
+    const { data: dbCategories = [] } = useQuery({
+        queryKey: ['categories'],
+        queryFn: async () => {
+            const res = await api.get('/categories');
+            return res.data.data;
+        },
+    });
 
     const handleLogout = async () => {
         await logout();
@@ -203,6 +214,49 @@ function Sidebar({ isOpen, onClose }) {
                                             Orders & Tracking
                                         </Link>
                                     </li>
+                                </ul>
+                            </div>
+
+                            {/* NEW: Categories Section for Mobile */}
+                            <div className="mb-8">
+                                <h3 className="mb-3 px-3 text-xs font-bold tracking-wider text-slate-400 uppercase">
+                                    Browse Categories
+                                </h3>
+                                <div className="grid grid-cols-2 gap-2 px-1">
+                                    {dbCategories.slice(0, 10).map((cat) => {
+                                        const { Icon, iconColor } = getCategoryIcon(cat.name);
+                                        return (
+                                            <button
+                                                key={cat._id}
+                                                onClick={() => {
+                                                    onClose();
+                                                    navigate(
+                                                        `/search?category=${encodeURIComponent(cat.name)}`
+                                                    );
+                                                }}
+                                                className="flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-100 bg-slate-50/50 p-3 transition-colors hover:bg-white hover:shadow-sm"
+                                            >
+                                                <div
+                                                    className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm"
+                                                    style={{ color: iconColor }}
+                                                >
+                                                    <Icon size={16} />
+                                                </div>
+                                                <span className="truncate text-center text-[10px] font-bold text-slate-700">
+                                                    {cat.name}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Business Settings */}
+                            <div>
+                                <h3 className="mb-3 px-3 text-xs font-bold tracking-wider text-slate-400 uppercase">
+                                    Platform & Wallet
+                                </h3>
+                                <ul className="space-y-1">
                                     <li>
                                         <Link
                                             to="/wallet"
@@ -216,15 +270,6 @@ function Sidebar({ isOpen, onClose }) {
                                             Wallet & Credit
                                         </Link>
                                     </li>
-                                </ul>
-                            </div>
-
-                            {/* Business Settings */}
-                            <div>
-                                <h3 className="mb-3 px-3 text-xs font-bold tracking-wider text-slate-400 uppercase">
-                                    Business Settings
-                                </h3>
-                                <ul className="space-y-1">
                                     <li>
                                         <Link
                                             to="/my-account"

@@ -231,16 +231,34 @@ const AdminUsers = () => {
                                             className="group transition-colors hover:bg-slate-50/50"
                                         >
                                             <td className="p-4 whitespace-nowrap">
-                                                <div className="flex items-center gap-2 font-bold text-slate-900">
-                                                    {u.name}
-                                                    {u.role === 'ADMIN' && (
-                                                        <span className="rounded bg-slate-900 px-1.5 py-0.5 text-[9px] tracking-wider text-white uppercase">
-                                                            Admin
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <div className="text-sm font-medium text-slate-500">
-                                                    {u.email || u.phoneNumber}
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-100 bg-slate-100">
+                                                        {u.avatar ? (
+                                                            <img
+                                                                src={u.avatar}
+                                                                alt={u.name}
+                                                                className="h-full w-full object-cover"
+                                                            />
+                                                        ) : (
+                                                            <span className="text-xs font-bold text-slate-400">
+                                                                {u.name?.charAt(0).toUpperCase() ||
+                                                                    'U'}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <div className="flex items-center gap-2 font-bold text-slate-900">
+                                                            {u.name}
+                                                            {u.role === 'ADMIN' && (
+                                                                <span className="rounded bg-slate-900 px-1.5 py-0.5 text-[9px] tracking-wider text-white uppercase">
+                                                                    Admin
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="text-sm font-medium text-slate-500">
+                                                            {u.email || u.phoneNumber}
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </td>
                                             <td className="p-4 whitespace-nowrap">
@@ -364,13 +382,28 @@ const AdminUsers = () => {
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
                     <div className="w-full max-w-2xl rounded-[2rem] bg-white shadow-2xl">
                         <div className="flex items-center justify-between border-b border-slate-100 p-6">
-                            <div>
-                                <h2 className="text-xl font-extrabold text-slate-900">
-                                    Review Business KYC
-                                </h2>
-                                <p className="text-sm font-medium text-slate-500">
-                                    Applicant: {viewKycUser.name}
-                                </p>
+                            <div className="flex items-center gap-4">
+                                <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-100 bg-slate-50 shadow-sm">
+                                    {viewKycUser.avatar ? (
+                                        <img
+                                            src={viewKycUser.avatar}
+                                            alt={viewKycUser.name}
+                                            className="h-full w-full object-cover"
+                                        />
+                                    ) : (
+                                        <span className="text-xl font-black text-slate-400">
+                                            {viewKycUser.name?.charAt(0).toUpperCase() || 'U'}
+                                        </span>
+                                    )}
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-extrabold text-slate-900">
+                                        Review Business KYC
+                                    </h2>
+                                    <p className="text-sm font-medium text-slate-500">
+                                        Applicant: {viewKycUser.name}
+                                    </p>
+                                </div>
                             </div>
                             <button
                                 onClick={() => setViewKycUser(null)}

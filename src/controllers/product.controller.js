@@ -246,10 +246,10 @@ export const updateProduct = asyncHandler(async (req, res) => {
         throw new ApiError(404, 'Product not found or has been removed');
     }
 
-    if (req.body['inventory.stock'] !== undefined) {
-        if (!product.inventory) product.inventory = {};
-        product.inventory.stock = Number(req.body['inventory.stock']);
-        delete req.body['inventory.stock'];
+    // Securely update nested inventory fields without overwriting other sub-properties
+    if (req.body.inventory && typeof req.body.inventory === 'object') {
+        Object.assign(product.inventory, req.body.inventory);
+        delete req.body.inventory;
     }
 
     Object.assign(product, req.body);
@@ -257,7 +257,6 @@ export const updateProduct = asyncHandler(async (req, res) => {
 
     return res.status(200).json(new ApiResponse(200, product, 'Product updated successfully'));
 });
-
 /**
  * @desc    Soft Delete a Product (ADMIN ONLY)
  * @route   DELETE /api/products/:id

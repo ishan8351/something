@@ -76,7 +76,7 @@ export const verifyPaymentSignature = asyncHandler(async (req, res) => {
                 .json(new ApiResponse(200, existingPayment, 'Payment already processed'));
         }
 
-        const invoice = await Invoice.findById(invoiceId).session(session);
+        const invoice = await Invoice.findOne({ _id: invoiceId, resellerId }).session(session);
         if (!invoice) throw new ApiError(404, 'Invoice not found');
         if (invoice.paymentStatus === 'PAID')
             throw new ApiError(400, 'Invoice already marked as PAID');

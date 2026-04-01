@@ -9,6 +9,8 @@ export const getDashboardAnalytics = asyncHandler(async (req, res) => {
 
     const now = new Date();
     let startDate = new Date();
+    startDate.setUTCHours(0, 0, 0, 0); // Always normalize to start of day for accurate interval counts
+
     let groupingFormat = '%Y-%m-%d';
     let intervals = 30; // Default days
     let labelFormat = { month: 'short', day: '2-digit' };
@@ -139,13 +141,22 @@ export const getDashboardAnalytics = asyncHandler(async (req, res) => {
     const periodRevenue = periodRevenueAgg[0]?.total || 0;
 
     // Fixed Comparisons (Always show 30d/7d for secondary metrics if needed, but here we just return period total)
-    const totalCustomers = await User.countDocuments({ role: 'RESELLER', deletedAt: null });
-    const processingOrders = await Order.countDocuments({ status: 'PROCESSING' });
+    // Period-specific KPIs (Now reactive to the selected time range)
+    const totalCustomers = await User.countDocuments({ 
+        role: 'RESELLER', 
+        deletedAt: null,
+        createdAt: { $gte: startDate } 
+    });
+    const processingOrders = await Order.countDocuments({ 
+        status: 'PROCESSING',
+        createdAt: { $gte: startDate }
+    });
     const pendingKycCount = await User.countDocuments({
         role: 'RESELLER',
         kycStatus: 'PENDING',
         isActive: true,
         deletedAt: null,
+        createdAt: { $gte: startDate }
     });
 
     return res.status(200).json(

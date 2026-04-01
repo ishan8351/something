@@ -120,13 +120,12 @@ function App() {
                             <Route path="/orders/:id/track" element={<OrderTracking />} />
                             <Route path="/kyc" element={<KycSubmit />} />
 
+                            {/* Standard account actions allowed before KYC approval */}
+                            <Route path={ROUTES.MY_ACCOUNT} element={<MyAccount />} />
+                            <Route path={ROUTES.ACCOUNT_SETTINGS} element={<AccountSettings />} />
+
                             {/* --- 4. SENSITIVE B2B DATA (KYC/Reseller Required) --- */}
                             <Route element={<ResellerRoute />}>
-                                <Route path={ROUTES.MY_ACCOUNT} element={<MyAccount />} />
-                                <Route
-                                    path={ROUTES.ACCOUNT_SETTINGS}
-                                    element={<AccountSettings />}
-                                />
                                 <Route path={ROUTES.INVOICES} element={<Invoices />} />
                                 <Route path={ROUTES.QUICK_ORDER} element={<QuickOrder />} />
                                 <Route path={ROUTES.WALLET} element={<Wallet />} />
