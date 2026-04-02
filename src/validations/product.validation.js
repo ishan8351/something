@@ -4,18 +4,29 @@ const objectId = z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid MongoDB ObjectId
 
 export const productValidation = {
     getProducts: z.object({
-        query: z.object({
-            page: z.string().regex(/^\d+$/).optional(),
-            limit: z.string().regex(/^\d+$/).optional(),
-            search: z.string().optional(),
-            category: objectId.optional(),
-            minMargin: z.string().regex(/^\d+$/).optional(),
-            maxBasePrice: z
-                .string()
-                .regex(/^\d+(\.\d{1,2})?$/)
-                .optional(),
-            isDropship: z.enum(['true', 'false']).optional(),
-        }),
+        query: z
+            .object({
+                page: z.string().regex(/^\d+$/).optional(),
+                limit: z.string().regex(/^\d+$/).optional(),
+                search: z.string().optional(),
+                category: objectId.optional(),
+                minMargin: z.string().regex(/^\d+$/).optional(),
+                minBasePrice: z.string().regex(/^\d+$/).optional(),
+                maxBasePrice: z.string().regex(/^\d+$/).optional(),
+                isDropship: z.enum(['true', 'false']).optional(),
+            })
+            .refine(
+                (query) => {
+                    if (query.minBasePrice === undefined || query.maxBasePrice === undefined) {
+                        return true;
+                    }
+                    return Number(query.minBasePrice) <= Number(query.maxBasePrice);
+                },
+                {
+                    message: 'minBasePrice cannot be greater than maxBasePrice',
+                    path: ['minBasePrice'],
+                }
+            ),
     }),
 
     getProductById: z.object({

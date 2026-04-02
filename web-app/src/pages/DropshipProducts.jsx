@@ -18,6 +18,13 @@ const SORT_OPTIONS = [
     { value: 'margin', label: 'Highest Margin' },
 ];
 
+const parseNonNegativeInt = (value) => {
+    if (value === '' || value === undefined || value === null) return null;
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0) return null;
+    return Math.floor(parsed);
+};
+
 export default function DropshipProducts({
     filters = {},
     globalSearchQuery = '',
@@ -108,8 +115,18 @@ export default function DropshipProducts({
             if (selectedCatId) params.append('category', selectedCatId);
             if (globalSearchQuery) params.append('search', globalSearchQuery);
             if (sort !== 'default') params.append('sort', sort);
-            if (debouncedMinPrice) params.append('minBasePrice', debouncedMinPrice);
-            if (debouncedMaxPrice) params.append('maxBasePrice', debouncedMaxPrice);
+
+            const minBasePrice = parseNonNegativeInt(debouncedMinPrice);
+            const maxBasePrice = parseNonNegativeInt(debouncedMaxPrice);
+
+            if (minBasePrice !== null && maxBasePrice !== null) {
+                params.append('minBasePrice', String(Math.min(minBasePrice, maxBasePrice)));
+                params.append('maxBasePrice', String(Math.max(minBasePrice, maxBasePrice)));
+            } else if (minBasePrice !== null) {
+                params.append('minBasePrice', String(minBasePrice));
+            } else if (maxBasePrice !== null) {
+                params.append('maxBasePrice', String(maxBasePrice));
+            }
 
             if (maxDispatchDays) params.append('maxShippingDays', maxDispatchDays);
             if (verifiedOnly) params.append('isVerifiedSupplier', 'true');

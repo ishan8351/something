@@ -23,7 +23,7 @@ const router = Router();
 
 router.get('/health', (req, res) => res.json({ status: 'ok', route: '/products/health' }));
 
-router.get('/', getProducts);
+router.get('/', validate(productValidation.getProducts), getProducts);
 router.post('/validate-bulk', verifyJWT, validateBulkOrder);
 
 router.get('/admin/all', verifyJWT, authorizeRoles('ADMIN'), getAllAdminProducts);

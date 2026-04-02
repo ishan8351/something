@@ -19,6 +19,33 @@ export default function ProductFilterSidebar({
     setB2bFilters,
     resetAll,
 }) {
+    const normalizePriceInput = (rawValue) => {
+        const digitsOnly = String(rawValue ?? '').replace(/\D/g, '');
+        if (digitsOnly === '') return '';
+        return String(Number(digitsOnly));
+    };
+
+    const blockInvalidNumericKeys = (e) => {
+        if (['-', '+', 'e', 'E', '.'].includes(e.key)) {
+            e.preventDefault();
+        }
+    };
+
+    const enforceRangeOnBlur = (field) => {
+        if (minPrice === '' || maxPrice === '') return;
+
+        const min = Number(minPrice);
+        const max = Number(maxPrice);
+        if (!Number.isFinite(min) || !Number.isFinite(max) || min <= max) return;
+
+        if (field === 'min') {
+            setMinPrice(String(max));
+            return;
+        }
+
+        setMaxPrice(String(min));
+    };
+
     return (
         <aside
             className={`no-scrollbar fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto bg-white p-6 shadow-2xl transition-transform duration-300 lg:sticky lg:top-24 lg:z-0 lg:h-[calc(100vh-theme(spacing.24)-2rem)] lg:w-64 lg:translate-x-0 lg:rounded-xl lg:border lg:border-slate-200 lg:p-5 lg:shadow-sm ${isMobileFilterOpen ? 'translate-x-0' : '-translate-x-full'}`}
@@ -78,17 +105,27 @@ export default function ProductFilterSidebar({
                     <div className="flex items-center gap-2">
                         <input
                             type="number"
+                            min="0"
+                            step="1"
+                            inputMode="numeric"
                             placeholder="Min"
                             value={minPrice}
-                            onChange={(e) => setMinPrice(e.target.value)}
+                            onChange={(e) => setMinPrice(normalizePriceInput(e.target.value))}
+                            onKeyDown={blockInvalidNumericKeys}
+                            onBlur={() => enforceRangeOnBlur('min')}
                             className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-900 transition-all outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20"
                         />
                         <span className="text-slate-300">-</span>
                         <input
                             type="number"
+                            min="0"
+                            step="1"
+                            inputMode="numeric"
                             placeholder="Max"
                             value={maxPrice}
-                            onChange={(e) => setMaxPrice(e.target.value)}
+                            onChange={(e) => setMaxPrice(normalizePriceInput(e.target.value))}
+                            onKeyDown={blockInvalidNumericKeys}
+                            onBlur={() => enforceRangeOnBlur('max')}
                             className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-900 transition-all outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20"
                         />
                     </div>

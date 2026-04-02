@@ -87,6 +87,29 @@ export const getProducts = asyncHandler(async (req, res) => {
     const query = { status: 'active', deletedAt: null };
     let projection = { '-__v': 0 };
 
+    const hasMinBasePrice = minBasePrice !== undefined;
+    const hasMaxBasePrice = maxBasePrice !== undefined;
+    const parsedMinBasePrice = hasMinBasePrice ? Number(minBasePrice) : null;
+    const parsedMaxBasePrice = hasMaxBasePrice ? Number(maxBasePrice) : null;
+
+    if (hasMinBasePrice && (!Number.isFinite(parsedMinBasePrice) || parsedMinBasePrice < 0)) {
+        throw new ApiError(400, 'minBasePrice must be a non-negative number');
+    }
+
+    if (hasMaxBasePrice && (!Number.isFinite(parsedMaxBasePrice) || parsedMaxBasePrice < 0)) {
+        throw new ApiError(400, 'maxBasePrice must be a non-negative number');
+    }
+
+    if (
+        hasMinBasePrice &&
+        hasMaxBasePrice &&
+        parsedMinBasePrice !== null &&
+        parsedMaxBasePrice !== null &&
+        parsedMinBasePrice > parsedMaxBasePrice
+    ) {
+        throw new ApiError(400, 'minBasePrice cannot be greater than maxBasePrice');
+    }
+
     if (search) {
         const safeSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const searchRegex = new RegExp(safeSearch, 'i');
@@ -108,10 +131,10 @@ export const getProducts = asyncHandler(async (req, res) => {
         }
     }
 
-    if (minBasePrice || maxBasePrice) {
+    if (hasMinBasePrice || hasMaxBasePrice) {
         query.dropshipBasePrice = {};
-        if (minBasePrice) query.dropshipBasePrice.$gte = Number(minBasePrice);
-        if (maxBasePrice) query.dropshipBasePrice.$lte = Number(maxBasePrice);
+        if (parsedMinBasePrice !== null) query.dropshipBasePrice.$gte = parsedMinBasePrice;
+        if (parsedMaxBasePrice !== null) query.dropshipBasePrice.$lte = parsedMaxBasePrice;
     }
 
     if (minMoq || maxMoq) {
