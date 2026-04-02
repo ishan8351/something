@@ -45,10 +45,9 @@ export const createOrder = asyncHandler(async (req, res) => {
     session.startTransaction();
 
     try {
+        // 1. Initial reseller balance pull
         const resellerCheck = await User.findById(resellerId).session(session);
-        if (!resellerCheck || resellerCheck.walletBalance < cart.grandTotalPlatformCost) {
-            throw new ApiError(400, 'Insufficient wallet balance.');
-        }
+        if (!resellerCheck) throw new ApiError(404, 'Reseller account not found.');
 
         const dropshipItems = [];
         const wholesaleItems = [];
@@ -204,6 +203,24 @@ export const createOrder = asyncHandler(async (req, res) => {
             });
         }
 
+        // --- NEW: Calculate True Platform Cost Across All Orders ---
+        const totalWholesaleCost = ordersToCreate
+            .filter((o) => o.orderId.startsWith('OD-WH'))
+            .reduce((acc, o) => acc + o.totalPlatformCost, 0);
+        const totalDropshipCost = ordersToCreate
+            .filter((o) => o.orderId.startsWith('OD-DS'))
+            .reduce((acc, o) => acc + o.totalPlatformCost, 0);
+
+        const calculatedFinalTotal = totalWholesaleCost + totalDropshipCost;
+
+        // --- NEW: Final Balance Check with Recalculated Total ---
+        if (resellerCheck.walletBalance < calculatedFinalTotal) {
+            throw new ApiError(
+                400,
+                `Insufficient wallet balance. Total required: ₹${calculatedFinalTotal}, Available: ₹${resellerCheck.walletBalance}`
+            );
+        }
+
         const createdOrders = await Order.insertMany(ordersToCreate, { session });
 
         for (const orderDoc of createdOrders) {
@@ -212,7 +229,7 @@ export const createOrder = asyncHandler(async (req, res) => {
 
         const updatedReseller = await User.findByIdAndUpdate(
             resellerId,
-            { $inc: { walletBalance: -cart.grandTotalPlatformCost } },
+            { $inc: { walletBalance: -calculatedFinalTotal } },
             { returnDocument: 'after', session }
         );
 
@@ -222,7 +239,7 @@ export const createOrder = asyncHandler(async (req, res) => {
                     resellerId,
                     type: 'DEBIT',
                     purpose: 'ORDER_DEDUCTION',
-                    amount: cart.grandTotalPlatformCost,
+                    amount: calculatedFinalTotal,
                     closingBalance: updatedReseller.walletBalance,
                     referenceId: generatedOrderIds.join(', '),
                     description: `Platform cost deducted for orders: ${generatedOrderIds.join(', ')}`,

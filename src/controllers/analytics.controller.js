@@ -180,8 +180,32 @@ export const getDashboardAnalytics = asyncHandler(async (req, res) => {
 // Add this export to your analytics.controller.js
 export const getResellerAnalytics = asyncHandler(async (req, res) => {
     const resellerId = req.user._id;
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const { range = 'month' } = req.query;
+
+    const now = new Date();
+    let startDate = new Date();
+    startDate.setUTCHours(0, 0, 0, 0);
+
+    let intervals = 30; // Default days
+    let labelFormat = { month: 'short', day: 'numeric' };
+
+    switch (range) {
+        case 'week':
+            startDate.setDate(now.getDate() - 7);
+            intervals = 7;
+            break;
+        case 'month':
+            startDate.setDate(now.getDate() - 30);
+            intervals = 30;
+            break;
+        case '3months':
+            startDate.setDate(now.getDate() - 90);
+            intervals = 90;
+            break;
+        default:
+            startDate.setDate(now.getDate() - 30);
+            intervals = 30;
+    }
 
     // 1. Lifetime & Operational KPIs
     const kpiAggregation = await Order.aggregate([
@@ -242,12 +266,12 @@ export const getResellerAnalytics = asyncHandler(async (req, res) => {
     const rtoRate =
         kpis.totalOrders > 0 ? Math.round((kpis.rtoOrders / kpis.totalOrders) * 100) : 0;
 
-    // 2. 30-Day Profit Trend
+    // 2. Profit Trend Based on Selected Range
     const trendAggregation = await Order.aggregate([
         {
             $match: {
                 resellerId: resellerId,
-                createdAt: { $gte: thirtyDaysAgo },
+                createdAt: { $gte: startDate },
                 status: { $ne: 'CANCELLED' },
             },
         },
@@ -263,13 +287,13 @@ export const getResellerAnalytics = asyncHandler(async (req, res) => {
     // Format trend data for the frontend graph
     const trendMap = new Map(trendAggregation.map((item) => [item._id, item.dailyProfit]));
     const profitTrend = [];
-    for (let i = 14; i >= 0; i--) {
-        // Sending 15 days of data for a cleaner UI chart
+
+    for (let i = intervals - 1; i >= 0; i--) {
         const d = new Date();
-        d.setDate(d.getDate() - i);
+        d.setDate(now.getDate() - i);
         const dateString = d.toISOString().split('T')[0];
         profitTrend.push({
-            date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            date: d.toLocaleDateString('en-US', labelFormat),
             profit: trendMap.get(dateString) || 0,
         });
     }

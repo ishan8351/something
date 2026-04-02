@@ -226,6 +226,27 @@ export const updateMyProfile = asyncHandler(async (req, res) => {
         promotionalEmails,
     } = req.body;
 
+    // 1. Validation: Check if another user is already using the new Email or GSTIN
+    if (email || gstin) {
+        const orConditions = [];
+        if (email) orConditions.push({ email });
+        if (gstin) orConditions.push({ gstin });
+
+        const existingUser = await User.findOne({
+            $or: orConditions,
+            _id: { $ne: req.user._id }, // Exclude current user
+        });
+
+        if (existingUser) {
+            if (email && existingUser.email === email) {
+                throw new ApiError(409, 'This email is already in use by another account.');
+            }
+            if (gstin && existingUser.gstin === gstin) {
+                throw new ApiError(409, 'A business with this GSTIN is already registered.');
+            }
+        }
+    }
+
     const updateData = {};
     if (name) updateData.name = name;
     if (email) updateData.email = email;
