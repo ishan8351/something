@@ -1,8 +1,6 @@
 import { Router } from 'express';
+import { sendOtp, loginWithOtp } from '../controllers/auth.controller.js';
 import {
-    sendSignupOtp,
-    sendLoginOtp,
-    loginWithOtp,
     getAllUsers,
     updateKycStatus,
     toggleUserStatus,
@@ -18,8 +16,19 @@ import { verifyJWT, authorizeRoles } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
-router.post('/send-otp', sendSignupOtp);
-router.post('/send-login-otp', sendLoginOtp);
+// Forward signup OTP request to auth controller
+router.post('/send-otp', (req, res, next) => {
+    req.body.isLogin = false;
+    return sendOtp(req, res, next);
+});
+
+// Forward login OTP request to auth controller
+router.post('/send-login-otp', (req, res, next) => {
+    req.body.isLogin = true;
+    return sendOtp(req, res, next);
+});
+
+// Forward login verification to auth controller
 router.post('/login-otp', loginWithOtp);
 
 router.get('/admin/all', verifyJWT, authorizeRoles('ADMIN'), getAllUsers);
