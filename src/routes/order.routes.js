@@ -10,6 +10,8 @@ import {
     createBulkDropshipOrders,
 } from '../controllers/order.controller.js';
 import { verifyJWT, authorizeRoles, requireKycApproved } from '../middlewares/auth.middleware.js';
+import { validate } from '../middlewares/validate.middleware.js';
+import { orderValidation } from '../validations/order.validation.js';
 
 const router = Router();
 
@@ -22,7 +24,7 @@ router.put('/:id/status', authorizeRoles('ADMIN'), updateOrderStatus);
 
 router.post('/', requireKycApproved, createOrder);
 
-router.get('/', getMyOrders);
+router.get('/', validate(orderValidation.getMyOrders), getMyOrders);
 
 router.post('/:id/ndr-action', resellerActionOnNDR);
 

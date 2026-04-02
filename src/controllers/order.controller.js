@@ -61,6 +61,7 @@ export const createOrder = asyncHandler(async (req, res) => {
                 productId: item.productId,
                 sku: trueProduct.sku,
                 title: trueProduct.title,
+                image: trueProduct.images?.[0]?.url || '',
                 hsnCode: trueProduct.hsnCode || '0000',
                 qty: item.qty,
                 platformBasePrice: item.platformUnitCost,
@@ -291,7 +292,10 @@ export const createOrder = asyncHandler(async (req, res) => {
 });
 
 export const getOrderById = asyncHandler(async (req, res) => {
-    const order = await Order.findOne({ _id: req.params.id, resellerId: req.user._id });
+    const order = await Order.findOne({ _id: req.params.id, resellerId: req.user._id }).populate(
+        'items.productId',
+        'images title'
+    );
 
     if (!order) {
         throw new ApiError(404, 'Order not found');
@@ -302,23 +306,53 @@ export const getOrderById = asyncHandler(async (req, res) => {
 
 export const getMyOrders = asyncHandler(async (req, res) => {
     const resellerId = req.user._id;
-    const { status, page = 1, limit = 10 } = req.query;
+    const { status, search, sort = 'latest', page = 1, limit = 10 } = req.query;
 
     const query = { resellerId };
-    if (status) query.status = status;
+    if (status && status !== 'ALL') {
+        if (status === 'PENDING_PROCESSING') {
+            query.status = { $in: ['PENDING', 'PROCESSING'] };
+        } else {
+            query.status = status;
+        }
+    }
+
+    if (search) {
+        const safeSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const searchRegex = new RegExp(safeSearch, 'i');
+        query.$or = [
+            { orderId: { $regex: searchRegex } },
+            { 'endCustomerDetails.name': { $regex: searchRegex } },
+            { 'endCustomerDetails.phone': { $regex: searchRegex } },
+            { 'items.sku': { $regex: searchRegex } },
+            { 'items.title': { $regex: searchRegex } },
+        ];
+    }
 
     const skip = (Number(page) - 1) * Number(limit);
+    const sortParams = sort === 'oldest' ? { createdAt: 1 } : { createdAt: -1 };
 
-    const orders = await Order.find(query).sort({ createdAt: -1 }).skip(skip).limit(Number(limit));
+    const orders = await Order.find(query)
+        .sort(sortParams)
+        .skip(skip)
+        .limit(Number(limit))
+        .populate('items.productId', 'images title');
 
     const total = await Order.countDocuments(query);
+    const currentPage = Number(page);
+    const totalPages = Math.ceil(total / Number(limit));
 
     return res.status(200).json(
         new ApiResponse(
             200,
             {
                 orders,
-                pagination: { total, page: Number(page), pages: Math.ceil(total / Number(limit)) },
+                pagination: {
+                    total,
+                    page: currentPage,
+                    pages: totalPages,
+                    hasNextPage: currentPage < totalPages,
+                },
             },
             'Orders fetched successfully'
         )
@@ -721,6 +755,7 @@ export const createBulkDropshipOrders = asyncHandler(async (req, res) => {
                         productId: product._id,
                         sku: product.sku,
                         title: product.title,
+                        image: product.images?.[0]?.url || '',
                         hsnCode: product.hsnCode || '0000',
                         qty: inputOrder.qty,
                         platformBasePrice,

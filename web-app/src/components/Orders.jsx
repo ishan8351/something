@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
     Package,
     Truck,
@@ -19,22 +19,75 @@ import {
     Receipt,
 } from 'lucide-react';
 import api from '../utils/api.js';
+import { useDebounce } from '../hooks/useDebounce.js';
+
+const PAGE_SIZE = 10;
+const VALID_STATUS_FILTERS = new Set([
+    'ALL',
+    'PENDING_PROCESSING',
+    'SHIPPED',
+    'NDR',
+    'DELIVERED',
+    'PROFIT_CREDITED',
+    'RTO',
+    'CANCELLED',
+]);
+
+const getInitialStatusFilter = (searchParams) => {
+    const statusParam = (searchParams.get('status') || '').toUpperCase();
+    if (VALID_STATUS_FILTERS.has(statusParam)) return statusParam;
+
+    const legacyFilterParam = (searchParams.get('filter') || '').toUpperCase();
+    if (legacyFilterParam === 'NDR') return 'NDR';
+
+    return 'ALL';
+};
 
 const Orders = () => {
+    const [searchParams, setSearchParams] = useSearchParams();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState('ALL');
-    const [searchTerm, setSearchTerm] = useState('');
+    const [filter, setFilter] = useState(() => getInitialStatusFilter(searchParams));
+    const [searchTerm, setSearchTerm] = useState(() => searchParams.get('search') || '');
+    const [sortOrder, setSortOrder] = useState(() => searchParams.get('sort') || 'latest');
+    const [page, setPage] = useState(() => {
+        const pageFromUrl = Number(searchParams.get('page'));
+        return Number.isInteger(pageFromUrl) && pageFromUrl > 0 ? pageFromUrl : 1;
+    });
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalCount, setTotalCount] = useState(0);
     const [expandedOrders, setExpandedOrders] = useState(new Set());
+    const debouncedSearchTerm = useDebounce(searchTerm, 350);
 
     const navigate = useNavigate();
-    const location = useLocation();
 
     useEffect(() => {
         const fetchOrders = async () => {
             try {
-                const res = await api.get('/orders');
-                setOrders(Array.isArray(res.data?.data?.orders) ? res.data.data.orders : []);
+                setLoading(true);
+
+                const params = {
+                    page,
+                    limit: PAGE_SIZE,
+                    sort: sortOrder,
+                };
+
+                if (filter !== 'ALL') params.status = filter;
+                if (debouncedSearchTerm.trim()) params.search = debouncedSearchTerm.trim();
+
+                const res = await api.get('/orders', { params });
+                const apiOrders = Array.isArray(res.data?.data?.orders) ? res.data.data.orders : [];
+                const pagination = res.data?.data?.pagination || {};
+                const serverTotalPages = Math.max(1, Number(pagination.pages) || 1);
+
+                if (page > serverTotalPages) {
+                    setPage(serverTotalPages);
+                    return;
+                }
+
+                setOrders(apiOrders);
+                setTotalPages(serverTotalPages);
+                setTotalCount(Number(pagination.total) || 0);
             } catch (err) {
                 console.error(err);
                 if (err.response?.status === 401) navigate('/login');
@@ -43,7 +96,16 @@ const Orders = () => {
             }
         };
         fetchOrders();
-    }, [navigate]);
+    }, [navigate, page, filter, debouncedSearchTerm, sortOrder]);
+
+    useEffect(() => {
+        const next = new URLSearchParams();
+        if (filter !== 'ALL') next.set('status', filter);
+        if (searchTerm.trim()) next.set('search', searchTerm.trim());
+        if (sortOrder !== 'latest') next.set('sort', sortOrder);
+        if (page > 1) next.set('page', String(page));
+        setSearchParams(next, { replace: true });
+    }, [filter, page, searchTerm, setSearchParams, sortOrder]);
 
     const pendingProfit = orders
         .filter((ord) => ['SHIPPED', 'DELIVERED'].includes(ord.status))
@@ -58,24 +120,6 @@ const Orders = () => {
         else newExpanded.add(orderId);
         setExpandedOrders(newExpanded);
     };
-
-    const processedOrders = orders.filter((ord) => {
-        if (filter !== 'ALL' && ord.status !== filter) return false;
-
-        if (searchTerm) {
-            const term = searchTerm.toLowerCase();
-            const ordNo = (ord.orderId || '').toLowerCase();
-            const custName = (ord.endCustomerDetails?.name || '').toLowerCase();
-            const itemMatch = ord.items?.some((i) =>
-                (i.title || i.sku || '').toLowerCase().includes(term)
-            );
-
-            if (!ordNo.includes(term) && !custName.includes(term) && !itemMatch) {
-                return false;
-            }
-        }
-        return true;
-    });
 
     const getStatusStyle = (status) => {
         switch (status) {
@@ -132,6 +176,29 @@ const Orders = () => {
                 };
         }
     };
+
+    const getOrderItemImage = (item) => {
+        if (item?.image) return item.image;
+
+        const populatedProduct = item?.productId;
+        if (populatedProduct && typeof populatedProduct === 'object') {
+            return populatedProduct.images?.[0]?.url || '';
+        }
+
+        return '';
+    };
+
+    const getVisiblePages = () => {
+        const windowSize = 5;
+        let start = Math.max(1, page - Math.floor(windowSize / 2));
+        let end = Math.min(totalPages, start + windowSize - 1);
+        start = Math.max(1, end - windowSize + 1);
+
+        return Array.from({ length: end - start + 1 }, (_, idx) => start + idx);
+    };
+
+    const showingStart = totalCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+    const showingEnd = Math.min(page * PAGE_SIZE, totalCount);
 
     return (
         <div className="mx-auto mb-20 w-full max-w-7xl flex-1 px-4 py-8 font-sans text-slate-900 sm:px-6 md:mb-0 lg:px-8 lg:py-12">
@@ -213,7 +280,10 @@ const Orders = () => {
                         </div>
                     </div>
                     <button
-                        onClick={() => setFilter('NDR')}
+                        onClick={() => {
+                            setFilter('NDR');
+                            setPage(1);
+                        }}
                         className="rounded-xl bg-amber-600 px-5 py-2.5 text-xs font-extrabold tracking-widest whitespace-nowrap text-white uppercase shadow-sm transition-colors hover:bg-amber-700"
                     >
                         View NDR Orders
@@ -231,26 +301,46 @@ const Orders = () => {
                         type="text"
                         placeholder="Search Order ID, Customer, or SKU..."
                         value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            setPage(1);
+                        }}
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pr-4 pl-11 text-sm font-bold text-slate-900 transition-all outline-none focus:border-indigo-400 focus:bg-white focus:ring-4 focus:ring-indigo-50"
                     />
                 </div>
                 <div className="flex items-center gap-3">
                     <select
                         value={filter}
-                        onChange={(e) => setFilter(e.target.value)}
+                        onChange={(e) => {
+                            setFilter(e.target.value);
+                            setPage(1);
+                        }}
                         className="cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-extrabold text-slate-700 transition-all outline-none focus:border-indigo-400 focus:bg-white focus:ring-4 focus:ring-indigo-50"
                     >
                         <option value="ALL">All Statuses</option>
-                        <option value="PENDING">Pending / Processing</option>
+                        <option value="PENDING_PROCESSING">Pending / Processing</option>
                         <option value="SHIPPED">Shipped / In Transit</option>
                         <option value="NDR">NDR (Failed Delivery)</option>
                         <option value="DELIVERED">Delivered (Pending Margin)</option>
                         <option value="PROFIT_CREDITED">Completed & Paid</option>
                         <option value="RTO">Returned (RTO)</option>
                     </select>
+                    <select
+                        value={sortOrder}
+                        onChange={(e) => {
+                            setSortOrder(e.target.value);
+                            setPage(1);
+                        }}
+                        className="cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-extrabold text-slate-700 transition-all outline-none focus:border-indigo-400 focus:bg-white focus:ring-4 focus:ring-indigo-50"
+                    >
+                        <option value="latest">Newest First</option>
+                        <option value="oldest">Oldest First</option>
+                    </select>
                 </div>
             </div>
+            <p className="mb-6 text-xs font-bold tracking-wide text-slate-500 uppercase">
+                Showing {showingStart}-{showingEnd} of {totalCount} orders
+            </p>
 
             {}
             {loading ? (
@@ -260,7 +350,7 @@ const Orders = () => {
                         Syncing Logistics...
                     </p>
                 </div>
-            ) : processedOrders.length === 0 ? (
+            ) : orders.length === 0 ? (
                 <div className="flex flex-col items-center rounded-3xl border border-slate-200 bg-white p-16 text-center shadow-sm">
                     <div className="mb-4 rounded-full bg-slate-50 p-6">
                         <Package size={48} className="text-slate-300" />
@@ -272,7 +362,7 @@ const Orders = () => {
                 </div>
             ) : (
                 <div className="space-y-6">
-                    {processedOrders.map((ord) => {
+                    {orders.map((ord) => {
                         const isExpanded = expandedOrders.has(ord._id);
                         const isDropship = !!ord.endCustomerDetails;
                         const statusDef = getStatusStyle(ord.status);
@@ -412,9 +502,9 @@ const Orders = () => {
                                                         className="flex items-start gap-4 bg-white p-5 transition-colors hover:bg-slate-50"
                                                     >
                                                         <div className="h-16 w-16 shrink-0 rounded-xl border border-slate-200 bg-slate-100">
-                                                            {item.image && (
+                                                            {getOrderItemImage(item) && (
                                                                 <img
-                                                                    src={item.image}
+                                                                    src={getOrderItemImage(item)}
                                                                     alt=""
                                                                     className="h-full w-full rounded-xl object-cover"
                                                                 />
@@ -636,6 +726,40 @@ const Orders = () => {
                             </div>
                         );
                     })}
+                    {totalPages > 1 && (
+                        <div className="mt-2 flex flex-wrap items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                            <button
+                                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                                disabled={page === 1 || loading}
+                                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-extrabold tracking-wide text-slate-700 uppercase hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Prev
+                            </button>
+
+                            {getVisiblePages().map((pageNo) => (
+                                <button
+                                    key={pageNo}
+                                    onClick={() => setPage(pageNo)}
+                                    disabled={loading}
+                                    className={`rounded-lg border px-3 py-1.5 text-xs font-extrabold tracking-wide uppercase transition-colors ${
+                                        pageNo === page
+                                            ? 'border-slate-900 bg-slate-900 text-white'
+                                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    {pageNo}
+                                </button>
+                            ))}
+
+                            <button
+                                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                                disabled={page === totalPages || loading}
+                                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-extrabold tracking-wide text-slate-700 uppercase hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
