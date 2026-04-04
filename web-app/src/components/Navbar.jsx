@@ -15,6 +15,7 @@ import {
     Menu,
     ShieldCheck,
     ShoppingCart,
+    Heart,
     Plus,
     ChevronDown,
     Check,
@@ -23,6 +24,8 @@ import {
     Upload,
 } from 'lucide-react';
 import { useCartStore } from '../store/cartStore';
+import WishlistDrawer from './WishlistDrawer';
+import { WishlistContext } from '../WishlistContext';
 
 const HighlightText = ({ text = '', highlight = '' }) => {
     if (!highlight.trim()) return <span>{text}</span>;
@@ -45,12 +48,14 @@ const HighlightText = ({ text = '', highlight = '' }) => {
 
 function Navbar({ onToggleSidebar, onSelectCategory }) {
     const { user, logout, loading, isAdmin } = useContext(AuthContext);
+    const { wishlistItems } = useContext(WishlistContext);
 
     const cartCount = useCartStore((state) => state.cart?.items?.length || 0);
     const addToCart = useCartStore((state) => state.addToCart);
 
     const [catDropOpen, setCatDropOpen] = useState(false);
     const [isCartOpen, setIsCartOpen] = useState(false);
+    const [isWishlistOpen, setIsWishlistOpen] = useState(false);
     const [searchInput, setSearchInput] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -430,18 +435,33 @@ function Navbar({ onToggleSidebar, onSelectCategory }) {
                         )}
 
                         {!isAdmin && (
-                            <button
-                                onClick={() => setIsCartOpen(true)}
-                                className="relative rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
-                                title="Cart"
-                            >
-                                <ShoppingCart size={20} strokeWidth={2} />
-                                {cartCount > 0 && (
-                                    <span className="absolute top-0 right-0 flex h-4 w-4 items-center justify-center rounded-full border-2 border-white bg-emerald-500 text-[10px] font-bold text-white shadow-sm">
-                                        {cartCount > 99 ? '99+' : cartCount}
-                                    </span>
-                                )}
-                            </button>
+                            <div className="flex items-center gap-1">
+                                <button
+                                    onClick={() => setIsWishlistOpen(true)}
+                                    className="relative rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
+                                    title="Wishlist"
+                                >
+                                    <Heart size={20} strokeWidth={2} />
+                                    {wishlistItems?.length > 0 && (
+                                        <span className="absolute top-0 right-0 flex h-4 w-4 items-center justify-center rounded-full border-2 border-white bg-emerald-500 text-[10px] font-bold text-white shadow-sm">
+                                            {wishlistItems.length > 99 ? '99+' : wishlistItems.length}
+                                        </span>
+                                    )}
+                                </button>
+
+                                <button
+                                    onClick={() => setIsCartOpen(true)}
+                                    className="relative rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
+                                    title="Cart"
+                                >
+                                    <ShoppingCart size={20} strokeWidth={2} />
+                                    {cartCount > 0 && (
+                                        <span className="absolute top-0 right-0 flex h-4 w-4 items-center justify-center rounded-full border-2 border-white bg-emerald-500 text-[10px] font-bold text-white shadow-sm">
+                                            {cartCount > 99 ? '99+' : cartCount}
+                                        </span>
+                                    )}
+                                </button>
+                            </div>
                         )}
 
                         <div className="ml-1 hidden border-l border-slate-200 pl-4 lg:block">
@@ -508,6 +528,7 @@ function Navbar({ onToggleSidebar, onSelectCategory }) {
             </div>
 
             <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+            <WishlistDrawer isOpen={isWishlistOpen} onClose={() => setIsWishlistOpen(false)} />
         </nav>
     );
 }

@@ -1,13 +1,11 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { WishlistContext } from '../WishlistContext';
-import { X, Trash2, Heart, ShoppingCart } from 'lucide-react';
-import { useCartStore } from '../store/cartStore';
+import { X, Trash2, Heart, Eye } from 'lucide-react';
+import { ROUTES } from '../utils/routes';
 
 function WishlistDrawer({ isOpen, onClose }) {
     const { wishlistItems, toggleWishlist } = useContext(WishlistContext);
-
-    const addToCart = useCartStore((state) => state.addToCart);
 
     const navigate = useNavigate();
     const [fullWishlistProducts, setFullWishlistProducts] = useState([]);
@@ -54,7 +52,7 @@ function WishlistDrawer({ isOpen, onClose }) {
     const getItemSafe = (item) => {
         const id = item._id || item.id || item;
         const name = item.name || item.title || 'Product Name';
-        const price = item.price || item.platformSellPrice || 0;
+        const price = item.price || item.dropshipBasePrice || item.platformSellPrice || 0;
 
         let extractedImage =
             'https://images.unsplash.com/photo-1596547609652-9cf5d8d76921?w=500&q=80';
@@ -116,7 +114,10 @@ function WishlistDrawer({ isOpen, onClose }) {
                                 </p>
                             </div>
                             <button
-                                onClick={onClose}
+                                onClick={() => {
+                                    navigate(ROUTES.CATALOG);
+                                    onClose();
+                                }}
                                 className="mt-4 rounded-full border border-slate-200 bg-white px-6 py-3 font-bold text-slate-900 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50"
                             >
                                 Discover Products
@@ -154,37 +155,19 @@ function WishlistDrawer({ isOpen, onClose }) {
                                             <div className="mb-3 text-sm font-extrabold text-slate-900">
                                                 {formatPrice(item.price)}
                                             </div>
-
-                                            <div className="mt-auto flex items-center gap-2">
+                                             <div className="mt-auto flex items-center gap-2">
                                                 <button
-                                                    className="hover:bg-accent hover:shadow-accent/20 flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white transition-all hover:shadow-md"
+                                                    className="hover:bg-slate-800 flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white transition-all hover:shadow-md"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        addToCart({
-                                                            id: item.id,
-                                                            name: item.name,
-                                                            price:
-                                                                typeof item.price === 'string'
-                                                                    ? parseFloat(
-                                                                          item.price.replace(
-                                                                              /[^0-9.-]+/g,
-                                                                              ''
-                                                                          )
-                                                                      )
-                                                                    : item.price,
-                                                            image: item.image,
-                                                            sku:
-                                                                rawItem.sku ||
-                                                                rawItem.skuId ||
-                                                                `SKU-${item.id}`,
-                                                        });
-                                                        toggleWishlist({ id: item.id });
+                                                        navigate(`/product/${item.id}`);
+                                                        onClose();
                                                     }}
                                                 >
-                                                    <ShoppingCart size={14} /> Add to Cart
+                                                    <Eye size={14} /> View Options
                                                 </button>
                                                 <button
-                                                    className="hover:text-danger hover:border-danger hover:bg-danger/5 rounded-lg border border-slate-200 bg-slate-50 p-2 text-slate-400 transition-all"
+                                                    className="hover:text-red-500 hover:border-red-200 hover:bg-red-50 rounded-lg border border-slate-200 bg-slate-50 p-2 text-slate-400 transition-all"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         toggleWishlist({ id: item.id });
@@ -193,6 +176,7 @@ function WishlistDrawer({ isOpen, onClose }) {
                                                     <Trash2 size={16} />
                                                 </button>
                                             </div>
+
                                         </div>
                                     </div>
                                 );

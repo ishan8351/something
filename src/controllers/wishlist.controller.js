@@ -5,14 +5,9 @@ import { ApiResponse } from '../utils/ApiResponse.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 const getOrCreateWishlist = async (userId) => {
-    try {
-        await Wishlist.collection.dropIndex('customerId_1');
-        console.log("🧹 Ghost index 'customerId_1' dropped successfully!");
-    } catch (error) {}
-
     let wishlist = await Wishlist.findOne({ userId }).populate(
         'items.productId',
-        'title images platformSellPrice compareAtPrice sku'
+        'title images dropshipBasePrice suggestedRetailPrice sku'
     );
 
     if (!wishlist) {
@@ -54,7 +49,7 @@ export const toggleWishlistItem = asyncHandler(async (req, res) => {
     }
 
     await wishlist.save();
-    await wishlist.populate('items.productId', 'title images platformSellPrice compareAtPrice sku');
+    await wishlist.populate('items.productId', 'title images dropshipBasePrice suggestedRetailPrice sku');
 
     return res
         .status(200)

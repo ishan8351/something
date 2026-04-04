@@ -50,20 +50,23 @@ export const useCartStore = create((set, get) => ({
         }
     },
 
-    updateCartItem: async (productId, qty, resellerSellingPrice) => {
+    updateCartItem: async (productId, qty, orderType, resellerSellingPrice) => {
         set({ isLoading: true, error: null });
         try {
-            const res = await api.put(`/cart/${productId}`, { qty, resellerSellingPrice });
+            const res = await api.put(`/cart/${productId}?orderType=${orderType}`, {
+                qty,
+                resellerSellingPrice,
+            });
             set({ cart: res.data.data, isLoading: false });
         } catch (error) {
             set({ error: error.response?.data?.message, isLoading: false });
         }
     },
 
-    removeFromCart: async (productId) => {
+    removeFromCart: async (productId, orderType) => {
         set({ isLoading: true, error: null });
         try {
-            const res = await api.delete(`/cart/${productId}`);
+            const res = await api.delete(`/cart/${productId}?orderType=${orderType}`);
             set({ cart: res.data.data, isLoading: false });
             toast.success('Item removed from cart', { position: 'bottom-right' });
         } catch (error) {

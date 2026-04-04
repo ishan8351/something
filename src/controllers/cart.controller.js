@@ -314,15 +314,32 @@ export const addToCart = asyncHandler(async (req, res) => {
 export const updateCartItem = asyncHandler(async (req, res) => {
     const { qty, resellerSellingPrice } = req.body;
     const { productId } = req.params;
+    const { orderType } = req.query; // Identify WHICH version of the product to update
 
     let cart = await Cart.findOne({ resellerId: req.user._id });
     if (!cart) throw new ApiError(404, 'Cart not found');
 
-    const itemIndex = cart.items.findIndex((item) => item.productId.toString() === productId);
+    const itemIndex = cart.items.findIndex(
+        (item) => item.productId.toString() === productId && item.orderType === orderType
+    );
     if (itemIndex === -1) throw new ApiError(404, 'Item not found in cart');
 
     const product = await Product.findById(productId);
     if (qty !== undefined) {
+        if (qty <= 0) {
+            // Fix: Use both productId and orderType to ensure we only remove the correct version
+            cart.items = cart.items.filter(
+                (item) =>
+                    !(
+                        String(item.productId._id || item.productId) === String(productId) &&
+                        item.orderType === orderType
+                    )
+            );
+            cart = await recalculateCart(cart);
+            await cart.save();
+            return res.status(200).json(new ApiResponse(200, cart, 'Item removed from cart'));
+        }
+
         const parsedQty = validatePositiveInteger(qty, 'Quantity');
         if (parsedQty > product.inventory.stock) {
             throw new ApiError(
@@ -357,11 +374,23 @@ export const updateCartItem = asyncHandler(async (req, res) => {
 
 export const removeFromCart = asyncHandler(async (req, res) => {
     const { productId } = req.params;
+    const { orderType } = req.query; // Identify WHICH version of the product to remove
+
+    if (!orderType) {
+        throw new ApiError(400, 'Order type (DROPSHIP/WHOLESALE) is required for removal');
+    }
 
     let cart = await Cart.findOne({ resellerId: req.user._id });
     if (!cart) throw new ApiError(404, 'Cart not found');
 
-    cart.items = cart.items.filter((item) => item.productId.toString() !== productId);
+    // Fix: Robust comparison for both productId and orderType
+    cart.items = cart.items.filter(
+        (item) =>
+            !(
+                String(item.productId._id || item.productId) === String(productId) &&
+                item.orderType === orderType
+            )
+    );
 
     cart = await recalculateCart(cart);
     await cart.save();

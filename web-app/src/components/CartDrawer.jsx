@@ -195,7 +195,8 @@ const CartDrawer = ({ isOpen, onClose }) => {
                                                                 <button
                                                                     onClick={() =>
                                                                         removeFromCart(
-                                                                            item.productId?._id
+                                                                            item.productId?._id,
+                                                                            item.orderType
                                                                         )
                                                                     }
                                                                     className="text-slate-400 transition-colors hover:text-red-500"
@@ -236,10 +237,11 @@ const CartDrawer = ({ isOpen, onClose }) => {
                                                                         updateCartItem(
                                                                             item.productId?._id,
                                                                             item.qty -
-                                                                            (isDropship
-                                                                                ? 1
-                                                                                : item.productId
-                                                                                    ?.moq)
+                                                                                (isDropship
+                                                                                    ? 1
+                                                                                    : item.productId
+                                                                                          ?.moq),
+                                                                            item.orderType
                                                                         )
                                                                     }
                                                                     disabled={
@@ -262,10 +264,11 @@ const CartDrawer = ({ isOpen, onClose }) => {
                                                                         updateCartItem(
                                                                             item.productId?._id,
                                                                             item.qty +
-                                                                            (isDropship
-                                                                                ? 1
-                                                                                : item.productId
-                                                                                    ?.moq)
+                                                                                (isDropship
+                                                                                    ? 1
+                                                                                    : item.productId
+                                                                                          ?.moq),
+                                                                            item.orderType
                                                                         )
                                                                     }
                                                                     disabled={isLoading}
@@ -320,7 +323,8 @@ const CartDrawer = ({ isOpen, onClose }) => {
                                                                 onClick={() =>
                                                                     updateCartItem(
                                                                         item.productId?._id,
-                                                                        nudge.targetQty
+                                                                        nudge.targetQty,
+                                                                        item.orderType
                                                                     )
                                                                 }
                                                                 className="text-[10px] font-bold text-emerald-600 transition-colors hover:text-emerald-800"

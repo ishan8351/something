@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Minus, Plus, AlertCircle } from 'lucide-react';
+import { Minus, Plus, AlertCircle, Heart } from 'lucide-react';
 import { useCartStore } from '../store/cartStore';
+import { WishlistContext } from '../WishlistContext';
 
 export default function ProductCard({ product }) {
     const addToCart = useCartStore((state) => state.addToCart);
+    const { toggleWishlist, isInWishlist } = useContext(WishlistContext);
     const [currentQty, setCurrentQty] = useState(product.moq);
     const [isAdded, setIsAdded] = useState(false);
 
@@ -63,6 +65,24 @@ export default function ProductCard({ product }) {
                         </span>
                     )}
                 </div>
+
+                {/* Wishlist Toggle Button */}
+                <button
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggleWishlist(product);
+                    }}
+                    className={`absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white/90 shadow-sm transition-all hover:scale-110 hover:shadow-md ${
+                        isInWishlist(product.id) ? 'text-red-500' : 'text-slate-400 hover:text-red-500'
+                    }`}
+                >
+                    <Heart
+                        size={18}
+                        fill={isInWishlist(product.id) ? 'currentColor' : 'transparent'}
+                        strokeWidth={2.5}
+                    />
+                </button>
             </Link>
 
             <div className="flex flex-1 flex-col p-4">

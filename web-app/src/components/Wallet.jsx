@@ -35,6 +35,8 @@ const Wallet = () => {
     const [balance, setBalance] = useState(0);
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [pagination, setPagination] = useState({ page: 1, pages: 1 });
+    const [loadingMore, setLoadingMore] = useState(false);
 
     const [rechargeAmount, setRechargeAmount] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
@@ -43,20 +45,30 @@ const Wallet = () => {
     // Scaled up for B2B procurement
     const quickAmounts = [5000, 10000, 50000];
 
-    const fetchWalletData = async () => {
-        try {
-            const [balanceRes, txRes] = await Promise.all([
-                api.get('/wallet/balance'),
-                api.get('/wallet/transactions'),
-            ]);
+    const fetchWalletData = async (pageToLoad = 1) => {
+        const isInitial = pageToLoad === 1;
+        if (isInitial) setLoading(true);
+        else setLoadingMore(true);
 
+        try {
+            const balanceRes = await api.get('/wallet/balance');
             setBalance(balanceRes.data.data.balance || 0);
-            setTransactions(txRes.data.data || []);
+
+            const txRes = await api.get(`/wallet/transactions?page=${pageToLoad}&limit=50`);
+            const { transactions: newTransactions, pagination: pd } = txRes.data.data;
+
+            if (isInitial) {
+                setTransactions(newTransactions || []);
+            } else {
+                setTransactions((prev) => [...prev, ...newTransactions]);
+            }
+            setPagination(pd || { page: 1, pages: 1 });
         } catch (err) {
             console.error(err);
             if (err.response?.status === 401) navigate('/login');
         } finally {
             setLoading(false);
+            setLoadingMore(false);
         }
     };
 
@@ -314,80 +326,108 @@ const Wallet = () => {
                                 </p>
                             </div>
                         ) : (
-                            <div className="custom-scrollbar max-h-[600px] space-y-4 overflow-y-auto pr-2">
-                                {transactions.map((txn, idx) => {
-                                    const isCredit = txn.type === 'CREDIT';
-                                    const style = getTransactionStyling(txn.purpose, txn.type);
-                                    const Icon = style.icon;
+                            <>
+                                <div className="custom-scrollbar max-h-[600px] space-y-4 overflow-y-auto pr-2">
+                                    {transactions.map((txn, idx) => {
+                                        const isCredit = txn.type === 'CREDIT';
+                                        const style = getTransactionStyling(txn.purpose, txn.type);
+                                        const Icon = style.icon;
 
-                                    return (
-                                        <div
-                                            key={idx}
-                                            className="group flex flex-col justify-between gap-4 rounded-2xl border border-slate-100 p-5 transition-all hover:border-slate-300 hover:shadow-md sm:flex-row sm:items-center"
-                                        >
-                                            <div className="flex items-start gap-4 sm:items-center">
-                                                <div
-                                                    className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${style.bg} ${style.color}`}
-                                                >
-                                                    <Icon size={24} />
-                                                </div>
-                                                <div>
-                                                    <p className="font-bold text-slate-900">
-                                                        {txn.purpose.replace(/_/g, ' ')}
-                                                    </p>
-                                                    <div className="mt-1 flex flex-wrap items-center gap-2">
-                                                        <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">
-                                                            {new Date(
-                                                                txn.createdAt
-                                                            ).toLocaleDateString('en-IN', {
-                                                                month: 'short',
-                                                                day: 'numeric',
-                                                                year: 'numeric',
-                                                            })}
-                                                            <span className="ml-1 opacity-70">
-                                                                •{' '}
+                                        return (
+                                            <div
+                                                key={idx}
+                                                className="group flex flex-col justify-between gap-4 rounded-2xl border border-slate-100 p-5 transition-all hover:border-slate-300 hover:shadow-md sm:flex-row sm:items-center"
+                                            >
+                                                <div className="flex items-start gap-4 sm:items-center">
+                                                    <div
+                                                        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${style.bg} ${style.color}`}
+                                                    >
+                                                        <Icon size={24} />
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-bold text-slate-900">
+                                                            {txn.purpose.replace(/_/g, ' ')}
+                                                        </p>
+                                                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                                                            <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">
                                                                 {new Date(
                                                                     txn.createdAt
-                                                                ).toLocaleTimeString('en-IN', {
-                                                                    hour: '2-digit',
-                                                                    minute: '2-digit',
-                                                                    hour12: true,
+                                                                ).toLocaleDateString('en-IN', {
+                                                                    month: 'short',
+                                                                    day: 'numeric',
+                                                                    year: 'numeric',
                                                                 })}
-                                                            </span>
-                                                        </p>
-                                                        <span className="text-slate-300">•</span>
-                                                        <p className="font-mono text-[10px] font-bold text-slate-400 uppercase">
-                                                            Ref: {txn.referenceId}
-                                                        </p>
+                                                                <span className="ml-1 opacity-70">
+                                                                    •{' '}
+                                                                    {new Date(
+                                                                        txn.createdAt
+                                                                    ).toLocaleTimeString('en-IN', {
+                                                                        hour: '2-digit',
+                                                                        minute: '2-digit',
+                                                                        hour12: true,
+                                                                    })}
+                                                                </span>
+                                                            </p>
+                                                            <span className="text-slate-300">•</span>
+                                                            <p className="font-mono text-[10px] font-bold text-slate-400 uppercase">
+                                                                Ref: {txn.referenceId}
+                                                            </p>
+                                                        </div>
+                                                        {txn.description && (
+                                                            <p className="mt-1 text-sm font-medium text-slate-500">
+                                                                {txn.description}
+                                                            </p>
+                                                        )}
                                                     </div>
-                                                    {txn.description && (
-                                                        <p className="mt-1 text-sm font-medium text-slate-500">
-                                                            {txn.description}
-                                                        </p>
-                                                    )}
+                                                </div>
+                                                <div className="shrink-0 border-t border-slate-100 pt-3 pl-16 sm:border-t-0 sm:pt-0 sm:pl-0 sm:text-right">
+                                                    <p
+                                                        className={`text-xl font-black ${isCredit ? 'text-emerald-600' : 'text-slate-900'}`}
+                                                    >
+                                                        {isCredit ? '+' : '-'}₹
+                                                        {txn.amount.toLocaleString('en-IN', {
+                                                            minimumFractionDigits: 2,
+                                                            maximumFractionDigits: 2,
+                                                        })}
+                                                    </p>
+                                                    <p className="mt-1 text-[10px] font-extrabold tracking-widest text-slate-400 uppercase">
+                                                        Bal: ₹
+                                                        {txn.closingBalance?.toLocaleString('en-IN', {
+                                                            minimumFractionDigits: 2,
+                                                            maximumFractionDigits: 2,
+                                                        }) || '0.00'}
+                                                    </p>
                                                 </div>
                                             </div>
-                                            <div className="shrink-0 border-t border-slate-100 pt-3 pl-16 sm:border-t-0 sm:pt-0 sm:pl-0 sm:text-right">
-                                                <p
-                                                    className={`text-xl font-black ${isCredit ? 'text-emerald-600' : 'text-slate-900'}`}
-                                                >
-                                                    {isCredit ? '+' : '-'}₹
-                                                    {txn.amount.toLocaleString('en-IN', {
-                                                        minimumFractionDigits: 2,
-                                                        maximumFractionDigits: 2,
-                                                    })}
-                                                </p>
-                                                <p className="mt-1 text-[10px] font-extrabold tracking-widest text-slate-400 uppercase">
-                                                    Bal: ₹
-                                                    {txn.closingBalance?.toLocaleString('en-IN', {
-                                                        minimumFractionDigits: 2,
-                                                    }) || '0.00'}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {pagination.page < pagination.pages && (
+                                    <div className="mt-8 flex justify-center">
+                                        <button
+                                            onClick={() => fetchWalletData(pagination.page + 1)}
+                                            disabled={loadingMore}
+                                            className="group flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-8 py-3 text-sm font-bold text-slate-600 transition-all hover:border-slate-800 hover:text-slate-900 disabled:opacity-50"
+                                        >
+                                            {loadingMore ? (
+                                                <>
+                                                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600"></div>
+                                                    Sourcing Records...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    Load Previous Transactions
+                                                    <Plus
+                                                        size={16}
+                                                        className="transition-transform group-hover:rotate-90"
+                                                    />
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </div>
                 </div>

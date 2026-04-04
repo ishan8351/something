@@ -1,5 +1,5 @@
 import StructuredDescription from './StructuredDescription';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -19,9 +19,11 @@ import {
     ArrowLeft,
     Calculator,
     Receipt,
+    Heart,
 } from 'lucide-react';
 import api from '../utils/api';
 import { useCartStore } from '../store/cartStore';
+import { WishlistContext } from '../WishlistContext';
 import LoadingScreen from './LoadingScreen';
 
 const MAX_DROPSHIP_SELLING_PRICE = 999999;
@@ -60,6 +62,7 @@ const ProductPage = () => {
     const { productId } = useParams();
     const navigate = useNavigate();
     const { addToCart, isLoading: isCartLoading } = useCartStore();
+    const { toggleWishlist, isInWishlist } = useContext(WishlistContext);
 
     const [product, setProduct] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -184,6 +187,20 @@ const ProductPage = () => {
                                 </span>
                             </div>
                         )}
+
+                        {/* Wishlist Toggle Button */}
+                        <button
+                            onClick={() => toggleWishlist(product)}
+                            className={`absolute top-4 right-4 flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-white/90 shadow-lg transition-all hover:scale-110 hover:shadow-xl ${
+                                isInWishlist(product._id) ? 'text-red-500' : 'text-slate-400 hover:text-red-500'
+                            }`}
+                        >
+                            <Heart
+                                size={24}
+                                fill={isInWishlist(product._id) ? 'currentColor' : 'transparent'}
+                                strokeWidth={2.5}
+                            />
+                        </button>
                     </motion.div>
 
                     {product.images?.length > 1 && (

@@ -12,10 +12,31 @@ export const getBalance = asyncHandler(async (req, res) => {
 });
 
 export const getTransactionHistory = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 50 } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+
     const transactions = await WalletTransaction.find({ resellerId: req.user._id })
         .sort({ createdAt: -1 })
-        .limit(50);
-    return res.status(200).json(new ApiResponse(200, transactions, 'Transaction history fetched'));
+        .skip(skip)
+        .limit(Number(limit));
+
+    const total = await WalletTransaction.countDocuments({ resellerId: req.user._id });
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                transactions,
+                pagination: {
+                    total,
+                    page: Number(page),
+                    limit: Number(limit),
+                    pages: Math.ceil(total / Number(limit)),
+                },
+            },
+            'Transaction history fetched successfully'
+        )
+    );
 });
 
 export const addMoney = asyncHandler(async (req, res) => {
