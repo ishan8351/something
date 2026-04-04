@@ -4,7 +4,7 @@ import { ApiResponse } from '../utils/ApiResponse.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 export const createProduct = asyncHandler(async (req, res) => {
-    const {
+    let {
         sku,
         title,
         descriptionHTML,
@@ -24,6 +24,14 @@ export const createProduct = asyncHandler(async (req, res) => {
         status,
         tags,
     } = req.body;
+
+    if (req.files && Array.isArray(req.files) && req.files.length > 0) {
+        images = req.files.map((file, index) => ({
+            url: `${req.protocol}://${req.get('host')}/temp/${file.filename}`,
+            position: index + 1,
+            altText: title
+        }));
+    }
 
     if (
         !sku ||
@@ -281,7 +289,7 @@ export const deleteProduct = asyncHandler(async (req, res) => {
 });
 
 export const getAllAdminProducts = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 20, search, status, price, stock } = req.query;
+    const { page = 1, limit = 20, search, status, price, stock, sort } = req.query;
 
     const query = {};
 
@@ -320,10 +328,33 @@ export const getAllAdminProducts = asyncHandler(async (req, res) => {
         ];
     }
 
+    if (status) {
+        query.status = status;
+    }
+
+    if (price === 'UNDER_500') {
+        query.dropshipBasePrice = { $lt: 500 };
+    } else if (price === 'OVER_1000') {
+        query.dropshipBasePrice = { $gt: 1000 };
+    }
+
+    if (stock === 'IN_STOCK') {
+        query['inventory.stock'] = { $gt: 10 };
+    } else if (stock === 'LOW_STOCK') {
+        query['inventory.stock'] = { $gt: 0, $lte: 10 };
+    } else if (stock === 'OUT_OF_STOCK') {
+        query['inventory.stock'] = { $lte: 0 };
+    }
+
     const skip = (Number(page) - 1) * Number(limit);
 
+    let sortParams = { createdAt: -1 };
+    if (sort === 'stock_asc') {
+        sortParams = { 'inventory.stock': 1 };
+    }
+
     const products = await Product.find(query)
-        .sort({ createdAt: -1 })
+        .sort(sortParams)
         .skip(skip)
         .limit(Number(limit))
         .populate('categoryId', 'name');

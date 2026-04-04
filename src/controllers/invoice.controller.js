@@ -202,7 +202,7 @@ export const generateInvoicePDF = async (req, res, next) => {
         doc.fontSize(10).font('Helvetica-Bold').text('Issued By:', 40, topY);
         doc.font('Helvetica-Bold')
             .fontSize(11)
-            .text('Sovely E-Commerce Pvt. Ltd.', 40, topY + 15);
+            .text('Infinity Enterprises', 40, topY + 15);
         doc.font('Helvetica')
             .fontSize(9)
             .text('123 Commerce St., Indiranagar', 40, topY + 30)
@@ -212,11 +212,7 @@ export const generateInvoicePDF = async (req, res, next) => {
         doc.font('Helvetica-Bold')
             .text('GSTIN: ', 40, topY + 68, { continued: true })
             .font('Helvetica')
-            .text('29ABCDE1234F1Z5');
-        doc.font('Helvetica-Bold')
-            .text('PAN: ', 40, topY + 80, { continued: true })
-            .font('Helvetica')
-            .text('ABCDE1234F');
+            .text('29DTGPS4598H2ZR');
 
         doc.fontSize(10).font('Helvetica-Bold').text('Billed To:', 300, topY);
 
@@ -413,7 +409,7 @@ export const generateInvoicePDF = async (req, res, next) => {
         doc.font('Helvetica')
             .fontSize(8)
             .text('Bank Name: Sovely National Bank', 45, footerY + 20)
-            .text('Account Name: Sovely E-Commerce Pvt Ltd', 45, footerY + 32)
+            .text('Account Name: Infinity Enterprises', 45, footerY + 32)
             .text('Account No: 1234567890123456', 45, footerY + 44)
             .text('IFSC Code: SOVE0001234', 45, footerY + 56);
 
@@ -430,7 +426,7 @@ export const generateInvoicePDF = async (req, res, next) => {
 
         doc.font('Helvetica-Bold')
             .fontSize(10)
-            .text('For Sovely E-Commerce Pvt. Ltd.', 350, footerY + 5, {
+            .text('For Infinity Enterprises', 350, footerY + 5, {
                 align: 'right',
                 width: 205,
             });

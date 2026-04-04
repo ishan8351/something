@@ -960,3 +960,107 @@ export const exportAdminOrdersToCsv = asyncHandler(async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     return res.status(200).send(csvContent);
 });
+
+export const exportCourierOrdersToCsv = asyncHandler(async (req, res) => {
+    const { startDate, endDate } = req.query;
+
+    const query = {};
+    if (startDate && endDate) {
+        query.createdAt = {
+            $gte: new Date(startDate),
+            $lte: new Date(new Date(endDate).setHours(23, 59, 59, 999)),
+        };
+    }
+
+    const orders = await Order.find(query)
+        .sort({ createdAt: -1 })
+        .populate('resellerId', 'name companyName email phoneNumber billingAddress');
+
+    const headers = [
+        'Platform order number',
+        'First Name',
+        'Last Name',
+        'Company',
+        'Mobile',
+        'Shipping Address 1',
+        'Shipping Address 2',
+        'City',
+        'State',
+        'Pincode',
+        'SKU',
+        'Quantity',
+        'Payment Method',
+        'Selling Price'
+    ];
+
+    const escapeCsv = (val) => {
+        if (val === null || val === undefined) return '';
+        let str = String(val).replace(/"/g, '""');
+        if (/^\+?\d{10,}$/.test(str) || /^\d{5,6}$/.test(str)) {
+            str = `\t${str}`;
+        }
+        return `"${str}"`;
+    };
+
+    let csvContent = headers.map((h) => `"${h}"`).join(',') + '\n';
+
+    orders.forEach((order) => {
+        const isDropship = !!order.endCustomerDetails?.name;
+        
+        let firstName = '';
+        let lastName = '';
+        let company = '';
+        let mobile = '';
+        let address1 = '';
+        let address2 = '';
+        let city = '';
+        let state = '';
+        let pincode = '';
+
+        if (isDropship) {
+            const nameParts = (order.endCustomerDetails.name || '').split(' ');
+            firstName = nameParts[0] || '';
+            lastName = nameParts.slice(1).join(' ') || '';
+            mobile = order.endCustomerDetails.phone || '';
+            address1 = order.endCustomerDetails.address?.street || '';
+            city = order.endCustomerDetails.address?.city || '';
+            state = order.endCustomerDetails.address?.state || '';
+            pincode = order.endCustomerDetails.address?.zip || '';
+        } else {
+            const nameParts = (order.resellerId?.name || '').split(' ');
+            firstName = nameParts[0] || '';
+            lastName = nameParts.slice(1).join(' ') || '';
+            company = order.resellerId?.companyName || '';
+            mobile = order.resellerId?.phoneNumber || order.resellerId?.email || '';
+            address1 = order.resellerId?.billingAddress?.street || '';
+            city = order.resellerId?.billingAddress?.city || '';
+            state = order.resellerId?.billingAddress?.state || '';
+            pincode = order.resellerId?.billingAddress?.zip || '';
+        }
+
+        order.items.forEach((item) => {
+            const row = [
+                order.orderId,
+                firstName,
+                lastName,
+                company,
+                mobile,
+                address1,
+                address2,
+                city,
+                state,
+                pincode,
+                item.sku,
+                item.qty,
+                order.paymentMethod,
+                item.resellerSellingPrice || item.platformBasePrice
+            ];
+
+            csvContent += row.map(escapeCsv).join(',') + '\n';
+        });
+    });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="courier_orders_export.csv"');
+    return res.status(200).send(csvContent);
+});

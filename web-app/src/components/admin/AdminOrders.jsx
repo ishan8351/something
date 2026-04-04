@@ -153,6 +153,44 @@ const AdminOrders = () => {
         }
     };
 
+    const handleExportCourierOrders = async () => {
+        if (!exportStartDate || !exportEndDate) {
+            toast.error('Please select both start and end dates');
+            return;
+        }
+        if (new Date(exportStartDate) > new Date(exportEndDate)) {
+            toast.error('Start date cannot be after end date');
+            return;
+        }
+
+        setIsExporting(true);
+        try {
+            const res = await api.get('/orders/export-courier', {
+                params: { startDate: exportStartDate, endDate: exportEndDate },
+                responseType: 'blob',
+            });
+
+            const url = window.URL.createObjectURL(new Blob([res.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute(
+                'download',
+                `courier_orders_export_${exportStartDate}_to_${exportEndDate}.csv`
+            );
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+
+            toast.success('Courier orders downloaded successfully!');
+            setIsExportModalOpen(false);
+        } catch (err) {
+            console.error('Export failed:', err);
+            toast.error('Failed to export courier orders. Please try again.');
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
     return (
         <div className="w-full">
             {}
@@ -809,19 +847,26 @@ const AdminOrders = () => {
                                     </div>
                                 </div>
 
-                                <div className="flex gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4">
-                                    <button
-                                        onClick={() => setIsExportModalOpen(false)}
-                                        className="flex-1 rounded-lg border border-slate-300 bg-white py-2 text-xs font-extrabold text-slate-600 hover:bg-slate-50"
-                                    >
-                                        Cancel
-                                    </button>
+                                <div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4">
                                     <button
                                         onClick={handleExportOrders}
                                         disabled={isExporting}
-                                        className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-indigo-600 py-2 text-xs font-extrabold text-white hover:bg-indigo-700 disabled:opacity-50"
+                                        className="w-full flex items-center justify-center gap-2 rounded-lg border border-indigo-600 py-2 text-xs font-extrabold text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
                                     >
-                                        {isExporting ? 'Downloading...' : 'Download CSV'}
+                                        {isExporting ? 'Downloading...' : 'Download Standard CSV'}
+                                    </button>
+                                    <button
+                                        onClick={handleExportCourierOrders}
+                                        disabled={isExporting}
+                                        className="w-full flex items-center justify-center gap-2 rounded-lg bg-indigo-600 py-2 text-xs font-extrabold text-white hover:bg-indigo-700 disabled:opacity-50"
+                                    >
+                                        {isExporting ? 'Downloading...' : 'Download Currier Order'}
+                                    </button>
+                                    <button
+                                        onClick={() => setIsExportModalOpen(false)}
+                                        className="w-full rounded-lg border border-slate-300 bg-white py-2 text-xs font-extrabold text-slate-600 hover:bg-slate-50"
+                                    >
+                                        Cancel
                                     </button>
                                 </div>
                             </motion.div>
