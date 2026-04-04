@@ -48,8 +48,7 @@ const KycSubmit = () => {
 
             if (response.data.success) {
                 toast.success('KYC Details submitted successfully! Awaiting Admin approval.');
-
-                window.location.href = '/my-account';
+                navigate('/my-account');
             }
         } catch (error) {
             toast.error(error.response?.data?.message || 'Failed to submit KYC details');

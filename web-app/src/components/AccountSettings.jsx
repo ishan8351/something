@@ -291,9 +291,7 @@ const AccountSettings = () => {
 
         setIsLoading(true);
         try {
-            await api.post('/users/avatar', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' },
-            });
+            await api.post('/users/avatar', formData);
             toast.success('Your photo was updated successfully!');
             await refreshUser();
         } catch (error) {
@@ -815,29 +813,7 @@ const AccountSettings = () => {
                             </form>
                         </div>
 
-                        <div className="rounded-2xl border border-slate-100 p-6">
-                            <div className="mb-4 flex items-center justify-between">
-                                <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900">
-                                    <Smartphone className="text-emerald-500" size={20} /> Two-Factor
-                                    Authentication
-                                </h3>
-                                <div
-                                    className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${is2FAEnabled ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}
-                                >
-                                    <div
-                                        className={`h-1.5 w-1.5 rounded-full ${is2FAEnabled ? 'bg-emerald-500' : 'bg-slate-400'}`}
-                                    ></div>
-                                    {is2FAEnabled ? 'Enabled' : 'Disabled'}
-                                </div>
-                            </div>
-                            <p className="mb-6 text-sm text-slate-500">
-                                Add an extra layer of security to your account by requiring an OTP
-                                sent to your registered mobile number during login.
-                            </p>
-                            <button className="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50">
-                                {is2FAEnabled ? 'Manage 2FA Settings' : 'Set Up 2FA'}
-                            </button>
-                        </div>
+
                         <div className="rounded-2xl border border-slate-100 p-6">
                             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                                 <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900">

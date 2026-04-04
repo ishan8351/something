@@ -273,15 +273,7 @@ const Login = () => {
                                 variants={fadeUp}
                                 className="flex items-center justify-between pt-2 pb-4"
                             >
-                                <label className="group flex cursor-pointer items-center gap-2">
-                                    <input
-                                        type="checkbox"
-                                        className="h-4 w-4 cursor-pointer rounded border-slate-300 text-emerald-600 focus:ring-emerald-500/30"
-                                    />
-                                    <span className="text-sm font-medium text-slate-600 transition-colors group-hover:text-slate-900">
-                                        Remember me
-                                    </span>
-                                </label>
+                                <div></div>
                                 <Link
                                     to="/forgot-password"
                                     className="text-sm font-bold text-emerald-600 transition-colors hover:text-emerald-700"

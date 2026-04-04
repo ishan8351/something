@@ -17,7 +17,8 @@ const generateGSTIN = () => {
 
 const seedUsers = async () => {
     try {
-        await mongoose.connect(`${process.env.MONGODB_URI}/db_sovely`);
+        const dbUri = process.env.MONGODB_URI;
+        await mongoose.connect(dbUri);
         console.log('📦 Connected to DB. Clearing old Users...');
         await User.deleteMany({});
 
@@ -65,7 +66,8 @@ const seedUsers = async () => {
                 }
             };
         });
-        await User.insertMany(b2bUsers);
+        // Using create instead of insertMany to ensure the pre('save') hook in the User model hashes the passwords
+        await User.create(b2bUsers);
 
         console.log('✅ Users Seeding Complete!');
         process.exit(0);

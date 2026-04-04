@@ -316,12 +316,10 @@ export const updateMyProfile = asyncHandler(async (req, res) => {
     if (companyName !== undefined) updateData.companyName = companyName.trim();
     if (gstin !== undefined) updateData.gstin = gstin.trim().toUpperCase();
     if (billingAddress) {
-        updateData.billingAddress = {
-            street: billingAddress.street?.trim() || '',
-            city: billingAddress.city?.trim() || '',
-            state: billingAddress.state?.trim() || '',
-            zip: billingAddress.zip?.trim() || '',
-        };
+        if (billingAddress.street !== undefined) updateData['billingAddress.street'] = billingAddress.street?.trim() || '';
+        if (billingAddress.city !== undefined) updateData['billingAddress.city'] = billingAddress.city?.trim() || '';
+        if (billingAddress.state !== undefined) updateData['billingAddress.state'] = billingAddress.state?.trim() || '';
+        if (billingAddress.zip !== undefined) updateData['billingAddress.zip'] = billingAddress.zip?.trim() || '';
     }
 
     if (emailNotifications !== undefined) updateData.emailNotifications = emailNotifications;
@@ -369,7 +367,7 @@ export const updatePassword = asyncHandler(async (req, res) => {
     const isPasswordValid = await user.isPasswordCorrect(oldPassword);
     if (!isPasswordValid) throw new ApiError(400, 'Invalid current password');
 
-    user.passwordHash = await bcrypt.hash(newPassword, 10);
+    user.passwordHash = newPassword;
     await user.save({ validateBeforeSave: false });
 
     return res.status(200).json(new ApiResponse(200, null, 'Password updated successfully'));
@@ -390,8 +388,20 @@ export const updateKycDetails = asyncHandler(async (req, res) => {
 
     if (gstin) user.gstin = gstin;
     if (panNumber) user.panNumber = panNumber;
-    if (billingAddress) user.billingAddress = billingAddress;
-    if (bankDetails) user.bankDetails = bankDetails;
+    if (billingAddress) {
+        if (!user.billingAddress) user.billingAddress = {};
+        if (billingAddress.street !== undefined) user.billingAddress.street = billingAddress.street;
+        if (billingAddress.city !== undefined) user.billingAddress.city = billingAddress.city;
+        if (billingAddress.state !== undefined) user.billingAddress.state = billingAddress.state;
+        if (billingAddress.zip !== undefined) user.billingAddress.zip = billingAddress.zip;
+    }
+    if (bankDetails) {
+        if (!user.bankDetails) user.bankDetails = {};
+        if (bankDetails.accountName !== undefined) user.bankDetails.accountName = bankDetails.accountName;
+        if (bankDetails.accountNumber !== undefined) user.bankDetails.accountNumber = bankDetails.accountNumber;
+        if (bankDetails.ifscCode !== undefined) user.bankDetails.ifscCode = bankDetails.ifscCode;
+        if (bankDetails.bankName !== undefined) user.bankDetails.bankName = bankDetails.bankName;
+    }
 
     user.kycStatus = 'PENDING';
 

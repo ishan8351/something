@@ -108,7 +108,7 @@ function Footer() {
                         <ul className="space-y-3 text-sm font-medium">
                             <li>
                                 <Link
-                                    to={ROUTES.HOME}
+                                    to={ROUTES.ABOUT}
                                     className="inline-block transition-all hover:translate-x-1 hover:text-white"
                                 >
                                     About Sovely
@@ -124,7 +124,7 @@ function Footer() {
                             </li>
                             <li>
                                 <Link
-                                    to="#"
+                                    to={ROUTES.NEWS_BLOG}
                                     className="inline-block transition-all hover:translate-x-1 hover:text-white"
                                 >
                                     News & Blog
@@ -132,7 +132,7 @@ function Footer() {
                             </li>
                             <li>
                                 <Link
-                                    to="#"
+                                    to={ROUTES.HELP_CENTER}
                                     className="inline-block transition-all hover:translate-x-1 hover:text-white"
                                 >
                                     Help Center
@@ -156,7 +156,7 @@ function Footer() {
                             </li>
                             <li>
                                 <Link
-                                    to="#"
+                                    to={ROUTES.MOBILE_APP}
                                     className="inline-block transition-all hover:translate-x-1 hover:text-white"
                                 >
                                     Mobile App
@@ -164,7 +164,7 @@ function Footer() {
                             </li>
                             <li>
                                 <Link
-                                    to="#"
+                                    to={ROUTES.SHIPPING}
                                     className="inline-block transition-all hover:translate-x-1 hover:text-white"
                                 >
                                     Shipping
@@ -172,7 +172,7 @@ function Footer() {
                             </li>
                             <li>
                                 <Link
-                                    to="#"
+                                    to={ROUTES.SHIPPING}
                                     className="inline-block transition-all hover:translate-x-1 hover:text-white"
                                 >
                                     Order Pickup
@@ -188,7 +188,7 @@ function Footer() {
                         <ul className="space-y-3 text-sm font-medium">
                             <li>
                                 <Link
-                                    to="#"
+                                    to={ROUTES.HELP_CENTER}
                                     className="inline-block transition-all hover:translate-x-1 hover:text-white"
                                 >
                                     Sovely Help
@@ -196,7 +196,7 @@ function Footer() {
                             </li>
                             <li>
                                 <Link
-                                    to="#"
+                                    to={ROUTES.RETURNS}
                                     className="inline-block transition-all hover:translate-x-1 hover:text-white"
                                 >
                                     Returns
@@ -212,7 +212,7 @@ function Footer() {
                             </li>
                             <li>
                                 <Link
-                                    to="#"
+                                    to={ROUTES.CONTACT_US}
                                     className="inline-block transition-all hover:translate-x-1 hover:text-white"
                                 >
                                     Contact Us
@@ -225,7 +225,7 @@ function Footer() {
                 {/* Seller Section */}
                 <div className="grid grid-cols-1 gap-4 border-t border-slate-900 pt-10 pb-10 md:grid-cols-3">
                     <Link
-                        to="#"
+                        to={ROUTES.BECOME_SELLER}
                         className="hover:border-accent group flex items-center gap-4 rounded-2xl border border-slate-800 bg-slate-900/50 p-4 transition-all hover:bg-slate-900"
                     >
                         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-800 text-xl transition-transform group-hover:scale-110">
@@ -241,7 +241,7 @@ function Footer() {
                         </div>
                     </Link>
                     <Link
-                        to="#"
+                        to={ROUTES.GIFT_CARDS}
                         className="hover:border-accent group flex items-center gap-4 rounded-2xl border border-slate-800 bg-slate-900/50 p-4 transition-all hover:bg-slate-900"
                     >
                         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-800 text-xl transition-transform group-hover:scale-110">
@@ -255,7 +255,7 @@ function Footer() {
                         </div>
                     </Link>
                     <Link
-                        to="#"
+                        to={ROUTES.HELP_CENTER}
                         className="hover:border-accent group flex items-center gap-4 rounded-2xl border border-slate-800 bg-slate-900/50 p-4 transition-all hover:bg-slate-900"
                     >
                         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-800 text-xl transition-transform group-hover:scale-110">

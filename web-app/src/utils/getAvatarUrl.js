@@ -1,3 +1,5 @@
+import { API_BASE_URL } from './apiBaseUrl.js';
+
 export const getAvatarUrl = (avatarPath) => {
     if (!avatarPath) return null;
 
@@ -10,8 +12,7 @@ export const getAvatarUrl = (avatarPath) => {
         return avatarPath;
     }
 
-    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
-    const serverBase = apiBase.replace(/\/api\/v1\/?$/, '');
+    const serverBase = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
 
     // 1. Convert Windows backslashes to forward slashes
     let cleanPath = avatarPath.replace(/\\/g, '/');
@@ -29,5 +30,15 @@ export const getAvatarUrl = (avatarPath) => {
         cleanPath = `/avatars${cleanPath}`;
     }
 
-    return `${serverBase}${cleanPath}`;
+    // If serverBase is empty (because API_BASE_URL is relative like '/api/v1/'),
+    // and cleanPath starts with '/', just return cleanPath to use the current origin (and Vite proxy).
+    if (!serverBase && cleanPath.startsWith('/')) {
+        return cleanPath;
+    }
+
+    // Avoid double slashes
+    const separator = serverBase.endsWith('/') && cleanPath.startsWith('/') ? '' : '';
+    const cleanServerBase = serverBase.endsWith('/') ? serverBase.slice(0, -1) : serverBase;
+    
+    return `${cleanServerBase}${cleanPath}`;
 };

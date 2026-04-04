@@ -11,8 +11,11 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { createInvoiceFromOrder } from './invoice.controller.js';
 
 export const createOrder = asyncHandler(async (req, res) => {
-    const idempotencyKey = req.headers['x-idempotency-key'];
-    if (!idempotencyKey) throw new ApiError(400, 'Idempotency key is missing.');
+    const rawIdempotencyKey = req.headers['x-idempotency-key'];
+    if (!rawIdempotencyKey) throw new ApiError(400, 'Idempotency key is missing.');
+
+    // Prefix with user ID to prevent cross-user data leakage
+    const idempotencyKey = `${req.user._id}:${rawIdempotencyKey}`;
 
     const existingTransaction = await IdempotencyRecord.findOne({ key: idempotencyKey });
     if (existingTransaction) return res.status(200).json(existingTransaction.response);

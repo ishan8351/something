@@ -252,7 +252,7 @@ const Orders = () => {
                     </div>
 
                     <div
-                        className={`flex min-w-[220px] shrink-0 items-center gap-4 rounded-2xl border p-5 shadow-sm transition-all ${ndrCount > 0 ? 'animate-[pulse_3s_ease-in-out_infinite] border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50' : 'border-slate-200 bg-white'}`}
+                        className={`flex min-w-[220px] shrink-0 items-center gap-4 rounded-2xl border p-5 shadow-sm transition-all ${ndrCount > 0 ? 'border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50' : 'border-slate-200 bg-white'}`}
                     >
                         <div
                             className={`flex h-12 w-12 items-center justify-center rounded-xl shadow-sm ${ndrCount > 0 ? 'bg-amber-500 text-white shadow-amber-500/20' : 'bg-slate-100 text-slate-400'}`}

@@ -411,10 +411,7 @@ export const resetPassword = asyncHandler(async (req, res) => {
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) throw new ApiError(404, 'User not found');
 
-    // Assuming User model has a mechanism for password hashing (either via pre-save or explicit hash)
-    // The current passwordHash is updated.
-    const salt = await import('bcrypt').then((b) => b.default.genSalt(10));
-    user.passwordHash = await import('bcrypt').then((b) => b.default.hash(newPassword, salt));
+    user.passwordHash = newPassword;
     
     await user.save({ validateBeforeSave: false });
 

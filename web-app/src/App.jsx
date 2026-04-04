@@ -31,6 +31,16 @@ const Careers = lazy(() => import('./components/Careers'));
 const Services = lazy(() => import('./components/Services'));
 const KycSubmit = lazy(() => import('./components/KycSubmit'));
 
+const AboutUs = lazy(() => import('./components/AboutUs'));
+const NewsBlog = lazy(() => import('./components/NewsBlog'));
+const HelpCenter = lazy(() => import('./components/HelpCenter'));
+const MobileApp = lazy(() => import('./components/MobileApp'));
+const Shipping = lazy(() => import('./components/Shipping'));
+const Returns = lazy(() => import('./components/Returns'));
+const ContactUs = lazy(() => import('./components/ContactUs'));
+const BecomeSeller = lazy(() => import('./components/BecomeSeller'));
+const GiftCards = lazy(() => import('./components/GiftCards'));
+
 const NotFound = () => (
     <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
         <h1 className="text-6xl font-black text-slate-200">404</h1>
@@ -90,10 +100,19 @@ function App() {
                     {}
                     <Route element={<PublicLayout />}>
                         <Route path={ROUTES.HOME} element={<HomeRouter />} />
+                        <Route path={ROUTES.ABOUT} element={<AboutUs />} />
                         <Route path="/terms" element={<Terms />} />
                         <Route path={ROUTES.PRIVACY} element={<PrivacyPolicy />} />
                         <Route path={ROUTES.CAREERS} element={<Careers />} />
                         <Route path={ROUTES.SERVICES} element={<Services />} />
+                        <Route path={ROUTES.NEWS_BLOG} element={<NewsBlog />} />
+                        <Route path={ROUTES.HELP_CENTER} element={<HelpCenter />} />
+                        <Route path={ROUTES.MOBILE_APP} element={<MobileApp />} />
+                        <Route path={ROUTES.SHIPPING} element={<Shipping />} />
+                        <Route path={ROUTES.RETURNS} element={<Returns />} />
+                        <Route path={ROUTES.CONTACT_US} element={<ContactUs />} />
+                        <Route path={ROUTES.BECOME_SELLER} element={<BecomeSeller />} />
+                        <Route path={ROUTES.GIFT_CARDS} element={<GiftCards />} />
                     </Route>
 
                     {}
