@@ -419,8 +419,14 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
                 refundAmount = order.totalPlatformCost;
                 description = `Full refund for cancelled order ${order.orderId}`;
             } else if (status === 'RTO') {
-                refundAmount = order.subTotal + order.taxTotal + order.codCharge;
-                description = `RTO Refund (Principal + Tax + COD Fee) for order ${order.orderId}. Freight forfeited.`;
+                // RTO: Refund product value only (manual status update)
+                // Deduct: courier charge (both ways) + packing charge + tax
+                const rtoDeductions =
+                    (order.shippingTotal * 2) +
+                    (order.packingCharge || 0) +
+                    (order.taxTotal || 0);
+                refundAmount = Math.max(0, order.totalPlatformCost - rtoDeductions);
+                description = `RTO Refund for ${order.orderId}. Deducted: Courier×2 (₹${order.shippingTotal * 2}) + Packing (₹${order.packingCharge || 0}) + Tax (₹${order.taxTotal || 0}). Refunded: ₹${refundAmount}.`;
             }
 
             if (refundAmount > 0) {
