@@ -67,15 +67,22 @@ export const handleLogisticsWebhook = asyncHandler(async (req, res) => {
         session.startTransaction();
 
         try {
-            let refundAmount =
-                newInternalStatus === 'CANCELLED'
-                    ? order.totalPlatformCost
-                    : order.subTotal + order.taxTotal + order.codCharge;
+            let refundAmount;
+            let description;
 
-            const description =
-                newInternalStatus === 'CANCELLED'
-                    ? `Full refund for cancelled order ${order.orderId} via Webhook`
-                    : `RTO Refund (Principal + Tax + COD) for ${order.orderId}. Freight forfeited.`;
+            if (newInternalStatus === 'CANCELLED') {
+                refundAmount = order.totalPlatformCost;
+                description = `Full refund for cancelled order ${order.orderId} via Webhook`;
+            } else {
+                // RTO: Refund product value only.
+                // Deduct: courier charge (both ways) + packing charge + tax
+                const rtoDeductions =
+                    (order.shippingTotal * 2) +
+                    (order.packingCharge || 0) +
+                    (order.taxTotal || 0);
+                refundAmount = Math.max(0, order.totalPlatformCost - rtoDeductions);
+                description = `RTO Refund for ${order.orderId}. Deducted: Courier×2 (₹${order.shippingTotal * 2}) + Packing (₹${order.packingCharge || 0}) + Tax (₹${order.taxTotal || 0}). Refunded: ₹${refundAmount}.`;
+            }
 
             if (refundAmount > 0) {
                 const updatedReseller = await User.findByIdAndUpdate(
