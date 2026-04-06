@@ -20,6 +20,7 @@ import {
     Shield,
     Clock,
     LogOut,
+    Landmark,
 } from 'lucide-react';
 
 const sidebarVariants = {
@@ -268,6 +269,19 @@ function Sidebar({ isOpen, onClose }) {
                                                 className="text-slate-400 group-hover:text-slate-700"
                                             />{' '}
                                             Wallet & Credit
+                                        </Link>
+                                    </li>
+                                    <li>
+                                        <Link
+                                            to="/remittances"
+                                            onClick={onClose}
+                                            className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
+                                        >
+                                            <Landmark
+                                                size={18}
+                                                className="text-slate-400 group-hover:text-slate-700"
+                                            />{' '}
+                                            Remittance
                                         </Link>
                                     </li>
 

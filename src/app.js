@@ -22,9 +22,11 @@ import webhookRouter from './routes/webhook.routes.js';
 const app = express();
 app.set('trust proxy', 1);
 
-app.use(helmet({
-    crossOriginResourcePolicy: false,
-}));
+app.use(
+    helmet({
+        crossOriginResourcePolicy: false,
+    })
+);
 
 const allowedOrigins = [
     process.env.CORS_ORIGIN,

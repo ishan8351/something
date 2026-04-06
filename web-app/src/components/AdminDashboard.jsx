@@ -9,6 +9,7 @@ import {
     Upload,
     FileText,
     ShieldCheck,
+    Landmark,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Navbar from './Navbar';
@@ -20,6 +21,7 @@ import AdminOrders from './admin/AdminOrders';
 import AdminProducts from './admin/AdminProducts';
 import AdminUsers from './admin/AdminUsers';
 import AdminInvoices from './admin/AdminInvoices';
+import AdminRemittances from './admin/AdminRemittances';
 
 const ADMIN_TABS = [
     { id: 'overview', icon: TrendingUp, label: 'Overview' },
@@ -27,6 +29,7 @@ const ADMIN_TABS = [
     { id: 'products', icon: Package, label: 'Products' },
     { id: 'users', icon: ShieldCheck, label: 'Users & Resellers' },
     { id: 'invoices', icon: FileText, label: 'Invoices' },
+    { id: 'remittances', icon: Landmark, label: 'Remittances' },
     { id: 'bulk-upload', icon: Upload, label: 'Mass Import (CSV)' },
 ];
 
@@ -57,6 +60,8 @@ const AdminDashboard = () => {
                 return <AdminUsers />;
             case 'invoices':
                 return <AdminInvoices />;
+            case 'remittances':
+                return <AdminRemittances />;
             default:
                 return <AdminOrders />;
         }

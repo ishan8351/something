@@ -19,6 +19,7 @@ const CreateProductModal = ({ isOpen, onClose, onSuccess }) => {
         status: 'active',
         descriptionHTML: '',
         categoryId: '60d5ecb54ab24c001f3e3a4b', // Provide a valid ID if needed, or let the user select
+        countryOfOrigin: 'India',
     });
 
     const [tiers, setTiers] = useState([]);
@@ -327,6 +328,19 @@ const CreateProductModal = ({ isOpen, onClose, onSuccess }) => {
                                     onChange={handleChange}
                                     className="w-full rounded-xl border border-slate-200 p-3 text-sm font-medium outline-none"
                                     placeholder="e.g. 500"
+                                />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="mb-1 block text-xs font-bold text-slate-500 uppercase">
+                                    Country of Origin
+                                </label>
+                                <input
+                                    type="text"
+                                    name="countryOfOrigin"
+                                    value={formData.countryOfOrigin}
+                                    onChange={handleChange}
+                                    className="w-full rounded-xl border border-slate-200 p-3 text-sm font-medium outline-none"
+                                    placeholder="e.g. India"
                                 />
                             </div>
                         </div>

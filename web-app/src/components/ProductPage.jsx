@@ -16,6 +16,7 @@ import {
     Ruler,
     Scale,
     Building2,
+    Globe,
     ArrowLeft,
     Calculator,
     Receipt,
@@ -262,6 +263,14 @@ const ProductPage = () => {
                                         {product.dimensions.length}x{product.dimensions.width}x
                                         {product.dimensions.height} cm
                                     </span>
+                                </div>
+                            )}
+                            {product.specifications?.countryOfOrigin && (
+                                <div className="flex justify-between py-3">
+                                    <span className="flex items-center gap-2 font-medium text-slate-500">
+                                        <Globe size={16} /> Origin
+                                    </span>
+                                    <span className="font-bold text-slate-900">{product.specifications.countryOfOrigin}</span>
                                 </div>
                             )}
                             <div className="flex justify-between py-3">

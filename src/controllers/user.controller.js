@@ -21,7 +21,9 @@ const parseExpiryToMs = (value, fallbackMs) => {
     if (!value) return fallbackMs;
     if (/^\d+$/.test(value)) return Number(value) * 1000;
 
-    const match = String(value).trim().match(/^(\d+)\s*([smhd])$/i);
+    const match = String(value)
+        .trim()
+        .match(/^(\d+)\s*([smhd])$/i);
     if (!match) return fallbackMs;
 
     const qty = Number(match[1]);
@@ -316,10 +318,14 @@ export const updateMyProfile = asyncHandler(async (req, res) => {
     if (companyName !== undefined) updateData.companyName = companyName.trim();
     if (gstin !== undefined) updateData.gstin = gstin.trim().toUpperCase();
     if (billingAddress) {
-        if (billingAddress.street !== undefined) updateData['billingAddress.street'] = billingAddress.street?.trim() || '';
-        if (billingAddress.city !== undefined) updateData['billingAddress.city'] = billingAddress.city?.trim() || '';
-        if (billingAddress.state !== undefined) updateData['billingAddress.state'] = billingAddress.state?.trim() || '';
-        if (billingAddress.zip !== undefined) updateData['billingAddress.zip'] = billingAddress.zip?.trim() || '';
+        if (billingAddress.street !== undefined)
+            updateData['billingAddress.street'] = billingAddress.street?.trim() || '';
+        if (billingAddress.city !== undefined)
+            updateData['billingAddress.city'] = billingAddress.city?.trim() || '';
+        if (billingAddress.state !== undefined)
+            updateData['billingAddress.state'] = billingAddress.state?.trim() || '';
+        if (billingAddress.zip !== undefined)
+            updateData['billingAddress.zip'] = billingAddress.zip?.trim() || '';
     }
 
     if (emailNotifications !== undefined) updateData.emailNotifications = emailNotifications;
@@ -397,8 +403,10 @@ export const updateKycDetails = asyncHandler(async (req, res) => {
     }
     if (bankDetails) {
         if (!user.bankDetails) user.bankDetails = {};
-        if (bankDetails.accountName !== undefined) user.bankDetails.accountName = bankDetails.accountName;
-        if (bankDetails.accountNumber !== undefined) user.bankDetails.accountNumber = bankDetails.accountNumber;
+        if (bankDetails.accountName !== undefined)
+            user.bankDetails.accountName = bankDetails.accountName;
+        if (bankDetails.accountNumber !== undefined)
+            user.bankDetails.accountNumber = bankDetails.accountNumber;
         if (bankDetails.ifscCode !== undefined) user.bankDetails.ifscCode = bankDetails.ifscCode;
         if (bankDetails.bankName !== undefined) user.bankDetails.bankName = bankDetails.bankName;
     }

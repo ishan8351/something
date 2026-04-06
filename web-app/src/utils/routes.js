@@ -28,4 +28,5 @@ export const ROUTES = {
     BECOME_SELLER: '/become-seller',
     GIFT_CARDS: '/gift-cards',
     CATEGORY: (name) => `/category/${name}`,
+    REMITTANCES: '/remittances',
 };

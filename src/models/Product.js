@@ -75,6 +75,10 @@ const productSchema = new mongoose.Schema(
         moq: { type: Number, default: 1 },
         inventory: inventorySchema,
 
+        specifications: {
+            countryOfOrigin: { type: String, default: 'India', trim: true },
+        },
+
         averageRating: { type: Number, default: 0, min: 0, max: 5 },
         reviewCount: { type: Number, default: 0 },
     },

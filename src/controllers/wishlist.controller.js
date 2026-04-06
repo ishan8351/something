@@ -49,7 +49,10 @@ export const toggleWishlistItem = asyncHandler(async (req, res) => {
     }
 
     await wishlist.save();
-    await wishlist.populate('items.productId', 'title images dropshipBasePrice suggestedRetailPrice sku');
+    await wishlist.populate(
+        'items.productId',
+        'title images dropshipBasePrice suggestedRetailPrice sku'
+    );
 
     return res
         .status(200)

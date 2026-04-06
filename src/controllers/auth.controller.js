@@ -21,7 +21,9 @@ const parseExpiryToMs = (value, fallbackMs) => {
         return Number(value) * 1000;
     }
 
-    const match = String(value).trim().match(/^(\d+)\s*([smhd])$/i);
+    const match = String(value)
+        .trim()
+        .match(/^(\d+)\s*([smhd])$/i);
     if (!match) return fallbackMs;
 
     const qty = Number(match[1]);
@@ -198,7 +200,10 @@ export const loginWithOtp = asyncHandler(async (req, res) => {
 
 export const registerUser = asyncHandler(async (req, res) => {
     const createdUser = await AuthService.registerUser(req.body);
-    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(createdUser._id, req);
+    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
+        createdUser._id,
+        req
+    );
 
     return res
         .status(201)
@@ -412,7 +417,7 @@ export const resetPassword = asyncHandler(async (req, res) => {
     if (!user) throw new ApiError(404, 'User not found');
 
     user.passwordHash = newPassword;
-    
+
     await user.save({ validateBeforeSave: false });
 
     return res.status(200).json(new ApiResponse(200, null, 'Password reset successfully'));

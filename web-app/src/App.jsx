@@ -24,6 +24,7 @@ const Orders = lazy(() => import('./components/Orders'));
 const OrderTracking = lazy(() => import('./components/OrderTracking'));
 const Wallet = lazy(() => import('./components/Wallet'));
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
+const Remittances = lazy(() => import('./components/Remittances'));
 const SearchResults = lazy(() => import('./components/SearchResults'));
 const Terms = lazy(() => import('./components/Terms'));
 const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy'));
@@ -144,6 +145,7 @@ function App() {
                                 <Route path={ROUTES.INVOICES} element={<Invoices />} />
                                 <Route path={ROUTES.QUICK_ORDER} element={<QuickOrder />} />
                                 <Route path={ROUTES.WALLET} element={<Wallet />} />
+                                <Route path={ROUTES.REMITTANCES} element={<Remittances />} />
                             </Route>
                         </Route>
                     </Route>

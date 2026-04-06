@@ -19,6 +19,7 @@ import {
     XCircle,
     Clock,
     MapPin,
+    Landmark,
 } from 'lucide-react';
 import { AuthContext } from '../AuthContext';
 import LoadingScreen from './LoadingScreen';
@@ -281,6 +282,23 @@ const MyAccount = () => {
                                     <p className="font-bold text-slate-900">Tax & Invoices</p>
                                     <p className="text-xs font-medium text-slate-500">
                                         Download GST records
+                                    </p>
+                                </div>
+                            </div>
+                        </Link>
+
+                        <Link
+                            to="/remittances"
+                            className="group flex w-full items-center justify-between rounded-2xl border-2 border-slate-100 bg-white p-4 transition-all hover:-translate-y-1 hover:border-red-500 hover:shadow-lg"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="rounded-lg bg-red-100 p-2 text-red-600 transition-colors group-hover:bg-red-500 group-hover:text-white">
+                                    <Landmark size={20} />
+                                </div>
+                                <div className="text-left">
+                                    <p className="font-bold text-slate-900">Withdrawals</p>
+                                    <p className="text-xs font-medium text-slate-500">
+                                        Track & request remittances
                                     </p>
                                 </div>
                             </div>

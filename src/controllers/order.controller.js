@@ -170,7 +170,8 @@ export const createOrder = asyncHandler(async (req, res) => {
 
             if (paymentMethod === 'COD') {
                 amountToCollect = totalCustomerPayment;
-                resellerPayoutOnDelivery = dsSubTotal + dsTaxTotal + dsShippingTotal + resellerProfitMargin;
+                resellerPayoutOnDelivery =
+                    dsSubTotal + dsTaxTotal + dsShippingTotal + resellerProfitMargin;
             }
 
             if (resellerProfitMargin < 0) {
@@ -422,9 +423,7 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
                 // RTO: Refund product value only (manual status update)
                 // Deduct: courier charge (both ways) + packing charge + tax
                 const rtoDeductions =
-                    (order.shippingTotal * 2) +
-                    (order.packingCharge || 0) +
-                    (order.taxTotal || 0);
+                    order.shippingTotal * 2 + (order.packingCharge || 0) + (order.taxTotal || 0);
                 refundAmount = Math.max(0, order.totalPlatformCost - rtoDeductions);
                 description = `RTO Refund for ${order.orderId}. Deducted: Courier×2 (₹${order.shippingTotal * 2}) + Packing (₹${order.packingCharge || 0}) + Tax (₹${order.taxTotal || 0}). Refunded: ₹${refundAmount}.`;
             }
@@ -508,7 +507,10 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
                     { session }
                 );
 
-                order.statusHistory.push({ status: 'DELIVERED', comment: statusComment['DELIVERED'] });
+                order.statusHistory.push({
+                    status: 'DELIVERED',
+                    comment: statusComment['DELIVERED'],
+                });
                 order.statusHistory.push({
                     status: 'PROFIT_CREDITED',
                     comment: `₹${order.payoutOnDelivery} (Principal + Profit) credited to wallet`,
@@ -531,7 +533,10 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
         }
     }
 
-    if (!['CANCELLED', 'RTO', 'DELIVERED'].includes(status) || (status === 'DELIVERED' && order.paymentMethod !== 'COD')) {
+    if (
+        !['CANCELLED', 'RTO', 'DELIVERED'].includes(status) ||
+        (status === 'DELIVERED' && order.paymentMethod !== 'COD')
+    ) {
         order.statusHistory.push({
             status,
             comment: statusComment[status] || `Status updated to ${status}`,
@@ -744,7 +749,8 @@ export const createBulkDropshipOrders = asyncHandler(async (req, res) => {
 
             if (inputOrder.paymentMethod === 'COD') {
                 amountToCollect = totalCustomerPayment;
-                payoutOnDelivery = subTotal + taxTotal + freight.totalShippingCost + resellerProfitMargin;
+                payoutOnDelivery =
+                    subTotal + taxTotal + freight.totalShippingCost + resellerProfitMargin;
             }
 
             if (resellerProfitMargin < 0) {
@@ -852,7 +858,10 @@ export const createBulkDropshipOrders = asyncHandler(async (req, res) => {
                 { session, returnDocument: 'after' }
             );
             if (!updatedProduct) {
-                throw new ApiError(400, `Insufficient stock for product ID: ${inputOrder.productId}`);
+                throw new ApiError(
+                    400,
+                    `Insufficient stock for product ID: ${inputOrder.productId}`
+                );
             }
         }
 
@@ -937,10 +946,21 @@ export const exportAdminOrdersToCsv = asyncHandler(async (req, res) => {
 
         const company = reseller.companyName || '';
         const phone = (isDropship ? order.endCustomerDetails?.phone : reseller.phoneNumber) || '';
-        const shippingAddress1 = (isDropship ? order.endCustomerDetails?.address?.street : reseller.billingAddress?.street) || '';
-        const city = (isDropship ? order.endCustomerDetails?.address?.city : reseller.billingAddress?.city) || '';
-        const state = (isDropship ? order.endCustomerDetails?.address?.state : reseller.billingAddress?.state) || '';
-        const pincode = (isDropship ? order.endCustomerDetails?.address?.zip : reseller.billingAddress?.zip) || '';
+        const shippingAddress1 =
+            (isDropship
+                ? order.endCustomerDetails?.address?.street
+                : reseller.billingAddress?.street) || '';
+        const city =
+            (isDropship
+                ? order.endCustomerDetails?.address?.city
+                : reseller.billingAddress?.city) || '';
+        const state =
+            (isDropship
+                ? order.endCustomerDetails?.address?.state
+                : reseller.billingAddress?.state) || '';
+        const pincode =
+            (isDropship ? order.endCustomerDetails?.address?.zip : reseller.billingAddress?.zip) ||
+            '';
 
         order.items.forEach((item) => {
             const row = [
@@ -963,9 +983,8 @@ export const exportAdminOrdersToCsv = asyncHandler(async (req, res) => {
     });
 
     res.setHeader('Content-Type', 'text/csv');
-    const filename = (startDate && endDate)
-        ? `orders_export_${startDate}_to_${endDate}.csv`
-        : 'orders_export.csv';
+    const filename =
+        startDate && endDate ? `orders_export_${startDate}_to_${endDate}.csv` : 'orders_export.csv';
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     return res.status(200).send(csvContent);
 });
@@ -999,7 +1018,7 @@ export const exportCourierOrdersToCsv = asyncHandler(async (req, res) => {
         'SKU',
         'Quantity',
         'Payment Method',
-        'Selling Price'
+        'Selling Price',
     ];
 
     const escapeCsv = (val) => {
@@ -1015,7 +1034,7 @@ export const exportCourierOrdersToCsv = asyncHandler(async (req, res) => {
 
     orders.forEach((order) => {
         const isDropship = !!order.endCustomerDetails?.name;
-        
+
         let firstName = '';
         let lastName = '';
         let company = '';
@@ -1062,7 +1081,7 @@ export const exportCourierOrdersToCsv = asyncHandler(async (req, res) => {
                 item.sku,
                 item.qty,
                 order.paymentMethod,
-                item.resellerSellingPrice || item.platformBasePrice
+                item.resellerSellingPrice || item.platformBasePrice,
             ];
 
             csvContent += row.map(escapeCsv).join(',') + '\n';

@@ -77,9 +77,7 @@ export const handleLogisticsWebhook = asyncHandler(async (req, res) => {
                 // RTO: Refund product value only.
                 // Deduct: courier charge (both ways) + packing charge + tax
                 const rtoDeductions =
-                    (order.shippingTotal * 2) +
-                    (order.packingCharge || 0) +
-                    (order.taxTotal || 0);
+                    order.shippingTotal * 2 + (order.packingCharge || 0) + (order.taxTotal || 0);
                 refundAmount = Math.max(0, order.totalPlatformCost - rtoDeductions);
                 description = `RTO Refund for ${order.orderId}. Deducted: Courier×2 (₹${order.shippingTotal * 2}) + Packing (₹${order.packingCharge || 0}) + Tax (₹${order.taxTotal || 0}). Refunded: ₹${refundAmount}.`;
             }
@@ -244,7 +242,10 @@ export const razorpayWebhook = async (req, res) => {
                         gatewayPaymentId: razorpayPaymentId,
                         amount: invoice.grandTotal,
                         paymentMethod: 'UNKNOWN',
-                        purpose: invoice.invoiceType === 'WALLET_TOPUP' ? 'WALLET_RECHARGE' : 'DIRECT_ORDER_PAYMENT',
+                        purpose:
+                            invoice.invoiceType === 'WALLET_TOPUP'
+                                ? 'WALLET_RECHARGE'
+                                : 'DIRECT_ORDER_PAYMENT',
                         status: 'CAPTURED',
                     },
                 ],

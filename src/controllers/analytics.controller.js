@@ -137,18 +137,18 @@ export const getDashboardAnalytics = asyncHandler(async (req, res) => {
     const totalCustomers = await User.countDocuments({
         role: 'RESELLER',
         deletedAt: null,
-        createdAt: { $gte: startDate }
+        createdAt: { $gte: startDate },
     });
     const processingOrders = await Order.countDocuments({
         status: 'PROCESSING',
-        createdAt: { $gte: startDate }
+        createdAt: { $gte: startDate },
     });
     const pendingKycCount = await User.countDocuments({
         role: 'RESELLER',
         kycStatus: 'PENDING',
         isActive: true,
         deletedAt: null,
-        createdAt: { $gte: startDate }
+        createdAt: { $gte: startDate },
     });
 
     return res.status(200).json(
@@ -221,18 +221,29 @@ export const getResellerAnalytics = asyncHandler(async (req, res) => {
                             {
                                 $and: [
                                     // FIX: Include PENDING and NDR to match frontend logic
-                                    { $in: ['$status', ['PENDING', 'PROCESSING', 'SHIPPED', 'NDR', 'DELIVERED']] },
+                                    {
+                                        $in: [
+                                            '$status',
+                                            [
+                                                'PENDING',
+                                                'PROCESSING',
+                                                'SHIPPED',
+                                                'NDR',
+                                                'DELIVERED',
+                                            ],
+                                        ],
+                                    },
                                     // FIX: Only count margins for COD orders (Prepaid are collected directly by reseller)
-                                    { $eq: ['$paymentMethod', 'COD'] }
-                                ]
+                                    { $eq: ['$paymentMethod', 'COD'] },
+                                ],
                             },
                             {
                                 // FIX: Calculate dynamic margin fallback for older glitched orders where DB saved 0
                                 $cond: [
                                     { $gt: ['$resellerProfitMargin', 0] },
                                     '$resellerProfitMargin',
-                                    { $subtract: ['$amountToCollect', '$totalPlatformCost'] }
-                                ]
+                                    { $subtract: ['$amountToCollect', '$totalPlatformCost'] },
+                                ],
                             },
                             0,
                         ],

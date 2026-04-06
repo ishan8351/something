@@ -358,7 +358,8 @@ export const updateCartItem = asyncHandler(async (req, res) => {
         cart.items[itemIndex].qty = parsedQty;
     }
     if (resellerSellingPrice !== undefined && cart.items[itemIndex].orderType === 'DROPSHIP') {
-        cart.items[itemIndex].resellerSellingPrice = parseDropshipSellingPrice(resellerSellingPrice);
+        cart.items[itemIndex].resellerSellingPrice =
+            parseDropshipSellingPrice(resellerSellingPrice);
     }
 
     cart = await recalculateCart(cart);

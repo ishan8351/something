@@ -23,13 +23,14 @@ export const createProduct = asyncHandler(async (req, res) => {
         moq,
         status,
         tags,
+        countryOfOrigin,
     } = req.body;
 
     if (req.files && Array.isArray(req.files) && req.files.length > 0) {
         images = req.files.map((file, index) => ({
             url: `${req.protocol}://${req.get('host')}/temp/${file.filename}`,
             position: index + 1,
-            altText: title
+            altText: title,
         }));
     }
 
@@ -68,6 +69,7 @@ export const createProduct = asyncHandler(async (req, res) => {
         moq,
         status,
         tags,
+        specifications: countryOfOrigin ? { countryOfOrigin } : undefined,
     });
 
     return res.status(201).json(new ApiResponse(201, product, 'B2B Product created successfully'));
@@ -264,6 +266,12 @@ export const updateProduct = asyncHandler(async (req, res) => {
     if (req.body.inventory && typeof req.body.inventory === 'object') {
         Object.assign(product.inventory, req.body.inventory);
         delete req.body.inventory;
+    }
+
+    if (req.body.countryOfOrigin !== undefined) {
+        if (!product.specifications) product.specifications = {};
+        product.specifications.countryOfOrigin = req.body.countryOfOrigin;
+        delete req.body.countryOfOrigin;
     }
 
     Object.assign(product, req.body);
