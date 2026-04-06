@@ -48,7 +48,7 @@ export default function ProductFilterSidebar({
 
     return (
         <aside
-            className={`no-scrollbar fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto bg-white p-6 shadow-2xl transition-transform duration-300 lg:sticky lg:top-24 lg:z-0 lg:h-[calc(100vh-theme(spacing.24)-2rem)] lg:w-64 lg:translate-x-0 lg:rounded-xl lg:border lg:border-slate-200 lg:p-5 lg:shadow-sm ${isMobileFilterOpen ? 'translate-x-0' : '-translate-x-full'}`}
+            className={`no-scrollbar overscroll-none fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto bg-white p-6 shadow-2xl transition-transform duration-300 lg:sticky lg:inset-auto lg:top-24 lg:z-0 lg:h-auto lg:max-h-[calc(100vh-theme(spacing.24)-2rem)] lg:w-64 lg:translate-x-0 lg:rounded-xl lg:border lg:border-slate-200 lg:p-5 lg:shadow-sm ${isMobileFilterOpen ? 'translate-x-0' : '-translate-x-full'}`}
         >
             <div className="mb-5 flex items-center justify-between border-b border-slate-100 pb-4">
                 <h3 className="text-sm font-bold text-slate-900">Filters</h3>
@@ -74,7 +74,7 @@ export default function ProductFilterSidebar({
                     <h4 className="flex items-center gap-2 text-xs font-semibold text-slate-700">
                         <Box size={14} /> Category
                     </h4>
-                    <div className="no-scrollbar max-h-48 space-y-0.5 overflow-y-auto pr-2">
+                    <div className="max-h-48 space-y-0.5 overflow-y-auto overflow-x-hidden overscroll-none pr-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-slate-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300">
                         {[{ _id: 'All', name: 'All Categories' }, ...dbCategories].map((cat) => (
                             <label
                                 key={cat._id || cat.name}
@@ -131,29 +131,7 @@ export default function ProductFilterSidebar({
                     </div>
                 </div>
 
-                {}
-                <div className="space-y-3 border-t border-slate-100 pt-5">
-                    <h4 className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-                        <Truck size={14} /> Dispatch Target
-                    </h4>
-                    <div className="flex flex-col gap-2">
-                        {[
-                            { val: '1', label: 'Under 24 Hours' },
-                            { val: '3', label: 'Under 3 Days' },
-                            { val: '7', label: 'Under 7 Days' },
-                        ].map((time) => (
-                            <button
-                                key={time.val}
-                                onClick={() =>
-                                    setMaxDispatchDays(maxDispatchDays === time.val ? '' : time.val)
-                                }
-                                className={`rounded-lg border px-3 py-2 text-left text-sm transition-all ${maxDispatchDays === time.val ? 'border-slate-900 bg-slate-900 font-bold text-white' : 'border-slate-200 bg-white font-medium text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}
-                            >
-                                {time.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+
 
                 {/* Verified Supplier */}
                 <div className="border-t border-slate-100 pt-5">
@@ -206,7 +184,7 @@ export default function ProductFilterSidebar({
                     <h4 className="flex items-center gap-2 text-xs font-bold tracking-wider text-slate-700 uppercase">
                         Top Verified Brands
                     </h4>
-                    <div className="flex flex-col gap-1">
+                    <div className="max-h-40 flex flex-col gap-1 overflow-y-auto overflow-x-hidden pr-2 overscroll-none [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-slate-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300">
                         {['all', 'Titan', 'Syska', 'HP', 'Sovely Official'].map((v) => (
                             <button
                                 key={v}
